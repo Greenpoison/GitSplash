@@ -101,9 +101,9 @@ export function CreateAccountDialog() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New GitHub identity</DialogTitle>
-          <DialogDescription>
-            Logging in generates an SSH key and uploads it to this account automatically — no
-            copy/paste onto GitHub required.
+          <DialogDescription className="text-foreground/80">
+            Logging in generates an SSH key for you and uploads it to GitHub automatically. No
+            manual copy-pasting required.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">

@@ -57,5 +57,31 @@ pub fn open(data_dir: &Path) -> rusqlite::Result<Connection> {
         );
         ",
     )?;
+    migrate(&conn)?;
     Ok(conn)
+}
+
+/// `CREATE TABLE IF NOT EXISTS` above only applies to brand-new databases —
+/// it does nothing to a table that already exists with an older shape. This
+/// adds columns introduced after a table's first release, so upgrading
+/// GitSplash never leaves a stale local db missing a column the code expects.
+fn migrate(conn: &Connection) -> rusqlite::Result<()> {
+    add_column_if_missing(conn, "accounts", "hostname", "TEXT NOT NULL DEFAULT 'github.com'")?;
+    Ok(())
+}
+
+fn add_column_if_missing(
+    conn: &Connection,
+    table: &str,
+    column: &str,
+    definition: &str,
+) -> rusqlite::Result<()> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let existing: Vec<String> = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<rusqlite::Result<_>>()?;
+    if !existing.iter().any(|c| c == column) {
+        conn.execute(&format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"), [])?;
+    }
+    Ok(())
 }

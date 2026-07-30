@@ -84,6 +84,10 @@ pub async fn login_with_browser(app: &AppHandle, hostname: &str) -> Result<(), S
             "--git-protocol",
             "ssh",
             "--skip-ssh-key",
+            // gh's default OAuth scopes don't include this, but the
+            // ssh-key upload endpoint we call right after login requires it.
+            "--scopes",
+            "admin:public_key",
         ])
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

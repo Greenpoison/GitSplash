@@ -15,6 +15,36 @@ pub fn list_accounts(state: State<'_, AppState>) -> AppResult<Vec<Account>> {
     Ok(db::list_accounts(&conn)?)
 }
 
+/// Best-effort: generates a signing key and uploads it via gh if this
+/// account has a known github_username. Never fails the caller — a signing
+/// key is a nice-to-have, not a requirement for the account to work, and
+/// the "Generate signing key" button covers backfilling it later either way.
+async fn try_generate_signing_key(
+    hostname: &str,
+    github_username: Option<&str>,
+    host_alias: &str,
+) -> Option<String> {
+    let ssh_dir = ssh::config::ssh_dir().ok()?;
+    let key_path = ssh_dir.join(format!("id_ed25519_{}_signing", slugify(host_alias)));
+    ssh::keygen::generate_ed25519_key(&key_path, &format!("gitsplash-signing-{host_alias}"))
+        .await
+        .ok()?;
+
+    if let Some(username) = github_username {
+        let pubkey_path = ssh::keygen::public_key_path(&key_path);
+        let _ = gh::upload_ssh_key(
+            hostname,
+            username,
+            &pubkey_path,
+            &format!("GitSplash - {host_alias} (signing)"),
+            "signing",
+        )
+        .await;
+    }
+
+    Some(key_path.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 pub async fn create_account(
     state: State<'_, AppState>,
@@ -32,6 +62,8 @@ pub async fn create_account(
         .map_err(AppError::Ssh)?;
     ssh::config::upsert_host_block(&host_alias, &hostname, &key_path).map_err(AppError::Ssh)?;
 
+    // Signing keys are opt-in via the "Generate signing key" button, not
+    // generated automatically here — see generate_signing_key.
     let account = Account {
         id: new_id(),
         name,
@@ -73,10 +105,18 @@ pub async fn create_account_via_browser(
     ssh::config::upsert_host_block(&host_alias, &hostname, &key_path).map_err(AppError::Ssh)?;
 
     let pubkey_path = ssh::keygen::public_key_path(&key_path);
-    gh::upload_ssh_key(&hostname, &username, &pubkey_path, &format!("GitSplash - {host_alias}"), "authentication")
-        .await
-        .map_err(AppError::Ssh)?;
+    if let Err(e) = gh::upload_ssh_key(&hostname, &username, &pubkey_path, &format!("GitSplash - {host_alias}"), "authentication").await {
+        // Don't leave a half-created identity behind: no account record
+        // exists yet at this point, so the key pair and config block are
+        // just debris that would block a retry with "key already exists".
+        std::fs::remove_file(&key_path).ok();
+        std::fs::remove_file(&pubkey_path).ok();
+        ssh::config::remove_host_block(&host_alias).ok();
+        return Err(AppError::Ssh(e));
+    }
 
+    // Signing keys are opt-in via the "Generate signing key" button, not
+    // generated automatically here — see generate_signing_key.
     let account = Account {
         id: new_id(),
         name,
@@ -101,30 +141,34 @@ pub async fn generate_signing_key(state: State<'_, AppState>, account_id: String
             .ok_or_else(|| AppError::NotFound(format!("account {account_id} not found")))?
     };
 
-    let ssh_dir = ssh::config::ssh_dir().map_err(AppError::Ssh)?;
-    let key_path = ssh_dir.join(format!("id_ed25519_{}_signing", slugify(&account.host_alias)));
-    ssh::keygen::generate_ed25519_key(&key_path, &format!("gitsplash-signing-{}", account.host_alias))
-        .await
-        .map_err(AppError::Ssh)?;
+    let signing_key_path = try_generate_signing_key(
+        &account.hostname,
+        account.github_username.as_deref(),
+        &account.host_alias,
+    )
+    .await
+    .ok_or_else(|| AppError::Ssh("failed to generate signing key — a key may already exist at that path".to_string()))?;
 
-    // Best-effort: if this account is gh-authenticated, upload the signing
-    // key automatically too. If not, the caller still generated the key and
-    // can hand it over via the manual public-key dialog.
-    if let Some(username) = &account.github_username {
-        let pubkey_path = ssh::keygen::public_key_path(&key_path);
-        let _ = gh::upload_ssh_key(
-            &account.hostname,
-            username,
-            &pubkey_path,
-            &format!("GitSplash - {} (signing)", account.host_alias),
-            "signing",
-        )
-        .await;
+    account.signing_key_path = Some(signing_key_path.clone());
+    let assigned_repo_paths: Vec<String> = {
+        let conn = state.db.lock().unwrap();
+        db::update_account(&conn, &account)?;
+        db::list_repos(&conn)?
+            .into_iter()
+            .filter(|r| r.account_id.as_deref() == Some(account_id.as_str()))
+            .map(|r| r.path)
+            .collect()
+    };
+
+    // Apply to every repo already assigned to this account, not just future
+    // assignments — otherwise a key generated after assignment would never
+    // actually get used for signing until the repo was reassigned.
+    for repo_path in assigned_repo_paths {
+        git::config::set_signing_config(&PathBuf::from(repo_path), &signing_key_path)
+            .await
+            .ok();
     }
 
-    account.signing_key_path = Some(key_path.to_string_lossy().to_string());
-    let conn = state.db.lock().unwrap();
-    db::update_account(&conn, &account)?;
     Ok(account)
 }
 

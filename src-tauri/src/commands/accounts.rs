@@ -182,7 +182,11 @@ pub async fn generate_signing_key(state: State<'_, AppState>, account_id: String
 
 /// Switches an account to sign with an existing local GPG key instead of
 /// its SSH signing key, applying the change to every repo already assigned
-/// to it.
+/// to it. Also best-effort uploads the public key to GitHub if the account
+/// has a known username — same nice-to-have treatment as the SSH signing
+/// key upload in try_generate_signing_key; a failed upload never blocks the
+/// signing method switch itself, since the public key can always be copied
+/// over by hand via the "GPG public key" button either way.
 #[tauri::command]
 pub async fn set_account_gpg_signing(
     state: State<'_, AppState>,
@@ -207,6 +211,18 @@ pub async fn set_account_gpg_signing(
         git::config::set_gpg_signing_config(&PathBuf::from(repo_path), &gpg_key_id)
             .await
             .ok();
+    }
+
+    if let Some(username) = &account.github_username {
+        if let Ok(armored) = crate::gpg::export_public_key(&gpg_key_id).await {
+            let _ = gh::upload_gpg_key(
+                &account.hostname,
+                username,
+                &armored,
+                &format!("GitSplash - {}", account.host_alias),
+            )
+            .await;
+        }
     }
 
     Ok(account)

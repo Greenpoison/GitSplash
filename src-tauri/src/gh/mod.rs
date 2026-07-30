@@ -184,6 +184,39 @@ pub async fn upload_ssh_key(
     Ok(())
 }
 
+/// Uploads an ASCII-armored GPG public key to the given account's GitHub
+/// "SSH and GPG keys" page — same idea as `upload_ssh_key`, just via
+/// `gh gpg-key add`, which (unlike `ssh-key add`) only takes a file path,
+/// not stdin, so the key is written to a throwaway temp file first.
+pub async fn upload_gpg_key(
+    hostname: &str,
+    username: &str,
+    armored_public_key: &str,
+    title: &str,
+) -> Result<(), String> {
+    let token = token_for_user(hostname, username).await?;
+
+    let temp_path = std::env::temp_dir().join(format!("gitsplash-gpg-{}.asc", crate::util::new_id()));
+    tokio::fs::write(&temp_path, armored_public_key)
+        .await
+        .map_err(|e| format!("failed to write temp key file: {e}"))?;
+
+    let result = Command::new("gh")
+        .args(["gpg-key", "add", &temp_path.to_string_lossy(), "--title", title])
+        .env("GH_TOKEN", token)
+        .env("GH_HOST", hostname)
+        .output()
+        .await;
+
+    let _ = tokio::fs::remove_file(&temp_path).await;
+
+    let output = result.map_err(|e| format!("failed to run gh: {e}"))?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PullRequestSummary {

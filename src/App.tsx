@@ -7,6 +7,7 @@ import { SettingsPage } from "@/components/settings/SettingsPage";
 import { CommandPalette } from "@/components/CommandPalette";
 import { ShortcutsHelpDialog } from "@/components/ShortcutsHelpDialog";
 import { UndoConfirmDialog } from "@/components/UndoConfirmDialog";
+import { CreateAccountDialog } from "@/components/settings/CreateAccountDialog";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useAppStore } from "@/store/appStore";
 
@@ -41,6 +42,7 @@ function App() {
         <CommandPalette />
         <ShortcutsHelpDialog />
         <UndoConfirmDialog />
+        <CreateAccountDialog />
       </div>
     </TooltipProvider>
   );

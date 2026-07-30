@@ -17,7 +17,6 @@ import {
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
 import type { Account } from "@/lib/types";
-import { CreateAccountDialog } from "./CreateAccountDialog";
 import { GpgKeyPickerDialog } from "./GpgKeyPickerDialog";
 import { GpgPublicKeyDialog } from "./GpgPublicKeyDialog";
 import { PublicKeyDialog } from "./PublicKeyDialog";
@@ -168,6 +167,7 @@ function AccountRow({ account }: { account: Account }) {
 
 export function AccountsPanel() {
   const accounts = useAppStore((s) => s.accounts);
+  const setCreateAccountDialogOpen = useAppStore((s) => s.setCreateAccountDialogOpen);
 
   return (
     <div className="flex flex-col gap-4">
@@ -176,7 +176,9 @@ export function AccountsPanel() {
           Each account gets its own SSH key pair and ~/.ssh/config host alias. Assigning an
           account to a repo rewrites its remote URL to use that alias.
         </p>
-        <CreateAccountDialog />
+        <Button size="sm" onClick={() => setCreateAccountDialogOpen(true)}>
+          Add account
+        </Button>
       </div>
       <div className="flex flex-col gap-2">
         {accounts.map((a) => (

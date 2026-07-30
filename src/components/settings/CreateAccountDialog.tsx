@@ -9,7 +9,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,8 +20,12 @@ import type { GhAuthProgress } from "@/lib/types";
 const DEVICE_URL_PREFIX = "Open this URL to continue in your web browser: ";
 const CODE_PREFIX = "! First copy your one-time code: ";
 
+/// Driven by the store's createAccountDialogOpen flag (no built-in trigger
+/// button) — it needs to open from more than one place (the Accounts panel
+/// and the dashboard's first-run prompt), see AddRepoDialog for the pattern.
 export function CreateAccountDialog() {
-  const [open, setOpen] = useState(false);
+  const open = useAppStore((s) => s.createAccountDialogOpen);
+  const setOpen = useAppStore((s) => s.setCreateAccountDialogOpen);
   const [manual, setManual] = useState(false);
   const [name, setName] = useState("");
   const [hostAlias, setHostAlias] = useState("");
@@ -95,9 +98,6 @@ export function CreateAccountDialog() {
         if (!o) reset();
       }}
     >
-      <DialogTrigger asChild>
-        <Button size="sm">Add account</Button>
-      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New GitHub identity</DialogTitle>

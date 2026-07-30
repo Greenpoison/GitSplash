@@ -3,15 +3,18 @@ import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/store/appStore";
 import { AddRepoDialog } from "@/components/repos/AddRepoDialog";
 import { GroupManagerDialog } from "@/components/groups/GroupManagerDialog";
+import { GroupPromptDialog } from "@/components/groups/GroupPromptDialog";
 import { GroupSection } from "./GroupSection";
 import { RepoCard } from "./RepoCard";
 
 export function Dashboard() {
   const repos = useAppStore((s) => s.repos);
   const groups = useAppStore((s) => s.groups);
+  const accounts = useAppStore((s) => s.accounts);
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
   const setAddRepoDialogOpen = useAppStore((s) => s.setAddRepoDialogOpen);
   const setGroupManagerOpen = useAppStore((s) => s.setGroupManagerOpen);
+  const setCreateAccountDialogOpen = useAppStore((s) => s.setCreateAccountDialogOpen);
 
   useEffect(() => {
     const interval = setInterval(() => refreshStatuses(), 60_000);
@@ -33,14 +36,39 @@ export function Dashboard() {
           </Button>
           <GroupManagerDialog />
           <AddRepoDialog />
+          <GroupPromptDialog />
         </div>
       </div>
 
-      {repos.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          No repos tracked yet. Click "Add repo" to get started — nothing else on disk is ever
-          scanned automatically.
-        </p>
+      {accounts.length === 0 && repos.length === 0 ? (
+        <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-6">
+          <div>
+            <h2 className="text-base font-semibold">Welcome to GitSplash</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Start by adding a GitHub account — GitSplash generates an SSH identity for it and
+              routes every repo you assign to it through that identity automatically.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button size="sm" onClick={() => setCreateAccountDialogOpen(true)}>
+              Add a GitHub account
+            </Button>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground underline"
+              onClick={() => setAddRepoDialogOpen(true)}
+            >
+              or just add a repo directly
+            </button>
+          </div>
+        </div>
+      ) : (
+        repos.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            No repos tracked yet. Click "Add repo" to get started — nothing else on disk is ever
+            scanned automatically.
+          </p>
+        )
       )}
 
       {groups.map((group) => (

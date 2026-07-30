@@ -28,8 +28,10 @@ export function AddRepoDialog() {
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const groups = useAppStore((s) => s.groups);
+  const repos = useAppStore((s) => s.repos);
   const refreshRepos = useAppStore((s) => s.refreshRepos);
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
+  const setGroupPromptRepoId = useAppStore((s) => s.setGroupPromptRepoId);
 
   const pickFolder = async () => {
     const selected = await openFolderDialog({ directory: true, multiple: false });
@@ -47,6 +49,7 @@ export function AddRepoDialog() {
       toast.error("Choose or enter a repo path first");
       return;
     }
+    const isFirstRepo = repos.length === 0;
     setSubmitting(true);
     try {
       const repo = await api.addRepo(path.trim(), displayName.trim() || undefined);
@@ -58,6 +61,13 @@ export function AddRepoDialog() {
       toast.success(`Added ${repo.displayName}`);
       setOpen(false);
       reset();
+      // Nudge toward organizing repos into groups right after the very
+      // first one is added, but only if they didn't already pick a group
+      // above and no groups exist yet — otherwise this would nag on every
+      // add.
+      if (isFirstRepo && selectedGroups.size === 0 && groups.length === 0) {
+        setGroupPromptRepoId(repo.id);
+      }
     } catch (e) {
       toast.error(String(e));
     } finally {

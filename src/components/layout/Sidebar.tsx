@@ -1,0 +1,46 @@
+import { GitBranch, LayoutDashboard, Settings } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
+
+export type View = "dashboard" | "settings";
+
+const NAV_ITEMS: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "settings", label: "Settings", icon: Settings },
+];
+
+export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+  return (
+    <aside className="flex h-full w-56 flex-col border-r bg-sidebar text-sidebar-foreground">
+      <div className="flex items-center gap-2 px-4 py-4">
+        <GitBranch className="size-5 text-primary" />
+        <span className="font-semibold tracking-tight">GitSplash</span>
+      </div>
+      <nav className="flex flex-col gap-1 px-2">
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const active = view === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onChange(item.id)}
+              className={cn(
+                "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                active
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+              )}
+            >
+              <Icon className="size-4" />
+              {item.label}
+            </button>
+          );
+        })}
+      </nav>
+      <div className="mt-auto flex items-center justify-between px-4 py-4">
+        <span className="text-xs text-muted-foreground">v0.1.0</span>
+        <ThemeToggle />
+      </div>
+    </aside>
+  );
+}

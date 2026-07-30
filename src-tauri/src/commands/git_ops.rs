@@ -1,0 +1,94 @@
+use crate::db;
+use crate::error::AppResult;
+use crate::git;
+use crate::models::{BatchEvent, BatchPhase};
+use crate::state::AppState;
+use crate::util::{new_id, now_iso};
+use std::path::PathBuf;
+use std::sync::Arc;
+use tauri::{AppHandle, Emitter, Manager, State};
+use tokio::sync::Semaphore;
+
+/// Runs fetch (and optionally pull) across every repo in a group, in
+/// parallel up to the configured concurrency, streaming a BatchEvent per
+/// repo per phase to the frontend. Returns the run_id used to correlate
+/// those events. Repos outside this group are never touched.
+#[tauri::command]
+pub async fn batch_update_group(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    group_id: String,
+    pull: bool,
+) -> AppResult<String> {
+    let (repos, concurrency) = {
+        let conn = state.db.lock().unwrap();
+        let repo_ids = db::repo_ids_for_group(&conn, &group_id)?;
+        let mut repos = Vec::new();
+        for id in repo_ids {
+            if let Some(repo) = db::get_repo(&conn, &id)? {
+                repos.push(repo);
+            }
+        }
+        let settings = db::get_settings(&conn)?;
+        (repos, settings.batch_concurrency.max(1) as usize)
+    };
+
+    let run_id = new_id();
+    let semaphore = Arc::new(Semaphore::new(concurrency));
+    let mut handles = Vec::new();
+
+    for repo in repos {
+        let sem = semaphore.clone();
+        let app = app.clone();
+        let run_id = run_id.clone();
+        handles.push(tauri::async_runtime::spawn(async move {
+            let _permit = sem.acquire().await.expect("semaphore closed");
+            let repo_path = PathBuf::from(&repo.path);
+
+            let _ = app.emit(
+                "batch-progress",
+                BatchEvent {
+                    run_id: run_id.clone(),
+                    repo_id: repo.id.clone(),
+                    repo_name: repo.display_name.clone(),
+                    phase: BatchPhase::Started,
+                    message: None,
+                    pulled: false,
+                },
+            );
+
+            let outcome = git::fetch::fetch_and_maybe_pull(&repo.id, &repo_path, pull).await;
+
+            if outcome.fetched {
+                let state = app.state::<AppState>();
+                let conn = state.db.lock().unwrap();
+                db::touch_last_fetched(&conn, &repo.id, &now_iso()).ok();
+            }
+
+            let phase = if !outcome.fetched {
+                BatchPhase::Failed
+            } else if outcome.skipped_pull {
+                BatchPhase::Skipped
+            } else if pull && !outcome.pulled {
+                BatchPhase::Failed
+            } else {
+                BatchPhase::Success
+            };
+
+            let _ = app.emit(
+                "batch-progress",
+                BatchEvent {
+                    run_id,
+                    repo_id: repo.id,
+                    repo_name: repo.display_name,
+                    phase,
+                    message: outcome.message,
+                    pulled: outcome.pulled,
+                },
+            );
+        }));
+    }
+
+    futures::future::join_all(handles).await;
+    Ok(run_id)
+}

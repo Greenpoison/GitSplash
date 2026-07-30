@@ -3,7 +3,7 @@
 
   # GitSplash
 
-  **A desktop Git client for people who manage a lot of repos across a lot of GitHub accounts.**
+  **A desktop Git client for people who manage multiple repos across multiple GitHub accounts.**
 
   [![Stars](https://img.shields.io/github/stars/Greenpoison/GitSplash?style=flat&logo=github&color=8FC2FF)](https://github.com/Greenpoison/GitSplash/stargazers)
   [![License](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue)](LICENSE)
@@ -24,10 +24,7 @@
 - [Contributing](#contributing)
 - [License](#license)
 
-Subscription software for a local git client is a scam — you already paid for your
-machine, your repos are already on your disk. GitSplash is a one-time, own-it-forever
-tool for managing a lot of repos across a lot of GitHub accounts, with no monthly fee
-attached.
+I hate subscription software. You should be able to manage your repos with ease.
 
 ## Features
 

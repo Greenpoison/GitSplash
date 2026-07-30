@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { listen } from "@tauri-apps/api/event";
-import { ExternalLink, LogIn, Loader2 } from "lucide-react";
+import { Copy, ExternalLink, LogIn, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -54,8 +54,8 @@ export function CreateAccountDialog() {
     setDeviceUrl(null);
     const unlisten = await listen<GhAuthProgress>("gh-auth-progress", (event) => {
       const { line } = event.payload;
-      if (line.includes(CODE_PREFIX)) setDeviceCode(line.split(CODE_PREFIX).pop() ?? null);
-      if (line.includes(DEVICE_URL_PREFIX)) setDeviceUrl(line.split(DEVICE_URL_PREFIX).pop() ?? null);
+      if (line.includes(CODE_PREFIX)) setDeviceCode(line.split(CODE_PREFIX).pop()?.trim() ?? null);
+      if (line.includes(DEVICE_URL_PREFIX)) setDeviceUrl(line.split(DEVICE_URL_PREFIX).pop()?.trim() ?? null);
     });
     try {
       await api.createAccountViaBrowser(name.trim(), hostAlias.trim());
@@ -129,9 +129,23 @@ export function CreateAccountDialog() {
                 Waiting for you to approve in the browser…
               </div>
               {deviceCode && (
-                <p>
-                  One-time code: <span className="font-mono font-semibold">{deviceCode}</span>
-                </p>
+                <div className="flex items-center gap-2">
+                  <span>
+                    One-time code: <span className="font-mono font-semibold">{deviceCode}</span>
+                  </span>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="size-6"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(deviceCode);
+                      toast.success("Copied");
+                    }}
+                  >
+                    <Copy className="size-3.5" />
+                  </Button>
+                </div>
               )}
               {deviceUrl && (
                 <a

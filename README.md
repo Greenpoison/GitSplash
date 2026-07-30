@@ -16,41 +16,18 @@
 
 <br />
 
-> **Screenshot / GIF goes here.** Drop one at `docs/screenshot.png` and swap it in —
-> a picture of the Branches tab (commit graph + interactive rebase) or the Changes
-> tab (hunk staging) makes the best first impression.
-
 ## Contents
 
-- [Why GitSplash](#why-gitsplash)
 - [Features](#features)
-- [Tech stack](#tech-stack)
 - [Getting started](#getting-started)
 - [Project layout](#project-layout)
 - [Contributing](#contributing)
 - [License](#license)
 
-## Why GitSplash
-
-Most git GUIs assume one identity and one machine. GitSplash starts from a different
-premise: you juggle several GitHub accounts, dozens of repos, and you want a tool that
-gets out of the way. A few things are non-negotiable as a result:
-
-- 🚫 **No AI features, anywhere.** Not a chat panel, not an auto-generated commit
-  message, not a "smart" suggestion. Every action in GitSplash is something you asked
-  for, explicitly.
-- 🔒 **Local-only, no cloud sync.** Your repo list and settings live in a local SQLite
-  database, your keys live in `~/.ssh`. There's no backend service and nothing
-  phones home.
-- ✋ **Never pushes to a remote on your behalf.** Fetch, pull, commit, merge, rebase —
-  all local. Pushing is (and will stay) its own deliberate, confirmed action, never a
-  side effect of something else.
-- 🛠️ **Delegates to real tools instead of reinventing them.** GitSplash shells out to
-  the system `git`, `ssh-keygen`, and `gh` CLI rather than vendoring its own
-  git/SSH/GitHub-API implementation. If it works in your terminal, it works here.
-
-The goal is a desktop client that can stand next to GitKraken, Sublime Merge, and
-git-cola — without the tradeoffs above.
+Subscription software for a local git client is a scam — you already paid for your
+machine, your repos are already on your disk. GitSplash is a one-time, own-it-forever
+tool for managing a lot of repos across a lot of GitHub accounts, with no monthly fee
+attached.
 
 ## Features
 
@@ -89,18 +66,6 @@ git-cola — without the tradeoffs above.
 
 #### 🐙 GitHub integration
 - List, create, and merge pull requests via the `gh` CLI, per account
-
-## Tech stack
-
-| Layer      | Choice                                                        |
-| ---------- | --------------------------------------------------------------- |
-| Shell      | [Tauri 2](https://tauri.app) (Rust backend, native webview)      |
-| Frontend   | React 19, TypeScript, Vite                                       |
-| Styling    | Tailwind CSS v4 + [shadcn/ui](https://ui.shadcn.com)              |
-| State      | Zustand                                                          |
-| Drag & drop| [dnd-kit](https://dndkit.com)                                    |
-| Storage    | SQLite (`rusqlite`, bundled) — local app-data dir, no server     |
-| Git access | Shells out to the system `git`, `ssh-keygen`, and `gh` CLI       |
 
 ## Getting started
 
@@ -151,13 +116,10 @@ src-tauri/
 
 ## Contributing
 
-Issues and pull requests are welcome. If you're proposing a feature, it helps to
-check it against the [principles](#why-gitsplash) above first — anything that adds a
-cloud dependency, an AI feature, or an automatic push is out of scope by design.
+Contributions are welcome.
 
 ## License
 
-MIT, with the [Commons Clause](https://commonsclause.com) added on top. In short:
-use it, fork it, modify it, ship your own build for free — the one thing you can't
-do is sell it, or charge for a hosted/managed service substantially based on it.
-See [`LICENSE`](LICENSE) for the exact terms.
+MIT with the [Commons Clause](https://commonsclause.com) — free to use, fork, and
+modify, but you can't charge money for it. See [`LICENSE`](LICENSE) for the exact
+terms.

@@ -2,17 +2,18 @@ use crate::models::Account;
 use rusqlite::{params, Connection};
 
 const COLUMNS: &str =
-    "id, name, host_alias, github_username, ssh_key_path, signing_key_path, created_at";
+    "id, name, host_alias, hostname, github_username, ssh_key_path, signing_key_path, created_at";
 
 fn row_to_account(row: &rusqlite::Row) -> rusqlite::Result<Account> {
     Ok(Account {
         id: row.get(0)?,
         name: row.get(1)?,
         host_alias: row.get(2)?,
-        github_username: row.get(3)?,
-        ssh_key_path: row.get(4)?,
-        signing_key_path: row.get(5)?,
-        created_at: row.get(6)?,
+        hostname: row.get(3)?,
+        github_username: row.get(4)?,
+        ssh_key_path: row.get(5)?,
+        signing_key_path: row.get(6)?,
+        created_at: row.get(7)?,
     })
 }
 
@@ -42,12 +43,13 @@ pub fn get_account(conn: &Connection, id: &str) -> rusqlite::Result<Option<Accou
 
 pub fn insert_account(conn: &Connection, account: &Account) -> rusqlite::Result<()> {
     conn.execute(
-        "INSERT INTO accounts (id, name, host_alias, github_username, ssh_key_path, signing_key_path, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "INSERT INTO accounts (id, name, host_alias, hostname, github_username, ssh_key_path, signing_key_path, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             account.id,
             account.name,
             account.host_alias,
+            account.hostname,
             account.github_username,
             account.ssh_key_path,
             account.signing_key_path,
@@ -59,12 +61,13 @@ pub fn insert_account(conn: &Connection, account: &Account) -> rusqlite::Result<
 
 pub fn update_account(conn: &Connection, account: &Account) -> rusqlite::Result<()> {
     conn.execute(
-        "UPDATE accounts SET name = ?2, host_alias = ?3, github_username = ?4, ssh_key_path = ?5, signing_key_path = ?6
+        "UPDATE accounts SET name = ?2, host_alias = ?3, hostname = ?4, github_username = ?5, ssh_key_path = ?6, signing_key_path = ?7
          WHERE id = ?1",
         params![
             account.id,
             account.name,
             account.host_alias,
+            account.hostname,
             account.github_username,
             account.ssh_key_path,
             account.signing_key_path

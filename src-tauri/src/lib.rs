@@ -40,6 +40,7 @@ pub fn run() {
             commands::groups::set_repo_groups,
             commands::accounts::list_accounts,
             commands::accounts::create_account,
+            commands::accounts::create_account_via_browser,
             commands::accounts::generate_signing_key,
             commands::accounts::get_public_key,
             commands::accounts::delete_account,

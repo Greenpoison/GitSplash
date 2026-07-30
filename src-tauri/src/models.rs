@@ -6,6 +6,9 @@ pub struct Account {
     pub id: String,
     pub name: String,
     pub host_alias: String,
+    /// The real GitHub hostname this account authenticates against
+    /// (almost always "github.com"; only differs for GitHub Enterprise).
+    pub hostname: String,
     pub github_username: Option<String>,
     /// Authentication key (used for git operations over the host alias).
     pub ssh_key_path: String,

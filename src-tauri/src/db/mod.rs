@@ -23,6 +23,7 @@ pub fn open(data_dir: &Path) -> rusqlite::Result<Connection> {
             id                TEXT PRIMARY KEY,
             name              TEXT NOT NULL,
             host_alias        TEXT NOT NULL UNIQUE,
+            hostname          TEXT NOT NULL DEFAULT 'github.com',
             github_username   TEXT,
             ssh_key_path      TEXT NOT NULL,
             signing_key_path  TEXT,

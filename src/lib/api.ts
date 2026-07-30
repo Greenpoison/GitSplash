@@ -38,6 +38,8 @@ export const createAccount = (
   githubUsername?: string,
   hostname?: string,
 ) => invoke<Account>("create_account", { name, hostAlias, githubUsername: githubUsername ?? null, hostname: hostname ?? null });
+export const createAccountViaBrowser = (name: string, hostAlias: string, hostname?: string) =>
+  invoke<Account>("create_account_via_browser", { name, hostAlias, hostname: hostname ?? null });
 export const generateSigningKey = (accountId: string) =>
   invoke<Account>("generate_signing_key", { accountId });
 export const getPublicKey = (accountId: string, keyKind: "auth" | "signing") =>

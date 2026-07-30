@@ -2,10 +2,15 @@ export interface Account {
   id: string;
   name: string;
   hostAlias: string;
+  hostname: string;
   githubUsername: string | null;
   sshKeyPath: string;
   signingKeyPath: string | null;
   createdAt: string;
+}
+
+export interface GhAuthProgress {
+  line: string;
 }
 
 export interface Group {

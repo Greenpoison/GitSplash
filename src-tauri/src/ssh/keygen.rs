@@ -1,5 +1,11 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::process::Command;
+
+pub fn public_key_path(key_path: &Path) -> PathBuf {
+    let mut pub_path = key_path.as_os_str().to_os_string();
+    pub_path.push(".pub");
+    PathBuf::from(pub_path)
+}
 
 /// Generates a new ed25519 keypair at `key_path` (private key) /
 /// `key_path.pub` (public key) via the system `ssh-keygen` binary.
@@ -39,9 +45,7 @@ pub async fn generate_ed25519_key(key_path: &Path, comment: &str) -> Result<(), 
 }
 
 pub fn read_public_key(key_path: &Path) -> Result<String, String> {
-    let mut pub_path = key_path.as_os_str().to_os_string();
-    pub_path.push(".pub");
-    let pub_path = std::path::PathBuf::from(pub_path);
+    let pub_path = public_key_path(key_path);
     std::fs::read_to_string(&pub_path)
         .map(|s| s.trim().to_string())
         .map_err(|e| format!("failed to read public key at {}: {e}", pub_path.display()))

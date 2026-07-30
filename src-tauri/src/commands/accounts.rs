@@ -1,12 +1,13 @@
 use crate::db;
 use crate::error::{AppError, AppResult};
+use crate::gh;
 use crate::git;
 use crate::models::{Account, Repo};
 use crate::ssh;
 use crate::state::AppState;
 use crate::util::{new_id, now_iso, slugify};
 use std::path::PathBuf;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 #[tauri::command]
 pub fn list_accounts(state: State<'_, AppState>) -> AppResult<Vec<Account>> {
@@ -35,7 +36,53 @@ pub async fn create_account(
         id: new_id(),
         name,
         host_alias,
+        hostname,
         github_username,
+        ssh_key_path: key_path.to_string_lossy().to_string(),
+        signing_key_path: None,
+        created_at: now_iso(),
+    };
+
+    let conn = state.db.lock().unwrap();
+    db::insert_account(&conn, &account)?;
+    Ok(account)
+}
+
+/// The recommended path: authorize in the browser via `gh auth login --web`
+/// (streams progress, including the one-time code, as "gh-auth-progress"
+/// events), then generate the auth key and upload it to that account via
+/// the API — no manual copy/paste onto GitHub's SSH keys page at all.
+#[tauri::command]
+pub async fn create_account_via_browser(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    name: String,
+    host_alias: String,
+    hostname: Option<String>,
+) -> AppResult<Account> {
+    let hostname = hostname.unwrap_or_else(|| "github.com".to_string());
+
+    gh::login_with_browser(&app, &hostname).await.map_err(AppError::Ssh)?;
+    let username = gh::get_authenticated_username(&hostname).await.map_err(AppError::Ssh)?;
+
+    let ssh_dir = ssh::config::ssh_dir().map_err(AppError::Ssh)?;
+    let key_path = ssh_dir.join(format!("id_ed25519_{}", slugify(&host_alias)));
+    ssh::keygen::generate_ed25519_key(&key_path, &format!("gitsplash-auth-{host_alias}"))
+        .await
+        .map_err(AppError::Ssh)?;
+    ssh::config::upsert_host_block(&host_alias, &hostname, &key_path).map_err(AppError::Ssh)?;
+
+    let pubkey_path = ssh::keygen::public_key_path(&key_path);
+    gh::upload_ssh_key(&hostname, &username, &pubkey_path, &format!("GitSplash - {host_alias}"), "authentication")
+        .await
+        .map_err(AppError::Ssh)?;
+
+    let account = Account {
+        id: new_id(),
+        name,
+        host_alias,
+        hostname,
+        github_username: Some(username),
         ssh_key_path: key_path.to_string_lossy().to_string(),
         signing_key_path: None,
         created_at: now_iso(),
@@ -59,6 +106,21 @@ pub async fn generate_signing_key(state: State<'_, AppState>, account_id: String
     ssh::keygen::generate_ed25519_key(&key_path, &format!("gitsplash-signing-{}", account.host_alias))
         .await
         .map_err(AppError::Ssh)?;
+
+    // Best-effort: if this account is gh-authenticated, upload the signing
+    // key automatically too. If not, the caller still generated the key and
+    // can hand it over via the manual public-key dialog.
+    if let Some(username) = &account.github_username {
+        let pubkey_path = ssh::keygen::public_key_path(&key_path);
+        let _ = gh::upload_ssh_key(
+            &account.hostname,
+            username,
+            &pubkey_path,
+            &format!("GitSplash - {} (signing)", account.host_alias),
+            "signing",
+        )
+        .await;
+    }
 
     account.signing_key_path = Some(key_path.to_string_lossy().to_string());
     let conn = state.db.lock().unwrap();

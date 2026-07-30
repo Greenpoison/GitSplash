@@ -95,7 +95,7 @@ export function CommitGraph({ commits }: { commits: CommitNode[] }) {
   }
 
   return (
-    <div className="flex max-h-[420px] overflow-auto rounded-md border">
+    <div className="gradient-border flex max-h-[420px] overflow-auto rounded-md bg-card">
       <svg width={width} height={height} className="shrink-0">
         {edges.map((e, i) => {
           const color = LANE_COLORS[e.fromCol % LANE_COLORS.length];

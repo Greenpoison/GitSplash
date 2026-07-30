@@ -11,10 +11,10 @@ const NAV_ITEMS: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
 
 export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) => void }) {
   return (
-    <aside className="flex h-full w-56 flex-col border-r bg-sidebar text-sidebar-foreground">
+    <aside className="gradient-border-r flex h-full w-56 flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-2 px-4 py-4">
         <Merge className="size-5 text-primary" />
-        <span className="font-semibold tracking-tight">GitSplash</span>
+        <span className="gradient-text text-lg font-semibold tracking-tight">GitSplash</span>
       </div>
       <nav className="flex flex-col gap-1 px-2">
         {NAV_ITEMS.map((item) => {
@@ -40,7 +40,7 @@ export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) =>
       <div className="mt-auto flex flex-col gap-2 px-4 py-4">
         <UndoRedoControls />
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">v0.1.0</span>
+          <span className="text-xs text-muted-foreground">v{__APP_VERSION__}</span>
           <ThemeToggle />
         </div>
       </div>

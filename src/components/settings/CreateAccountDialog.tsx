@@ -123,7 +123,7 @@ export function CreateAccountDialog() {
           </div>
 
           {loggingIn && (
-            <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3 text-sm">
+            <div className="gradient-border-strong flex flex-col gap-2 rounded-md bg-muted/30 p-3 text-sm">
               <div className="flex items-center gap-2">
                 <Loader2 className="size-4 animate-spin" />
                 Waiting for you to approve in the browser…

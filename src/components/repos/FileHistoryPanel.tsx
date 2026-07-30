@@ -109,7 +109,7 @@ export function FileHistoryPanel({ repo }: { repo: Repo }) {
             className="h-8 pl-7 text-xs"
           />
         </div>
-        <ScrollArea className="flex-1 rounded-md border">
+        <ScrollArea className="gradient-border flex-1 rounded-md bg-card">
           <div className="flex flex-col p-1">
             {filtered.map((f) => (
               <button
@@ -142,12 +142,12 @@ export function FileHistoryPanel({ repo }: { repo: Repo }) {
               <TabsTrigger value="blame">Blame</TabsTrigger>
             </TabsList>
             <TabsContent value="history" className="flex-1 overflow-hidden">
-              <ScrollArea className="h-full rounded-md border">
+              <ScrollArea className="gradient-border h-full rounded-md bg-card">
                 <HistoryList repoId={repo.id} path={selected} />
               </ScrollArea>
             </TabsContent>
             <TabsContent value="blame" className="flex-1 overflow-hidden">
-              <ScrollArea className="h-full rounded-md border">
+              <ScrollArea className="gradient-border h-full rounded-md bg-card">
                 <BlameView repoId={repo.id} path={selected} />
               </ScrollArea>
             </TabsContent>

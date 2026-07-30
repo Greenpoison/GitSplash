@@ -41,10 +41,10 @@ export function Dashboard() {
       </div>
 
       {accounts.length === 0 && repos.length === 0 ? (
-        <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-6">
+        <div className="gradient-border flex flex-col items-start gap-3 rounded-lg bg-card p-6">
           <div>
             <h2 className="text-base font-semibold">Welcome to GitSplash</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-foreground/80">
               Start by adding a GitHub account — GitSplash generates an SSH identity for it and
               routes every repo you assign to it through that identity automatically.
             </p>
@@ -55,7 +55,7 @@ export function Dashboard() {
             </Button>
             <button
               type="button"
-              className="text-xs text-muted-foreground underline"
+              className="text-xs text-foreground/70 underline"
               onClick={() => setAddRepoDialogOpen(true)}
             >
               or just add a repo directly

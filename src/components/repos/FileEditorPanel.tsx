@@ -96,7 +96,7 @@ export function FileEditorPanel({ repo }: { repo: Repo }) {
             className="h-8 pl-7 text-xs"
           />
         </div>
-        <ScrollArea className="flex-1 rounded-md border">
+        <ScrollArea className="gradient-border flex-1 rounded-md bg-card">
           <div className="flex flex-col p-1">
             {filtered.map((f) => (
               <button

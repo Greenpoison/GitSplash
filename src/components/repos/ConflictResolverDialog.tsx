@@ -132,7 +132,7 @@ export function ConflictResolverDialog({
 
         {file && !file.isBinary && (
           <>
-            <ScrollArea className="h-[420px] rounded-md border p-3">
+            <ScrollArea className="gradient-border h-[420px] rounded-md bg-card p-3">
               <div className="flex flex-col gap-3 font-mono text-xs">
                 {file.segments.map((seg, i) => {
                   if (seg.kind === "plain") {

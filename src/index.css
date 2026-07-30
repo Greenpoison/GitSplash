@@ -81,6 +81,10 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+    --gradient-border-from: oklch(0.55 0.2 264 / 45%);
+    --gradient-border-to: var(--border);
+    --gradient-border-strong-from: oklch(0.6 0.19 264 / 70%);
+    --gradient-border-strong-to: oklch(0.62 0.16 310 / 55%);
 }
 
 .dark {
@@ -115,6 +119,10 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+    --gradient-border-from: oklch(0.65 0.22 264 / 80%);
+    --gradient-border-to: var(--border);
+    --gradient-border-strong-from: oklch(0.7 0.2 264 / 90%);
+    --gradient-border-strong-to: oklch(0.68 0.18 312 / 75%);
 }
 
 @layer base {
@@ -130,4 +138,56 @@
   html {
     @apply font-sans;
     }
+}
+
+/* Gradient-outline treatment for cards/panels/dialogs — a real border (not
+   a box-shadow ring), painted via the standard two-background trick so it
+   respects whatever border-radius the element already has: one fully
+   transparent background-image clipped to the padding-box lets any
+   existing background-color show through in the interior, while a second,
+   diagonal gradient clipped to the border-box paints the 1px ring itself. */
+@layer utilities {
+  .gradient-border {
+    border-width: 1px;
+    border-style: solid;
+    border-color: transparent;
+    background-image:
+      linear-gradient(transparent, transparent),
+      linear-gradient(135deg, var(--gradient-border-from), var(--gradient-border-to));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  .gradient-border-strong {
+    border-width: 1px;
+    border-style: solid;
+    border-color: transparent;
+    background-image:
+      linear-gradient(transparent, transparent),
+      linear-gradient(135deg, var(--gradient-border-strong-from), var(--gradient-border-strong-to));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  /* For single-side borders (e.g. the sidebar's right edge), where the
+     background-clip trick above doesn't apply cleanly — a 1px gradient
+     strip laid on top via a pseudo-element instead. Needs `relative` on
+     the element (or its own `position` set) for the strip to anchor to. */
+  .gradient-border-r {
+    position: relative;
+  }
+  .gradient-border-r::after {
+    content: "";
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 1px;
+    background: linear-gradient(180deg, var(--gradient-border-from), var(--border) 70%);
+  }
+
+  .gradient-text {
+    background-image: linear-gradient(135deg, var(--gradient-border-strong-from), var(--gradient-border-strong-to));
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
 }

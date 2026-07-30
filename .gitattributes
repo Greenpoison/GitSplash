@@ -1,0 +1,4 @@
+# Shell scripts must stay LF — CRLF breaks `sh` on Windows ("bad
+# interpreter" / stray \r errors), which would silently break the pre-push
+# hook for anyone whose git config auto-converts line endings on checkout.
+.githooks/* text eol=lf

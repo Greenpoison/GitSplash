@@ -57,7 +57,7 @@ export function SubmodulesPanel({ repo }: { repo: Repo }) {
         <p className="text-sm text-muted-foreground">This repo has no submodules.</p>
       ) : (
         <>
-          <div className="flex flex-col gap-2 rounded-md border p-3">
+          <div className="gradient-border flex flex-col gap-2 rounded-md bg-card p-3">
             {submodules.map((s) => (
               <div key={s.path} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs">
                 <span className="flex-1 truncate font-mono">{s.path}</span>

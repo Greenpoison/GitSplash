@@ -115,7 +115,7 @@ export function WorktreesPanel({ repo }: { repo: Repo }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 rounded-md border p-3">
+      <div className="gradient-border flex flex-col gap-2 rounded-md bg-card p-3">
         {worktrees.length === 0 && (
           <p className="text-sm text-muted-foreground">No worktrees found.</p>
         )}
@@ -153,7 +153,7 @@ export function WorktreesPanel({ repo }: { repo: Repo }) {
         </Button>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-md border p-3">
+      <div className="gradient-border flex flex-col gap-3 rounded-md bg-card p-3">
         <Label className="text-xs font-semibold text-muted-foreground">Add worktree</Label>
         <div className="flex flex-col gap-2">
           <Label htmlFor="worktree-path">Path</Label>

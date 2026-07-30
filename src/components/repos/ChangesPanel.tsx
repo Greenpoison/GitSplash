@@ -321,7 +321,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   return (
     <div className="flex h-[480px] gap-4">
       <div className="flex w-64 shrink-0 flex-col gap-3">
-        <ScrollArea className="flex-1 rounded-md border p-2">
+        <ScrollArea className="gradient-border flex-1 rounded-md bg-card p-2">
           {conflicted.length > 0 && (
             <div className="mb-2 flex flex-col gap-1">
               <div className="flex items-center gap-1 px-1 text-xs font-semibold text-destructive">
@@ -409,7 +409,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full rounded-md border p-2">
+        <ScrollArea className="gradient-border h-full rounded-md bg-card p-2">
           {!selected && (
             <p className="p-2 text-sm text-muted-foreground">Select a file to see its diff.</p>
           )}

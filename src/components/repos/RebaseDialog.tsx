@@ -352,7 +352,7 @@ export function RebaseDialog({
 
           {phase === "plan" && (
             <>
-              <ScrollArea className="max-h-[420px] rounded-md border p-2">
+              <ScrollArea className="gradient-border max-h-[420px] rounded-md bg-card p-2">
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
                   <SortableContext items={rows.map((r) => r.sha)} strategy={verticalListSortingStrategy}>
                     <div className="flex flex-col gap-1.5">

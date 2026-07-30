@@ -100,7 +100,7 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
       </div>
 
       {showCreate && (
-        <div className="flex flex-col gap-3 rounded-md border p-3">
+        <div className="gradient-border flex flex-col gap-3 rounded-md bg-card p-3">
           <div className="flex flex-col gap-1.5">
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />

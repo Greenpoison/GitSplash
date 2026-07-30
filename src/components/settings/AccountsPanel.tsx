@@ -74,7 +74,7 @@ function AccountRow({ account }: { account: Account }) {
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border p-3">
+    <div className="gradient-border flex flex-col gap-2 rounded-md bg-card p-3">
       <div className="flex items-center gap-2">
         <span className="font-medium">{account.name}</span>
         <Badge variant="outline">{account.hostAlias}</Badge>

@@ -108,7 +108,7 @@ export function GitflowPanel({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border p-3">
+    <div className="gradient-border flex flex-col gap-3 rounded-md bg-card p-3">
       <Label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
         <GitBranch className="size-3.5" /> Gitflow
       </Label>

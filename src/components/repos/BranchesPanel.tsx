@@ -1,6 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, GitMerge } from "lucide-react";
+import {
+  ArrowLeft,
+  Crosshair,
+  Eye,
+  EyeOff,
+  GitBranchPlus,
+  GitCommitHorizontal,
+  GitMerge,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,24 +20,71 @@ import {
 } from "@/components/ui/select";
 import * as api from "@/lib/api";
 import type { BranchInfo, CommitNode, Repo } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { useUndoStore } from "@/store/undoStore";
+import { CherryPickDialog } from "./CherryPickDialog";
 import { CommitGraph } from "./CommitGraph";
+import { GitflowPanel } from "./GitflowPanel";
+import { RebaseDialog } from "./RebaseDialog";
+
+/// Commits reachable from any of `visibleBranches`' tips — walked via
+/// `parents` rather than asking git again, since `getCommitGraph` already
+/// fetched full topology for the branches in scope. A branch's tip commit
+/// is found by matching its name against the `%D`-decoration refs on each
+/// node (git prints the checked-out branch as `HEAD -> name`, others as
+/// plain `name`).
+function filterCommitsByBranches(commits: CommitNode[], visibleBranches: Set<string>): CommitNode[] {
+  const byHash = new Map(commits.map((c) => [c.hash, c]));
+  const tipHashes: string[] = [];
+  for (const c of commits) {
+    for (const ref of c.refs) {
+      const name = ref.startsWith("HEAD -> ") ? ref.slice("HEAD -> ".length) : ref;
+      if (visibleBranches.has(name)) {
+        tipHashes.push(c.hash);
+      }
+    }
+  }
+
+  const reachable = new Set<string>();
+  const stack = [...tipHashes];
+  while (stack.length > 0) {
+    const hash = stack.pop()!;
+    if (reachable.has(hash)) continue;
+    reachable.add(hash);
+    const node = byHash.get(hash);
+    if (!node) continue;
+    for (const parent of node.parents) {
+      if (byHash.has(parent) && !reachable.has(parent)) stack.push(parent);
+    }
+  }
+  return commits.filter((c) => reachable.has(c.hash));
+}
 
 export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () => void }) {
   const [branches, setBranches] = useState<BranchInfo[]>([]);
   const [commits, setCommits] = useState<CommitNode[]>([]);
   const [mergeTarget, setMergeTarget] = useState<string>("");
+  const [hiddenBranches, setHiddenBranches] = useState<Set<string>>(new Set());
+  const [soloedBranch, setSoloedBranch] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [rebaseOpen, setRebaseOpen] = useState(false);
+  const [rebaseInProgress, setRebaseInProgress] = useState(false);
+  const [cherryPickOpen, setCherryPickOpen] = useState(false);
+  const [cherryPickInProgress, setCherryPickInProgress] = useState(false);
   const pushUndo = useUndoStore((s) => s.push);
 
   const load = async () => {
     try {
-      const [b, c] = await Promise.all([
+      const [b, c, rebasing, cherryPicking] = await Promise.all([
         api.listBranches(repo.id),
         api.getCommitGraph(repo.id, 60),
+        api.getInProgressRebase(repo.id),
+        api.getInProgressCherryPick(repo.id),
       ]);
       setBranches(b);
       setCommits(c);
+      setRebaseInProgress(!!rebasing);
+      setCherryPickInProgress(!!cherryPicking);
     } catch (e) {
       toast.error(String(e));
     }
@@ -123,6 +178,30 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
 
   const current = branches.find((b) => b.isCurrent);
 
+  const visibleBranches = useMemo(() => {
+    if (soloedBranch) return new Set([soloedBranch]);
+    return new Set(branches.filter((b) => !hiddenBranches.has(b.name)).map((b) => b.name));
+  }, [branches, hiddenBranches, soloedBranch]);
+
+  const filteredCommits = useMemo(
+    () => (hiddenBranches.size === 0 && !soloedBranch ? commits : filterCommitsByBranches(commits, visibleBranches)),
+    [commits, hiddenBranches, soloedBranch, visibleBranches],
+  );
+
+  const toggleHidden = (name: string) => {
+    setSoloedBranch(null);
+    setHiddenBranches((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  const toggleSolo = (name: string) => {
+    setSoloedBranch((prev) => (prev === name ? null : name));
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -144,7 +223,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         ))}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="outline" onClick={back} disabled={busy}>
           <ArrowLeft className="size-3.5" /> Back to previous branch
         </Button>
@@ -166,9 +245,82 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
           <GitMerge className="size-3.5" />
           Merge into {current?.name ?? "current"}
         </Button>
+        <Button
+          size="sm"
+          variant={rebaseInProgress ? "destructive" : "outline"}
+          onClick={() => setRebaseOpen(true)}
+          disabled={busy}
+        >
+          <GitBranchPlus className="size-3.5" />
+          {rebaseInProgress ? "Resume rebase" : "Rebase…"}
+        </Button>
+        <Button
+          size="sm"
+          variant={cherryPickInProgress ? "destructive" : "outline"}
+          onClick={() => setCherryPickOpen(true)}
+          disabled={busy}
+        >
+          <GitCommitHorizontal className="size-3.5" />
+          {cherryPickInProgress ? "Resume cherry-pick" : "Cherry-pick…"}
+        </Button>
       </div>
 
-      <CommitGraph commits={commits} />
+      <GitflowPanel repo={repo} branches={branches} onChanged={() => { load(); onChanged(); }} />
+
+      {branches.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">Graph:</span>
+          {branches.map((b) => {
+            const hidden = !visibleBranches.has(b.name);
+            return (
+              <span
+                key={b.name}
+                className={cn(
+                  "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px]",
+                  hidden ? "text-muted-foreground opacity-60" : "border-primary/30 bg-primary/5",
+                )}
+              >
+                <button
+                  onClick={() => toggleHidden(b.name)}
+                  className="flex items-center gap-1"
+                  title={hidden ? `Show ${b.name}` : `Hide ${b.name}`}
+                >
+                  {hidden ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                  {b.name}
+                </button>
+                <button
+                  onClick={() => toggleSolo(b.name)}
+                  className={cn("ml-0.5", soloedBranch === b.name && "text-primary")}
+                  title={soloedBranch === b.name ? "Show all branches" : `Solo ${b.name}`}
+                >
+                  <Crosshair className="size-3" />
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      <CommitGraph commits={filteredCommits} />
+
+      <RebaseDialog
+        repo={repo}
+        open={rebaseOpen}
+        onOpenChange={setRebaseOpen}
+        onChanged={() => {
+          load();
+          onChanged();
+        }}
+      />
+      <CherryPickDialog
+        repo={repo}
+        open={cherryPickOpen}
+        onOpenChange={setCherryPickOpen}
+        onChanged={() => {
+          load();
+          onChanged();
+        }}
+      />
     </div>
   );
 }

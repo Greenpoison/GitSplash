@@ -23,10 +23,24 @@ impl GitOutput {
 /// transparently picks up the user's global git config, credential helpers,
 /// and the SSH host aliases GitSplash manages in ~/.ssh/config.
 pub async fn run_git(repo_path: &Path, args: &[&str]) -> std::io::Result<GitOutput> {
+    run_git_with_env(repo_path, args, &[]).await
+}
+
+/// Same as `run_git`, but with extra environment variables set on the child
+/// process. Needed for commands like `cherry-pick --continue`, which open
+/// `$GIT_EDITOR` for the commit message by default — with no terminal
+/// attached that would hang forever, so callers pass `GIT_EDITOR=true` to
+/// make git accept the default message non-interactively.
+pub async fn run_git_with_env(
+    repo_path: &Path,
+    args: &[&str],
+    envs: &[(&str, &str)],
+) -> std::io::Result<GitOutput> {
     let output = Command::new("git")
         .arg("-C")
         .arg(repo_path)
         .args(args)
+        .envs(envs.iter().copied())
         .output()
         .await?;
     Ok(GitOutput::from_output(output))

@@ -3,6 +3,7 @@ mod db;
 mod error;
 mod gh;
 mod git;
+mod gpg;
 mod models;
 mod secrets;
 mod ssh;
@@ -45,12 +46,26 @@ pub fn run() {
             commands::accounts::get_public_key,
             commands::accounts::delete_account,
             commands::accounts::assign_repo_account,
+            commands::accounts::set_account_gpg_signing,
+            commands::accounts::set_account_ssh_signing,
+            commands::gpg::list_gpg_secret_keys,
+            commands::gpg::get_gpg_public_key,
             commands::git_ops::batch_update_group,
             commands::branches::list_branches,
             commands::branches::get_commit_graph,
             commands::branches::checkout_branch,
             commands::branches::checkout_previous_branch,
             commands::branches::merge_branch,
+            commands::rebase::get_rebase_candidates,
+            commands::rebase::get_in_progress_rebase,
+            commands::rebase::start_rebase,
+            commands::rebase::continue_rebase,
+            commands::rebase::abort_rebase,
+            commands::cherry_pick::get_cherry_pick_candidates,
+            commands::cherry_pick::get_in_progress_cherry_pick,
+            commands::cherry_pick::start_cherry_pick,
+            commands::cherry_pick::continue_cherry_pick,
+            commands::cherry_pick::abort_cherry_pick,
             commands::changes::get_file_changes,
             commands::changes::get_file_diff,
             commands::changes::stage_file,
@@ -69,6 +84,8 @@ pub fn run() {
             commands::history::list_tracked_files,
             commands::history::get_file_history,
             commands::history::get_blame,
+            commands::history::read_file_text,
+            commands::history::write_file_text,
             commands::settings::get_settings,
             commands::settings::save_settings,
             commands::secrets::scan_repo_secrets,
@@ -81,6 +98,14 @@ pub fn run() {
             commands::open::open_repo_external,
             commands::undo::reset_to,
             commands::undo::get_head_sha,
+            commands::worktree::list_worktrees,
+            commands::worktree::add_worktree,
+            commands::worktree::remove_worktree,
+            commands::worktree::prune_worktrees,
+            commands::submodule::list_submodules,
+            commands::submodule::update_submodules,
+            commands::gitflow::start_gitflow_branch,
+            commands::gitflow::finish_gitflow_branch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

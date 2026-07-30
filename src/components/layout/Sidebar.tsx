@@ -1,4 +1,4 @@
-import { GitBranch, LayoutDashboard, Settings } from "lucide-react";
+import { LayoutDashboard, Merge, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UndoRedoControls } from "@/components/UndoRedoControls";
@@ -13,7 +13,7 @@ export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) =>
   return (
     <aside className="flex h-full w-56 flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-2 px-4 py-4">
-        <GitBranch className="size-5 text-primary" />
+        <Merge className="size-5 text-primary" />
         <span className="font-semibold tracking-tight">GitSplash</span>
       </div>
       <nav className="flex flex-col gap-1 px-2">

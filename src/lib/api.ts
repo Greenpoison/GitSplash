@@ -3,17 +3,28 @@ import type {
   Account,
   BlameLine,
   BranchInfo,
+  CherryPickInProgress,
+  CherryPickStepResult,
   CommitNode,
   ConflictFile,
   FileChange,
   FileDiff,
+  FileTextContent,
+  GitflowFinishResult,
+  GitflowKind,
+  GpgKeyInfo,
   Group,
   MergeResult,
   PullRequestSummary,
+  RebaseInProgress,
+  RebasePlanItem,
+  RebaseStepResult,
   Repo,
   RepoGitStatus,
   SecretFile,
   Settings,
+  SubmoduleInfo,
+  WorktreeInfo,
 } from "./types";
 
 // Repos
@@ -51,6 +62,12 @@ export const getPublicKey = (accountId: string, keyKind: "auth" | "signing") =>
 export const deleteAccount = (id: string) => invoke<void>("delete_account", { id });
 export const assignRepoAccount = (repoId: string, accountId: string | null) =>
   invoke<Repo>("assign_repo_account", { repoId, accountId });
+export const setAccountGpgSigning = (accountId: string, gpgKeyId: string) =>
+  invoke<Account>("set_account_gpg_signing", { accountId, gpgKeyId });
+export const setAccountSshSigning = (accountId: string) =>
+  invoke<Account>("set_account_ssh_signing", { accountId });
+export const listGpgSecretKeys = () => invoke<GpgKeyInfo[]>("list_gpg_secret_keys");
+export const getGpgPublicKey = (keyId: string) => invoke<string>("get_gpg_public_key", { keyId });
 
 // Batch git ops
 export const batchUpdateGroup = (groupId: string, pull: boolean) =>
@@ -93,6 +110,10 @@ export const listTrackedFiles = (repoId: string) => invoke<string[]>("list_track
 export const getFileHistory = (repoId: string, path: string, limit: number) =>
   invoke<CommitNode[]>("get_file_history", { repoId, path, limit });
 export const getBlame = (repoId: string, path: string) => invoke<BlameLine[]>("get_blame", { repoId, path });
+export const readFileText = (repoId: string, path: string) =>
+  invoke<FileTextContent>("read_file_text", { repoId, path });
+export const writeFileText = (repoId: string, path: string, content: string) =>
+  invoke<void>("write_file_text", { repoId, path, content });
 
 // Branches
 export const listBranches = (repoId: string) => invoke<BranchInfo[]>("list_branches", { repoId });
@@ -104,6 +125,53 @@ export const checkoutPreviousBranch = (repoId: string) =>
   invoke<string>("checkout_previous_branch", { repoId });
 export const mergeBranch = (repoId: string, fromBranch: string) =>
   invoke<MergeResult>("merge_branch", { repoId, fromBranch });
+
+// Interactive rebase
+export const getRebaseCandidates = (repoId: string, onto: string) =>
+  invoke<CommitNode[]>("get_rebase_candidates", { repoId, onto });
+export const getInProgressRebase = (repoId: string) =>
+  invoke<RebaseInProgress | null>("get_in_progress_rebase", { repoId });
+export const startRebase = (repoId: string, onto: string, plan: RebasePlanItem[]) =>
+  invoke<RebaseStepResult>("start_rebase", { repoId, onto, plan });
+export const continueRebase = (repoId: string) =>
+  invoke<RebaseStepResult>("continue_rebase", { repoId });
+export const abortRebase = (repoId: string) => invoke<void>("abort_rebase", { repoId });
+
+// Interactive cherry-pick
+export const getCherryPickCandidates = (repoId: string, sourceBranch: string) =>
+  invoke<CommitNode[]>("get_cherry_pick_candidates", { repoId, sourceBranch });
+export const getInProgressCherryPick = (repoId: string) =>
+  invoke<CherryPickInProgress | null>("get_in_progress_cherry_pick", { repoId });
+export const startCherryPick = (repoId: string, shas: string[]) =>
+  invoke<CherryPickStepResult>("start_cherry_pick", { repoId, shas });
+export const continueCherryPick = (repoId: string) =>
+  invoke<CherryPickStepResult>("continue_cherry_pick", { repoId });
+export const abortCherryPick = (repoId: string) => invoke<void>("abort_cherry_pick", { repoId });
+
+// Worktrees
+export const listWorktrees = (repoId: string) => invoke<WorktreeInfo[]>("list_worktrees", { repoId });
+export const addWorktree = (repoId: string, targetPath: string, branch: string, createBranch: boolean) =>
+  invoke<void>("add_worktree", { repoId, targetPath, branch, createBranch });
+export const removeWorktree = (repoId: string, targetPath: string, force: boolean) =>
+  invoke<void>("remove_worktree", { repoId, targetPath, force });
+export const pruneWorktrees = (repoId: string) => invoke<void>("prune_worktrees", { repoId });
+
+// Submodules
+export const listSubmodules = (repoId: string) => invoke<SubmoduleInfo[]>("list_submodules", { repoId });
+export const updateSubmodules = (repoId: string, paths: string[]) =>
+  invoke<void>("update_submodules", { repoId, paths });
+
+// Gitflow helpers
+export const startGitflowBranch = (repoId: string, kind: GitflowKind, name: string, baseBranch: string) =>
+  invoke<void>("start_gitflow_branch", { repoId, kind, name, baseBranch });
+export const finishGitflowBranch = (
+  repoId: string,
+  kind: GitflowKind,
+  name: string,
+  targets: string[],
+  tag: string | undefined,
+  deleteBranch: boolean,
+) => invoke<GitflowFinishResult>("finish_gitflow_branch", { repoId, kind, name, targets, tag: tag ?? null, deleteBranch });
 
 // Settings
 export const getSettings = () => invoke<Settings>("get_settings");

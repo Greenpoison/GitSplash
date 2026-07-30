@@ -81,6 +81,34 @@ pub async fn get_commit_graph(repo_path: &Path, limit: u32) -> Result<Vec<Commit
     Ok(parse_log_records(&output.stdout))
 }
 
+/// Commits reachable from `range_expr` (e.g. `"main..HEAD"`), oldest first —
+/// the order an interactive rebase plan is built and displayed in, since the
+/// oldest commit in the range is applied first.
+pub async fn get_range_commits(repo_path: &Path, range_expr: &str) -> Result<Vec<CommitNode>, String> {
+    let output = run_git(
+        repo_path,
+        &[
+            "log",
+            "--topo-order",
+            "--reverse",
+            "--date=iso-strict",
+            &format!("--pretty=format:{}", log_format()),
+            range_expr,
+        ],
+    )
+    .await
+    .map_err(|e| format!("failed to run git log: {e}"))?;
+
+    if !output.success {
+        return Err(if output.stderr.trim().is_empty() {
+            "git log failed".to_string()
+        } else {
+            output.stderr.trim().to_string()
+        });
+    }
+    Ok(parse_log_records(&output.stdout))
+}
+
 /// History of a single file, following renames across its lifetime.
 pub async fn get_file_history(repo_path: &Path, rel_path: &str, limit: u32) -> Result<Vec<CommitNode>, String> {
     let limit_arg = format!("-n{limit}");

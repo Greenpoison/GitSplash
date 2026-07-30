@@ -18,6 +18,8 @@ import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
 import type { Account } from "@/lib/types";
 import { CreateAccountDialog } from "./CreateAccountDialog";
+import { GpgKeyPickerDialog } from "./GpgKeyPickerDialog";
+import { GpgPublicKeyDialog } from "./GpgPublicKeyDialog";
 import { PublicKeyDialog } from "./PublicKeyDialog";
 
 function AccountRow({ account }: { account: Account }) {
@@ -25,6 +27,9 @@ function AccountRow({ account }: { account: Account }) {
   const [ghAuthed, setGhAuthed] = useState<boolean | null>(null);
   const [keyDialog, setKeyDialog] = useState<"auth" | "signing" | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [gpgPickerOpen, setGpgPickerOpen] = useState(false);
+  const [gpgKeyDialogOpen, setGpgKeyDialogOpen] = useState(false);
+  const [switchingSigning, setSwitchingSigning] = useState(false);
 
   useEffect(() => {
     if (!account.githubUsername) {
@@ -47,6 +52,19 @@ function AccountRow({ account }: { account: Account }) {
     }
   };
 
+  const switchToSsh = async () => {
+    setSwitchingSigning(true);
+    try {
+      await api.setAccountSshSigning(account.id);
+      await refreshAccounts();
+      toast.success("Switched to SSH signing");
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setSwitchingSigning(false);
+    }
+  };
+
   const remove = async () => {
     try {
       await api.deleteAccount(account.id);
@@ -65,6 +83,11 @@ function AccountRow({ account }: { account: Account }) {
         {account.githubUsername && (
           <Badge variant={ghAuthed ? "default" : "outline"} className="text-[10px]">
             {ghAuthed === null ? "checking gh…" : ghAuthed ? "gh authenticated" : "gh not signed in"}
+          </Badge>
+        )}
+        {account.signingMethod === "gpg" && (
+          <Badge variant="outline" className="text-[10px]">
+            GPG signing
           </Badge>
         )}
         <AlertDialog>
@@ -103,6 +126,20 @@ function AccountRow({ account }: { account: Account }) {
             {generating ? "Generating…" : "Generate signing key"}
           </Button>
         )}
+        {account.signingMethod === "gpg" ? (
+          <>
+            <Button size="sm" variant="outline" onClick={() => setGpgKeyDialogOpen(true)}>
+              <PenLine className="size-3.5" /> GPG public key
+            </Button>
+            <Button size="sm" variant="outline" onClick={switchToSsh} disabled={switchingSigning}>
+              {switchingSigning ? "Switching…" : "Switch to SSH signing"}
+            </Button>
+          </>
+        ) : (
+          <Button size="sm" variant="outline" onClick={() => setGpgPickerOpen(true)}>
+            <ShieldCheck className="size-3.5" /> Use GPG signing…
+          </Button>
+        )}
       </div>
       {keyDialog && (
         <PublicKeyDialog
@@ -110,6 +147,19 @@ function AccountRow({ account }: { account: Account }) {
           keyKind={keyDialog}
           open={!!keyDialog}
           onOpenChange={(o) => !o && setKeyDialog(null)}
+        />
+      )}
+      <GpgKeyPickerDialog
+        accountId={account.id}
+        open={gpgPickerOpen}
+        onOpenChange={setGpgPickerOpen}
+        onDone={refreshAccounts}
+      />
+      {account.gpgKeyId && (
+        <GpgPublicKeyDialog
+          gpgKeyId={account.gpgKeyId}
+          open={gpgKeyDialogOpen}
+          onOpenChange={setGpgKeyDialogOpen}
         />
       )}
     </div>

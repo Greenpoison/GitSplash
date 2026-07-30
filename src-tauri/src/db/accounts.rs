@@ -1,8 +1,8 @@
 use crate::models::Account;
 use rusqlite::{params, Connection};
 
-const COLUMNS: &str =
-    "id, name, host_alias, hostname, github_username, ssh_key_path, signing_key_path, created_at";
+const COLUMNS: &str = "id, name, host_alias, hostname, github_username, ssh_key_path, signing_key_path, \
+     signing_method, gpg_key_id, created_at";
 
 fn row_to_account(row: &rusqlite::Row) -> rusqlite::Result<Account> {
     Ok(Account {
@@ -13,7 +13,9 @@ fn row_to_account(row: &rusqlite::Row) -> rusqlite::Result<Account> {
         github_username: row.get(4)?,
         ssh_key_path: row.get(5)?,
         signing_key_path: row.get(6)?,
-        created_at: row.get(7)?,
+        signing_method: row.get(7)?,
+        gpg_key_id: row.get(8)?,
+        created_at: row.get(9)?,
     })
 }
 
@@ -43,8 +45,8 @@ pub fn get_account(conn: &Connection, id: &str) -> rusqlite::Result<Option<Accou
 
 pub fn insert_account(conn: &Connection, account: &Account) -> rusqlite::Result<()> {
     conn.execute(
-        "INSERT INTO accounts (id, name, host_alias, hostname, github_username, ssh_key_path, signing_key_path, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        "INSERT INTO accounts (id, name, host_alias, hostname, github_username, ssh_key_path, signing_key_path, signing_method, gpg_key_id, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             account.id,
             account.name,
@@ -53,6 +55,8 @@ pub fn insert_account(conn: &Connection, account: &Account) -> rusqlite::Result<
             account.github_username,
             account.ssh_key_path,
             account.signing_key_path,
+            account.signing_method,
+            account.gpg_key_id,
             account.created_at
         ],
     )?;
@@ -61,7 +65,7 @@ pub fn insert_account(conn: &Connection, account: &Account) -> rusqlite::Result<
 
 pub fn update_account(conn: &Connection, account: &Account) -> rusqlite::Result<()> {
     conn.execute(
-        "UPDATE accounts SET name = ?2, host_alias = ?3, hostname = ?4, github_username = ?5, ssh_key_path = ?6, signing_key_path = ?7
+        "UPDATE accounts SET name = ?2, host_alias = ?3, hostname = ?4, github_username = ?5, ssh_key_path = ?6, signing_key_path = ?7, signing_method = ?8, gpg_key_id = ?9
          WHERE id = ?1",
         params![
             account.id,
@@ -70,7 +74,9 @@ pub fn update_account(conn: &Connection, account: &Account) -> rusqlite::Result<
             account.hostname,
             account.github_username,
             account.ssh_key_path,
-            account.signing_key_path
+            account.signing_key_path,
+            account.signing_method,
+            account.gpg_key_id
         ],
     )?;
     Ok(())

@@ -72,6 +72,8 @@ pub async fn create_account(
         github_username,
         ssh_key_path: key_path.to_string_lossy().to_string(),
         signing_key_path: None,
+        signing_method: "ssh".to_string(),
+        gpg_key_id: None,
         created_at: now_iso(),
     };
 
@@ -125,12 +127,24 @@ pub async fn create_account_via_browser(
         github_username: Some(username),
         ssh_key_path: key_path.to_string_lossy().to_string(),
         signing_key_path: None,
+        signing_method: "ssh".to_string(),
+        gpg_key_id: None,
         created_at: now_iso(),
     };
 
     let conn = state.db.lock().unwrap();
     db::insert_account(&conn, &account)?;
     Ok(account)
+}
+
+/// Repos already assigned to this account — a signing method change needs
+/// to be applied to all of them immediately, not just future assignments.
+fn assigned_repo_paths(conn: &rusqlite::Connection, account_id: &str) -> AppResult<Vec<String>> {
+    Ok(db::list_repos(conn)?
+        .into_iter()
+        .filter(|r| r.account_id.as_deref() == Some(account_id))
+        .map(|r| r.path)
+        .collect())
 }
 
 #[tauri::command]
@@ -150,23 +164,83 @@ pub async fn generate_signing_key(state: State<'_, AppState>, account_id: String
     .ok_or_else(|| AppError::Ssh("failed to generate signing key — a key may already exist at that path".to_string()))?;
 
     account.signing_key_path = Some(signing_key_path.clone());
-    let assigned_repo_paths: Vec<String> = {
+    account.signing_method = "ssh".to_string();
+    let paths = {
         let conn = state.db.lock().unwrap();
         db::update_account(&conn, &account)?;
-        db::list_repos(&conn)?
-            .into_iter()
-            .filter(|r| r.account_id.as_deref() == Some(account_id.as_str()))
-            .map(|r| r.path)
-            .collect()
+        assigned_repo_paths(&conn, &account_id)?
     };
 
-    // Apply to every repo already assigned to this account, not just future
-    // assignments — otherwise a key generated after assignment would never
-    // actually get used for signing until the repo was reassigned.
-    for repo_path in assigned_repo_paths {
+    for repo_path in paths {
         git::config::set_signing_config(&PathBuf::from(repo_path), &signing_key_path)
             .await
             .ok();
+    }
+
+    Ok(account)
+}
+
+/// Switches an account to sign with an existing local GPG key instead of
+/// its SSH signing key, applying the change to every repo already assigned
+/// to it.
+#[tauri::command]
+pub async fn set_account_gpg_signing(
+    state: State<'_, AppState>,
+    account_id: String,
+    gpg_key_id: String,
+) -> AppResult<Account> {
+    let mut account = {
+        let conn = state.db.lock().unwrap();
+        db::get_account(&conn, &account_id)?
+            .ok_or_else(|| AppError::NotFound(format!("account {account_id} not found")))?
+    };
+
+    account.signing_method = "gpg".to_string();
+    account.gpg_key_id = Some(gpg_key_id.clone());
+    let paths = {
+        let conn = state.db.lock().unwrap();
+        db::update_account(&conn, &account)?;
+        assigned_repo_paths(&conn, &account_id)?
+    };
+
+    for repo_path in paths {
+        git::config::set_gpg_signing_config(&PathBuf::from(repo_path), &gpg_key_id)
+            .await
+            .ok();
+    }
+
+    Ok(account)
+}
+
+/// Switches back to SSH signing. Re-applies the account's SSH signing key
+/// if it has one; otherwise just clears the GPG config, since there's
+/// nothing to sign with until a signing key is generated.
+#[tauri::command]
+pub async fn set_account_ssh_signing(state: State<'_, AppState>, account_id: String) -> AppResult<Account> {
+    let mut account = {
+        let conn = state.db.lock().unwrap();
+        db::get_account(&conn, &account_id)?
+            .ok_or_else(|| AppError::NotFound(format!("account {account_id} not found")))?
+    };
+
+    account.signing_method = "ssh".to_string();
+    let signing_key_path = account.signing_key_path.clone();
+    let paths = {
+        let conn = state.db.lock().unwrap();
+        db::update_account(&conn, &account)?;
+        assigned_repo_paths(&conn, &account_id)?
+    };
+
+    for repo_path in paths {
+        let repo_path_buf = PathBuf::from(repo_path);
+        match &signing_key_path {
+            Some(key_path) => {
+                git::config::set_signing_config(&repo_path_buf, key_path).await.ok();
+            }
+            None => {
+                git::config::clear_signing_config(&repo_path_buf).await.ok();
+            }
+        }
     }
 
     Ok(account)
@@ -232,7 +306,13 @@ pub async fn assign_repo_account(
                         .map_err(AppError::Git)?;
                 }
             }
-            if let Some(signing_key) = &account.signing_key_path {
+            if account.signing_method == "gpg" {
+                if let Some(gpg_key_id) = &account.gpg_key_id {
+                    git::config::set_gpg_signing_config(&repo_path_buf, gpg_key_id)
+                        .await
+                        .map_err(AppError::Git)?;
+                }
+            } else if let Some(signing_key) = &account.signing_key_path {
                 git::config::set_signing_config(&repo_path_buf, signing_key)
                     .await
                     .map_err(AppError::Git)?;

@@ -1,3 +1,5 @@
+export type SigningMethod = "ssh" | "gpg";
+
 export interface Account {
   id: string;
   name: string;
@@ -6,7 +8,14 @@ export interface Account {
   githubUsername: string | null;
   sshKeyPath: string;
   signingKeyPath: string | null;
+  signingMethod: SigningMethod;
+  gpgKeyId: string | null;
   createdAt: string;
+}
+
+export interface GpgKeyInfo {
+  keyId: string;
+  uid: string;
 }
 
 export interface GhAuthProgress {
@@ -78,6 +87,73 @@ export interface MergeResult {
   newHeadSha: string | null;
 }
 
+export type RebaseAction = "pick" | "reword" | "squash" | "fixup" | "drop";
+
+export interface RebasePlanItem {
+  sha: string;
+  action: RebaseAction;
+  message: string | null;
+}
+
+export interface RebaseStepResult {
+  status: "done" | "conflict";
+  conflictedFiles: string[];
+  message: string | null;
+  previousHeadSha: string | null;
+  newHeadSha: string | null;
+  step: number;
+  totalSteps: number;
+}
+
+export interface RebaseInProgress {
+  originalBranch: string;
+  currentStep: number;
+  totalSteps: number;
+  conflictedFiles: string[];
+}
+
+export interface CherryPickStepResult {
+  status: "done" | "conflict";
+  conflictedFiles: string[];
+  message: string | null;
+  previousHeadSha: string | null;
+  newHeadSha: string | null;
+  step: number;
+  totalSteps: number;
+}
+
+export interface CherryPickInProgress {
+  currentStep: number;
+  totalSteps: number;
+  conflictedFiles: string[];
+}
+
+export interface WorktreeInfo {
+  path: string;
+  headSha: string | null;
+  branch: string | null;
+  isDetached: boolean;
+  isLocked: boolean;
+  isPrunable: boolean;
+}
+
+export type SubmoduleStatusKind = "uninitialized" | "up-to-date" | "modified" | "conflict";
+
+export interface SubmoduleInfo {
+  path: string;
+  sha: string;
+  status: SubmoduleStatusKind;
+}
+
+export type GitflowKind = "feature" | "release" | "hotfix";
+
+export interface GitflowFinishResult {
+  success: boolean;
+  completedSteps: string[];
+  conflictedFiles: string[];
+  message: string | null;
+}
+
 export interface SecretFile {
   relativePath: string;
   absolutePath: string;
@@ -135,6 +211,11 @@ export type ConflictSegment =
 export interface ConflictFile {
   isBinary: boolean;
   segments: ConflictSegment[];
+}
+
+export interface FileTextContent {
+  isBinary: boolean;
+  content: string;
 }
 
 export interface BlameLine {

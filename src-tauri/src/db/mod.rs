@@ -27,6 +27,8 @@ pub fn open(data_dir: &Path) -> rusqlite::Result<Connection> {
             github_username   TEXT,
             ssh_key_path      TEXT NOT NULL,
             signing_key_path  TEXT,
+            signing_method    TEXT NOT NULL DEFAULT 'ssh',
+            gpg_key_id        TEXT,
             created_at        TEXT NOT NULL
         );
 
@@ -67,6 +69,8 @@ pub fn open(data_dir: &Path) -> rusqlite::Result<Connection> {
 /// GitSplash never leaves a stale local db missing a column the code expects.
 fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     add_column_if_missing(conn, "accounts", "hostname", "TEXT NOT NULL DEFAULT 'github.com'")?;
+    add_column_if_missing(conn, "accounts", "signing_method", "TEXT NOT NULL DEFAULT 'ssh'")?;
+    add_column_if_missing(conn, "accounts", "gpg_key_id", "TEXT")?;
     Ok(())
 }
 

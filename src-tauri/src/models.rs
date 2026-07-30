@@ -15,6 +15,12 @@ pub struct Account {
     /// Separate commit-signing key; GitHub treats auth and signing keys as
     /// distinct, so this must be uploaded to the account's "Signing Keys" page.
     pub signing_key_path: Option<String>,
+    /// "ssh" or "gpg" — which of `signing_key_path` / `gpg_key_id` is
+    /// actually applied to a repo's git config when this account is assigned.
+    pub signing_method: String,
+    /// An existing local GPG secret key's long key ID, picked from the
+    /// user's keyring rather than generated (unlike the SSH signing key).
+    pub gpg_key_id: Option<String>,
     pub created_at: String,
 }
 

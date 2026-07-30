@@ -1,16 +1,22 @@
 pub mod accounts;
 pub mod branches;
 pub mod changes;
+pub mod cherry_pick;
 pub mod conflicts;
 pub mod git_ops;
+pub mod gitflow;
+pub mod gpg;
 pub mod groups;
 pub mod history;
 pub mod open;
 pub mod pr;
+pub mod rebase;
 pub mod repos;
 pub mod secrets;
 pub mod settings;
+pub mod submodule;
 pub mod undo;
+pub mod worktree;
 
 use crate::db;
 use crate::error::{AppError, AppResult};

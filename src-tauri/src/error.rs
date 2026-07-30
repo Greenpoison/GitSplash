@@ -14,6 +14,8 @@ pub enum AppError {
     Git(String),
     #[error("ssh error: {0}")]
     Ssh(String),
+    #[error("gpg error: {0}")]
+    Gpg(String),
 }
 
 // Tauri commands need their error type to serialize to the frontend.

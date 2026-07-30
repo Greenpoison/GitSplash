@@ -34,3 +34,12 @@ walkdir = "2.5.0"
 rand = { version = "0.10.2", features = ["std"] }
 futures = "0.3.33"
 
+# libsqlite3-sys 0.38.1 and rusqlite 0.40.1 both call the still-unstable
+# `cfg_select!` macro with no `#![feature(...)]` gate to unlock it, so they
+# fail to compile on any current stable rustc. Patched to the equivalent
+# stable `#[cfg(...)]` form in vendor/ — see the comments there. Safe to
+# drop this once upstream ships a fixed release.
+[patch.crates-io]
+libsqlite3-sys = { path = "vendor/libsqlite3-sys-0.38.1" }
+rusqlite = { path = "vendor/rusqlite-0.40.1" }
+

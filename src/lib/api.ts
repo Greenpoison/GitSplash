@@ -3,6 +3,7 @@ import type {
   Account,
   BranchInfo,
   CommitNode,
+  ConflictFile,
   FileChange,
   FileDiff,
   Group,
@@ -72,6 +73,14 @@ export const discardHunk = (repoId: string, path: string, hunkRaw: string) =>
   invoke<void>("discard_hunk", { repoId, path, hunkRaw });
 export const commitChanges = (repoId: string, message: string) =>
   invoke<void>("commit_changes", { repoId, message });
+
+// Merge conflict resolution
+export const getConflictSections = (repoId: string, path: string) =>
+  invoke<ConflictFile>("get_conflict_sections", { repoId, path });
+export const writeResolvedFile = (repoId: string, path: string, content: string) =>
+  invoke<void>("write_resolved_file", { repoId, path, content });
+export const keepOurs = (repoId: string, path: string) => invoke<void>("keep_ours", { repoId, path });
+export const keepTheirs = (repoId: string, path: string) => invoke<void>("keep_theirs", { repoId, path });
 
 // Branches
 export const listBranches = (repoId: string) => invoke<BranchInfo[]>("list_branches", { repoId });

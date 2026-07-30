@@ -1,6 +1,7 @@
 pub mod accounts;
 pub mod branches;
 pub mod changes;
+pub mod conflicts;
 pub mod git_ops;
 pub mod groups;
 pub mod open;

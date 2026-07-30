@@ -24,6 +24,7 @@ import {
 import * as api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { FileChange, FileDiff, Repo } from "@/lib/types";
+import { ConflictResolverDialog } from "./ConflictResolverDialog";
 import { DiffHunkView } from "./DiffHunkView";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -99,8 +100,12 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   const [message, setMessage] = useState("");
   const [committing, setCommitting] = useState(false);
   const [discardTarget, setDiscardTarget] = useState<FileChange | null>(null);
+  const [resolvingPath, setResolvingPath] = useState<string | null>(null);
 
-  const staged = useMemo(() => files.filter((f) => f.indexStatus !== "." && !f.isUntracked), [files]);
+  const staged = useMemo(
+    () => files.filter((f) => f.indexStatus !== "." && !f.isUntracked && !f.isConflicted),
+    [files],
+  );
   const unstaged = useMemo(
     () => files.filter((f) => f.worktreeStatus !== "." || f.isUntracked).filter((f) => !f.isConflicted),
     [files],
@@ -228,6 +233,10 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
       toast.error("Nothing staged to commit");
       return;
     }
+    if (conflicted.length > 0) {
+      toast.error("Resolve the remaining conflicts before committing");
+      return;
+    }
     setCommitting(true);
     try {
       await api.commitChanges(repo.id, message.trim());
@@ -257,8 +266,8 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
                   key={f.path}
                   change={f}
                   staged={false}
-                  selected={selected?.path === f.path}
-                  onSelect={() => setSelected({ path: f.path, staged: false })}
+                  selected={false}
+                  onSelect={() => setResolvingPath(f.path)}
                 />
               ))}
             </div>
@@ -323,8 +332,12 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
             rows={3}
             className="text-sm"
           />
-          <Button onClick={commit} disabled={committing || staged.length === 0}>
-            {committing ? "Committing…" : `Commit ${staged.length} file${staged.length === 1 ? "" : "s"}`}
+          <Button onClick={commit} disabled={committing || staged.length === 0 || conflicted.length > 0}>
+            {committing
+              ? "Committing…"
+              : conflicted.length > 0
+                ? "Resolve conflicts first"
+                : `Commit ${staged.length} file${staged.length === 1 ? "" : "s"}`}
           </Button>
         </div>
       </div>
@@ -374,6 +387,16 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {resolvingPath && (
+        <ConflictResolverDialog
+          repoId={repo.id}
+          path={resolvingPath}
+          open={!!resolvingPath}
+          onOpenChange={(o) => !o && setResolvingPath(null)}
+          onResolved={refreshAfterAction}
+        />
+      )}
     </div>
   );
 }

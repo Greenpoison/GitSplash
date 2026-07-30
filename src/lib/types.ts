@@ -118,3 +118,19 @@ export interface FileDiff {
   isBinary: boolean;
   hunks: DiffHunk[];
 }
+
+export type ConflictSegment =
+  | { kind: "plain"; text: string }
+  | {
+      kind: "conflict";
+      oursLabel: string;
+      theirsLabel: string;
+      ours: string;
+      theirs: string;
+      base: string | null;
+    };
+
+export interface ConflictFile {
+  isBinary: boolean;
+  segments: ConflictSegment[];
+}

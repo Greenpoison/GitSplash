@@ -1,6 +1,7 @@
 pub mod branch;
 pub mod changes;
 pub mod commit;
+pub mod conflict;
 pub mod config;
 pub mod diff;
 pub mod fetch;

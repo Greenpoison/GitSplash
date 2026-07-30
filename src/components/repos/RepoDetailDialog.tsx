@@ -29,45 +29,51 @@ export function RepoDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[85vh] max-w-4xl flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{repo.displayName}</DialogTitle>
         </DialogHeader>
-        <Tabs defaultValue="changes">
-          <TabsList>
-            <TabsTrigger value="changes">Changes</TabsTrigger>
-            <TabsTrigger value="branches">Branches</TabsTrigger>
-            <TabsTrigger value="worktrees">Worktrees</TabsTrigger>
-            <TabsTrigger value="submodules">Submodules</TabsTrigger>
-            <TabsTrigger value="filehistory">File History</TabsTrigger>
-            <TabsTrigger value="editor">Editor</TabsTrigger>
-            <TabsTrigger value="prs">Pull Requests</TabsTrigger>
-            <TabsTrigger value="secrets">Secrets</TabsTrigger>
+        {/* Header and tab bar stay fixed; only the active tab's content
+            scrolls, so a tall panel (e.g. Branches, with its buttons +
+            gitflow panel + commit graph all stacked) never pushes the tab
+            bar itself out of view. */}
+        <Tabs defaultValue="changes" className="flex min-h-0 flex-1 flex-col">
+          <TabsList className="w-full shrink-0 justify-start overflow-x-auto">
+            <TabsTrigger value="changes" className="shrink-0">Changes</TabsTrigger>
+            <TabsTrigger value="branches" className="shrink-0">Branches</TabsTrigger>
+            <TabsTrigger value="worktrees" className="shrink-0">Worktrees</TabsTrigger>
+            <TabsTrigger value="submodules" className="shrink-0">Submodules</TabsTrigger>
+            <TabsTrigger value="filehistory" className="shrink-0">File History</TabsTrigger>
+            <TabsTrigger value="editor" className="shrink-0">Editor</TabsTrigger>
+            <TabsTrigger value="prs" className="shrink-0">Pull Requests</TabsTrigger>
+            <TabsTrigger value="secrets" className="shrink-0">Secrets</TabsTrigger>
           </TabsList>
-          <TabsContent value="changes">
-            <ChangesPanel repo={repo} onChanged={() => refreshStatuses([repo.id])} />
-          </TabsContent>
-          <TabsContent value="branches">
-            <BranchesPanel repo={repo} onChanged={() => refreshStatuses([repo.id])} />
-          </TabsContent>
-          <TabsContent value="worktrees">
-            <WorktreesPanel repo={repo} />
-          </TabsContent>
-          <TabsContent value="submodules">
-            <SubmodulesPanel repo={repo} />
-          </TabsContent>
-          <TabsContent value="filehistory">
-            <FileHistoryPanel repo={repo} />
-          </TabsContent>
-          <TabsContent value="editor">
-            <FileEditorPanel repo={repo} />
-          </TabsContent>
-          <TabsContent value="prs">
-            <PullRequestsPanel repo={repo} />
-          </TabsContent>
-          <TabsContent value="secrets">
-            <SecretsPanel repo={repo} />
-          </TabsContent>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <TabsContent value="changes">
+              <ChangesPanel repo={repo} onChanged={() => refreshStatuses([repo.id])} />
+            </TabsContent>
+            <TabsContent value="branches">
+              <BranchesPanel repo={repo} onChanged={() => refreshStatuses([repo.id])} />
+            </TabsContent>
+            <TabsContent value="worktrees">
+              <WorktreesPanel repo={repo} />
+            </TabsContent>
+            <TabsContent value="submodules">
+              <SubmodulesPanel repo={repo} />
+            </TabsContent>
+            <TabsContent value="filehistory">
+              <FileHistoryPanel repo={repo} />
+            </TabsContent>
+            <TabsContent value="editor">
+              <FileEditorPanel repo={repo} />
+            </TabsContent>
+            <TabsContent value="prs">
+              <PullRequestsPanel repo={repo} />
+            </TabsContent>
+            <TabsContent value="secrets">
+              <SecretsPanel repo={repo} />
+            </TabsContent>
+          </div>
         </Tabs>
       </DialogContent>
     </Dialog>

@@ -1,5 +1,12 @@
 import { useEffect } from "react";
+import { ChevronDown, FolderGit2, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAppStore } from "@/store/appStore";
 import { AddRepoDialog } from "@/components/repos/AddRepoDialog";
 import { CloneRepoDialog } from "@/components/repos/CloneRepoDialog";
@@ -33,12 +40,21 @@ export function Dashboard() {
           <Button size="sm" variant="outline" onClick={() => setGroupManagerOpen(true)}>
             Manage groups
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setCloneRepoDialogOpen(true)}>
-            Clone repo
-          </Button>
-          <Button size="sm" onClick={() => setAddRepoDialogOpen(true)}>
-            Add repo
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm">
+                Add repo <ChevronDown className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setAddRepoDialogOpen(true)}>
+                <FolderOpen className="size-4" /> Add existing folder
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setCloneRepoDialogOpen(true)}>
+                <FolderGit2 className="size-4" /> Clone from URL
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <GroupManagerDialog />
           <AddRepoDialog />
           <CloneRepoDialog />

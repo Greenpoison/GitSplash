@@ -7,6 +7,7 @@ import {
   GitPullRequestArrow,
   Keyboard,
   LayoutDashboard,
+  Lock,
   Moon,
   RefreshCw,
   Settings,
@@ -60,6 +61,9 @@ export function CommandPalette() {
         <CommandGroup heading="Navigation">
           <CommandItem onSelect={() => run(() => setView("dashboard"))}>
             <LayoutDashboard /> Go to Dashboard
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => setView("secrets"))}>
+            <Lock /> Go to Secrets
           </CommandItem>
           <CommandItem onSelect={() => run(() => setView("settings"))}>
             <Settings /> Go to Settings

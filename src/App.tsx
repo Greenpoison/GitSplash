@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Dashboard } from "@/components/dashboard/Dashboard";
+import { SecretsPage } from "@/components/secrets/SecretsPage";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import { CommandPalette } from "@/components/CommandPalette";
 import { ShortcutsHelpDialog } from "@/components/ShortcutsHelpDialog";
@@ -34,6 +35,8 @@ function App() {
             </div>
           ) : view === "dashboard" ? (
             <Dashboard />
+          ) : view === "secrets" ? (
+            <SecretsPage />
           ) : (
             <SettingsPage />
           )}

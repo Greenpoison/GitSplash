@@ -1,4 +1,4 @@
-import { LayoutDashboard, Merge, Settings } from "lucide-react";
+import { LayoutDashboard, Lock, Merge, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UndoRedoControls } from "@/components/UndoRedoControls";
@@ -6,6 +6,7 @@ import type { View } from "@/store/appStore";
 
 const NAV_ITEMS: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "secrets", label: "Secrets", icon: Lock },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 

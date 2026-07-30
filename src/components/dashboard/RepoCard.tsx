@@ -7,12 +7,13 @@ import {
   Check,
   CheckCircle2,
   ExternalLink,
+  FolderOpen,
   MoreVertical,
-  Settings2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,12 +75,12 @@ export function RepoCard({ repo }: { repo: Repo }) {
   };
 
   return (
-    <Card className="flex flex-row items-center gap-4 px-4 py-3">
-      <button
-        className="flex flex-1 flex-col items-start gap-1 text-left"
-        onClick={() => api.openRepoExternal(repo.id).catch((e) => toast.error(String(e)))}
-        title="Open in git GUI / file explorer"
-      >
+    <Card
+      className="flex cursor-pointer flex-row items-center gap-4 px-4 py-3"
+      onClick={() => setDetailOpen(true)}
+      title="View repo details"
+    >
+      <div className="flex flex-1 flex-col items-start gap-1 text-left">
         <div className="flex items-center gap-2">
           <span className="font-medium">{repo.displayName}</span>
           {account && (
@@ -89,7 +90,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
           )}
         </div>
         <span className="truncate text-xs text-muted-foreground max-w-md">{repo.path}</span>
-      </button>
+      </div>
 
       <div className="flex items-center gap-2 text-sm">
         {status?.error ? (
@@ -124,22 +125,42 @@ export function RepoCard({ repo }: { repo: Repo }) {
         ) : (
           <Badge variant="outline">loading…</Badge>
         )}
-        <span className="w-20 text-right text-xs text-muted-foreground">
-          {relativeTime(repo.lastFetchedAt)}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="w-20 text-right text-xs text-muted-foreground">
+              {relativeTime(repo.lastFetchedAt)}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            Last fetched:{" "}
+            {repo.lastFetchedAt ? new Date(repo.lastFetchedAt).toLocaleString() : "never — GitSplash hasn't fetched this repo yet"}
+          </TooltipContent>
+        </Tooltip>
       </div>
 
-      <Button variant="ghost" size="icon" onClick={() => setDetailOpen(true)} title="Manage repo">
-        <Settings2 className="size-4" />
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={(e) => {
+          e.stopPropagation();
+          api.openRepoExternal(repo.id).catch((err) => toast.error(String(err)));
+        }}
+        title="Open in git GUI / file explorer"
+      >
+        <FolderOpen className="size-4" />
       </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
             <MoreVertical className="size-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        {/* Radix portals this out of the DOM tree, but React still bubbles
+            synthetic events through the JSX tree, not the DOM tree — so
+            without this, clicking any item here would also re-trigger the
+            card's own onClick since this is still its React descendant. */}
+        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
           <DropdownMenuItem onClick={() => api.openRepoExternal(repo.id)}>
             <ExternalLink className="size-4" /> Open externally
           </DropdownMenuItem>
@@ -168,26 +189,31 @@ export function RepoCard({ repo }: { repo: Repo }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <EditRepoGroupsDialog repo={repo} open={editGroupsOpen} onOpenChange={setEditGroupsOpen} />
-      <RepoDetailDialog repo={repo} open={detailOpen} onOpenChange={setDetailOpen} />
+      {/* Wrapped in a plain stopPropagation div for the same reason as
+          DropdownMenuContent above — these portal elsewhere in the DOM but
+          are still React descendants of the clickable card. */}
+      <div onClick={(e) => e.stopPropagation()}>
+        <EditRepoGroupsDialog repo={repo} open={editGroupsOpen} onOpenChange={setEditGroupsOpen} />
+        <RepoDetailDialog repo={repo} open={detailOpen} onOpenChange={setDetailOpen} />
 
-      <AlertDialog open={removeOpen} onOpenChange={setRemoveOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove {repo.displayName}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This only removes it from GitSplash's registry — the folder and your git history are
-              untouched.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={remove}>
-              <Check className="size-4" /> Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <AlertDialog open={removeOpen} onOpenChange={setRemoveOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove {repo.displayName}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This only removes it from GitSplash's registry — the folder and your git history
+                are untouched.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={remove}>
+                <Check className="size-4" /> Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </Card>
   );
 }

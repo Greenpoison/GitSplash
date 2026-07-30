@@ -225,7 +225,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
 
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="outline" onClick={back} disabled={busy}>
-          <ArrowLeft className="size-3.5" /> Back to previous branch
+          <ArrowLeft className="size-3.5" /> Checkout previous branch
         </Button>
         <Select value={mergeTarget} onValueChange={setMergeTarget}>
           <SelectTrigger className="h-8 w-48">

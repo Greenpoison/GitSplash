@@ -1,0 +1,14 @@
+#!/bin/sh
+# Bumps the patch version on every commit (see scripts/bump-version.cjs) and
+# folds it into the index before the commit is created, so it's part of the
+# same commit rather than a trailing one. A pre-push hook can't do this
+# cleanly: git resolves what it's about to push before invoking hooks, so a
+# commit made inside pre-push always ships one push later than intended.
+# Stays on 0.x.y — nothing here touches major/minor; that's a manual call.
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+
+node scripts/bump-version.cjs >/dev/null
+
+git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml

@@ -20,7 +20,6 @@
 
 - [Features](#features)
 - [Getting started](#getting-started)
-- [Project layout](#project-layout)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -93,23 +92,6 @@ npm run tauri build
 ```
 
 Output lands in `src-tauri/target/release/`.
-
-## Project layout
-
-```
-src/                      React + TypeScript frontend
-  components/             UI, grouped by feature area (repos/, settings/, dashboard/)
-  lib/                    Tauri IPC bindings (api.ts) and shared types
-  store/                  Zustand stores (app state, undo/redo)
-src-tauri/
-  src/
-    git/                  One module per git concern — shells out via process::run_git
-    commands/             #[tauri::command] handlers exposed to the frontend
-    gh/, ssh/, gpg/       Wrappers for the gh CLI, SSH keygen/config, and GPG
-    db/                   SQLite schema + migrations
-  vendor/                 Patched copies of two crates blocked on an upstream fix
-                          (see the comment at the top of each vendored build.rs)
-```
 
 ## Contributing
 

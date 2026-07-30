@@ -31,6 +31,20 @@ import type {
 export const listRepos = () => invoke<Repo[]>("list_repos");
 export const addRepo = (path: string, displayName?: string) =>
   invoke<Repo>("add_repo", { path, displayName: displayName ?? null });
+export const cloneRepo = (
+  url: string,
+  parentDir: string,
+  folderName: string,
+  displayName?: string,
+  accountId?: string,
+) =>
+  invoke<Repo>("clone_repo", {
+    url,
+    parentDir,
+    folderName,
+    displayName: displayName ?? null,
+    accountId: accountId ?? null,
+  });
 export const removeRepo = (id: string) => invoke<void>("remove_repo", { id });
 export const renameRepo = (id: string, displayName: string) =>
   invoke<Repo>("rename_repo", { id, displayName });

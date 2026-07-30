@@ -2,6 +2,7 @@ pub mod blame;
 pub mod branch;
 pub mod changes;
 pub mod cherry_pick;
+pub mod clone;
 pub mod commit;
 pub mod conflict;
 pub mod config;

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/store/appStore";
 import { AddRepoDialog } from "@/components/repos/AddRepoDialog";
+import { CloneRepoDialog } from "@/components/repos/CloneRepoDialog";
 import { GroupManagerDialog } from "@/components/groups/GroupManagerDialog";
 import { GroupPromptDialog } from "@/components/groups/GroupPromptDialog";
 import { GroupSection } from "./GroupSection";
@@ -13,6 +14,7 @@ export function Dashboard() {
   const accounts = useAppStore((s) => s.accounts);
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
   const setAddRepoDialogOpen = useAppStore((s) => s.setAddRepoDialogOpen);
+  const setCloneRepoDialogOpen = useAppStore((s) => s.setCloneRepoDialogOpen);
   const setGroupManagerOpen = useAppStore((s) => s.setGroupManagerOpen);
   const setCreateAccountDialogOpen = useAppStore((s) => s.setCreateAccountDialogOpen);
 
@@ -31,11 +33,15 @@ export function Dashboard() {
           <Button size="sm" variant="outline" onClick={() => setGroupManagerOpen(true)}>
             Manage groups
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setCloneRepoDialogOpen(true)}>
+            Clone repo
+          </Button>
           <Button size="sm" onClick={() => setAddRepoDialogOpen(true)}>
             Add repo
           </Button>
           <GroupManagerDialog />
           <AddRepoDialog />
+          <CloneRepoDialog />
           <GroupPromptDialog />
         </div>
       </div>

@@ -57,6 +57,62 @@ pub fn add_repo(
     Ok(repo)
 }
 
+/// Clones `url` into `parent_dir/folder_name`, then registers it exactly
+/// like `add_repo` does (same dedupe check, same display_name defaulting).
+/// If `account_id` is given, best-effort assigns it afterward by reusing
+/// `assign_repo_account` — that already handles rewriting the remote URL to
+/// the account's SSH host alias, so a failed assignment doesn't lose the
+/// otherwise-successful clone; the repo is just left unassigned for the
+/// user to assign by hand via the existing per-repo dropdown.
+#[tauri::command]
+pub async fn clone_repo(
+    state: State<'_, AppState>,
+    url: String,
+    parent_dir: String,
+    folder_name: String,
+    display_name: Option<String>,
+    account_id: Option<String>,
+) -> AppResult<Repo> {
+    let dest = Path::new(&parent_dir).join(&folder_name);
+    git::clone::clone_repo(&url, &dest).await.map_err(AppError::Git)?;
+
+    let canonical = dest
+        .canonicalize()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| dest.to_string_lossy().to_string());
+
+    {
+        let conn = state.db.lock().unwrap();
+        if db::path_in_use(&conn, &canonical)? {
+            return Err(AppError::InvalidInput("this repo is already tracked".to_string()));
+        }
+    }
+
+    let name = display_name.unwrap_or_else(|| folder_name.clone());
+    let repo = Repo {
+        id: new_id(),
+        path: canonical,
+        display_name: name,
+        account_id: None,
+        last_fetched_at: None,
+        created_at: now_iso(),
+        group_ids: Vec::new(),
+    };
+
+    {
+        let conn = state.db.lock().unwrap();
+        db::insert_repo(&conn, &repo)?;
+    }
+
+    if let Some(acc_id) = account_id {
+        if let Ok(updated) = crate::commands::accounts::assign_repo_account(state, repo.id.clone(), Some(acc_id)).await {
+            return Ok(updated);
+        }
+    }
+
+    Ok(repo)
+}
+
 #[tauri::command]
 pub fn remove_repo(state: State<'_, AppState>, id: String) -> AppResult<()> {
     let conn = state.db.lock().unwrap();

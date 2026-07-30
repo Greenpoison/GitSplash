@@ -30,6 +30,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::repos::list_repos,
             commands::repos::add_repo,
+            commands::repos::clone_repo,
             commands::repos::remove_repo,
             commands::repos::rename_repo,
             commands::repos::get_repo_status,

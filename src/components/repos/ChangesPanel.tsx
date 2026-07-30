@@ -24,6 +24,7 @@ import {
 import * as api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { FileChange, FileDiff, Repo } from "@/lib/types";
+import { useUndoStore } from "@/store/undoStore";
 import { ConflictResolverDialog } from "./ConflictResolverDialog";
 import { DiffHunkView } from "./DiffHunkView";
 
@@ -101,6 +102,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   const [committing, setCommitting] = useState(false);
   const [discardTarget, setDiscardTarget] = useState<FileChange | null>(null);
   const [resolvingPath, setResolvingPath] = useState<string | null>(null);
+  const pushUndo = useUndoStore((s) => s.push);
 
   const staged = useMemo(
     () => files.filter((f) => f.indexStatus !== "." && !f.isUntracked && !f.isConflicted),
@@ -156,6 +158,13 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   const stage = async (path: string) => {
     try {
       await api.stageFile(repo.id, path);
+      pushUndo({
+        id: crypto.randomUUID(),
+        repoId: repo.id,
+        label: `Stage ${path}`,
+        undo: () => api.unstageFile(repo.id, path).then(refreshAfterAction),
+        redo: () => api.stageFile(repo.id, path).then(refreshAfterAction),
+      });
       await refreshAfterAction();
     } catch (e) {
       toast.error(String(e));
@@ -164,6 +173,13 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   const unstage = async (path: string) => {
     try {
       await api.unstageFile(repo.id, path);
+      pushUndo({
+        id: crypto.randomUUID(),
+        repoId: repo.id,
+        label: `Unstage ${path}`,
+        undo: () => api.stageFile(repo.id, path).then(refreshAfterAction),
+        redo: () => api.unstageFile(repo.id, path).then(refreshAfterAction),
+      });
       await refreshAfterAction();
     } catch (e) {
       toast.error(String(e));
@@ -172,6 +188,9 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   const discard = async () => {
     if (!discardTarget) return;
     try {
+      // Deliberately not added to the undo stack — discarding uncommitted
+      // changes is genuinely unrecoverable, so there's nothing to undo to.
+      // The confirm dialog below is the safety net for this one instead.
       await api.discardFile(repo.id, discardTarget.path, discardTarget.isUntracked);
       setDiscardTarget(null);
       await refreshAfterAction();
@@ -180,16 +199,32 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
     }
   };
   const stageAll = async () => {
+    const paths = unstaged.map((f) => f.path);
     try {
       await api.stageAll(repo.id);
+      pushUndo({
+        id: crypto.randomUUID(),
+        repoId: repo.id,
+        label: `Stage all (${paths.length} files)`,
+        undo: () => Promise.all(paths.map((p) => api.unstageFile(repo.id, p))).then(refreshAfterAction),
+        redo: () => api.stageAll(repo.id).then(refreshAfterAction),
+      });
       await refreshAfterAction();
     } catch (e) {
       toast.error(String(e));
     }
   };
   const unstageAll = async () => {
+    const paths = staged.map((f) => f.path);
     try {
       await api.unstageAll(repo.id);
+      pushUndo({
+        id: crypto.randomUUID(),
+        repoId: repo.id,
+        label: `Unstage all (${paths.length} files)`,
+        undo: () => Promise.all(paths.map((p) => api.stageFile(repo.id, p))).then(refreshAfterAction),
+        redo: () => api.unstageAll(repo.id).then(refreshAfterAction),
+      });
       await refreshAfterAction();
     } catch (e) {
       toast.error(String(e));
@@ -198,8 +233,16 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
 
   const stageHunk = async (raw: string) => {
     if (!selected) return;
+    const path = selected.path;
     try {
-      await api.stageHunk(repo.id, selected.path, raw);
+      await api.stageHunk(repo.id, path, raw);
+      pushUndo({
+        id: crypto.randomUUID(),
+        repoId: repo.id,
+        label: `Stage hunk in ${path}`,
+        undo: () => api.unstageHunk(repo.id, path, raw).then(refreshAfterAction),
+        redo: () => api.stageHunk(repo.id, path, raw).then(refreshAfterAction),
+      });
       await refreshAfterAction();
     } catch (e) {
       toast.error(String(e));
@@ -207,8 +250,16 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   };
   const unstageHunk = async (raw: string) => {
     if (!selected) return;
+    const path = selected.path;
     try {
-      await api.unstageHunk(repo.id, selected.path, raw);
+      await api.unstageHunk(repo.id, path, raw);
+      pushUndo({
+        id: crypto.randomUUID(),
+        repoId: repo.id,
+        label: `Unstage hunk in ${path}`,
+        undo: () => api.stageHunk(repo.id, path, raw).then(refreshAfterAction),
+        redo: () => api.unstageHunk(repo.id, path, raw).then(refreshAfterAction),
+      });
       await refreshAfterAction();
     } catch (e) {
       toast.error(String(e));
@@ -217,6 +268,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   const discardHunk = async (raw: string) => {
     if (!selected) return;
     try {
+      // Not undoable — see discard() above.
       await api.discardHunk(repo.id, selected.path, raw);
       await refreshAfterAction();
     } catch (e) {
@@ -239,12 +291,26 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
     }
     setCommitting(true);
     try {
-      await api.commitChanges(repo.id, message.trim());
+      const previousHeadSha = await api.commitChanges(repo.id, message.trim());
       setMessage("");
       setSelected(null);
       setDiff(null);
       await refreshAfterAction();
       toast.success("Committed");
+      if (previousHeadSha) {
+        const newHeadSha = await api.getHeadSha(repo.id);
+        if (newHeadSha) {
+          pushUndo({
+            id: crypto.randomUUID(),
+            repoId: repo.id,
+            label: "Commit",
+            // Soft reset: safe — it only moves HEAD, never touches the
+            // working tree or index, so nothing uncommitted is at risk.
+            undo: () => api.resetTo(repo.id, previousHeadSha, "soft").then(refreshAfterAction),
+            redo: () => api.resetTo(repo.id, newHeadSha, "soft").then(refreshAfterAction),
+          });
+        }
+      }
     } catch (e) {
       toast.error(String(e));
     } finally {

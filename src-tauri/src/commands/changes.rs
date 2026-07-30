@@ -82,7 +82,11 @@ pub async fn discard_hunk(state: State<'_, AppState>, repo_id: String, path: Str
 }
 
 #[tauri::command]
-pub async fn commit_changes(state: State<'_, AppState>, repo_id: String, message: String) -> AppResult<()> {
+pub async fn commit_changes(
+    state: State<'_, AppState>,
+    repo_id: String,
+    message: String,
+) -> AppResult<Option<String>> {
     let repo = repo_path(&state, &repo_id).await?;
     git::commit::commit(&repo, &message).await.map_err(AppError::Git)
 }

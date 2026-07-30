@@ -1,4 +1,5 @@
 use super::process::run_git;
+use super::refs::get_head_sha;
 use super::status::get_conflicted_files;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -45,6 +46,13 @@ pub struct MergeResult {
     pub success: bool,
     pub conflicted_files: Vec<String>,
     pub message: Option<String>,
+    /// HEAD before the merge started — present on success, so the caller can
+    /// build an undo action (git reset --hard back to this sha). Not
+    /// meaningful when a merge stops on conflicts, since HEAD never moved.
+    pub previous_head_sha: Option<String>,
+    /// HEAD after a successful merge — lets an undo be redone by resetting
+    /// forward to this sha instead of re-running the merge from scratch.
+    pub new_head_sha: Option<String>,
 }
 
 /// Merges `from_branch` into the current branch. On conflict, aborts nothing
@@ -52,15 +60,20 @@ pub struct MergeResult {
 /// behavior) and reports which files need resolving, since silently
 /// aborting would hide the merge attempt the user asked for.
 pub async fn merge_branch(repo_path: &Path, from_branch: &str) -> Result<MergeResult, String> {
+    let previous_head_sha = get_head_sha(repo_path).await;
+
     let output = run_git(repo_path, &["merge", "--no-edit", from_branch])
         .await
         .map_err(|e| format!("failed to run git merge: {e}"))?;
 
     if output.success {
+        let new_head_sha = get_head_sha(repo_path).await;
         return Ok(MergeResult {
             success: true,
             conflicted_files: Vec::new(),
             message: None,
+            previous_head_sha,
+            new_head_sha,
         });
     }
 
@@ -73,6 +86,8 @@ pub async fn merge_branch(repo_path: &Path, from_branch: &str) -> Result<MergeRe
                 "merge stopped with conflicts — resolve the listed files, then commit"
                     .to_string(),
             ),
+            previous_head_sha: None,
+            new_head_sha: None,
         });
     }
 

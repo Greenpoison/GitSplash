@@ -66,6 +66,9 @@ pub fn run() {
             commands::conflicts::write_resolved_file,
             commands::conflicts::keep_ours,
             commands::conflicts::keep_theirs,
+            commands::history::list_tracked_files,
+            commands::history::get_file_history,
+            commands::history::get_blame,
             commands::settings::get_settings,
             commands::settings::save_settings,
             commands::secrets::scan_repo_secrets,
@@ -76,6 +79,8 @@ pub fn run() {
             commands::pr::create_pull_request,
             commands::pr::merge_pull_request,
             commands::open::open_repo_external,
+            commands::undo::reset_to,
+            commands::undo::get_head_sha,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

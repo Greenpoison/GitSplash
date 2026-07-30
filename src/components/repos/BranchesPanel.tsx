@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import * as api from "@/lib/api";
 import type { BranchInfo, CommitNode, Repo } from "@/lib/types";
+import { useUndoStore } from "@/store/undoStore";
 import { CommitGraph } from "./CommitGraph";
 
 export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () => void }) {
@@ -19,6 +20,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const [commits, setCommits] = useState<CommitNode[]>([]);
   const [mergeTarget, setMergeTarget] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const pushUndo = useUndoStore((s) => s.push);
 
   const load = async () => {
     try {
@@ -39,10 +41,20 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   }, [repo.id]);
 
   const checkout = async (branch: string) => {
+    const previousBranch = current?.name;
     setBusy(true);
     try {
       await api.checkoutBranch(repo.id, branch);
       toast.success(`Switched to ${branch}`);
+      if (previousBranch && previousBranch !== branch) {
+        pushUndo({
+          id: crypto.randomUUID(),
+          repoId: repo.id,
+          label: `Checkout ${branch}`,
+          undo: () => api.checkoutBranch(repo.id, previousBranch).then(() => { load(); onChanged(); }),
+          redo: () => api.checkoutBranch(repo.id, branch).then(() => { load(); onChanged(); }),
+        });
+      }
       await load();
       onChanged();
     } catch (e) {
@@ -53,10 +65,20 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   };
 
   const back = async () => {
+    const fromBranch = current?.name;
     setBusy(true);
     try {
-      const branch = await api.checkoutPreviousBranch(repo.id);
-      toast.success(`Switched back to ${branch}`);
+      const toBranch = await api.checkoutPreviousBranch(repo.id);
+      toast.success(`Switched back to ${toBranch}`);
+      if (fromBranch && fromBranch !== toBranch) {
+        pushUndo({
+          id: crypto.randomUUID(),
+          repoId: repo.id,
+          label: `Switch back to ${toBranch}`,
+          undo: () => api.checkoutBranch(repo.id, fromBranch).then(() => { load(); onChanged(); }),
+          redo: () => api.checkoutBranch(repo.id, toBranch).then(() => { load(); onChanged(); }),
+        });
+      }
       await load();
       onChanged();
     } catch (e) {
@@ -73,6 +95,18 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
       const result = await api.mergeBranch(repo.id, mergeTarget);
       if (result.success) {
         toast.success(`Merged ${mergeTarget}`);
+        if (result.previousHeadSha && result.newHeadSha) {
+          pushUndo({
+            id: crypto.randomUUID(),
+            repoId: repo.id,
+            label: `Merge ${mergeTarget}`,
+            destructive: true,
+            undo: () =>
+              api.resetTo(repo.id, result.previousHeadSha!, "hard").then(() => { load(); onChanged(); }),
+            redo: () =>
+              api.resetTo(repo.id, result.newHeadSha!, "hard").then(() => { load(); onChanged(); }),
+          });
+        }
       } else {
         toast.warning(result.message ?? "Merge stopped with conflicts", {
           description: result.conflictedFiles.join(", "),

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   Account,
+  BlameLine,
   BranchInfo,
   CommitNode,
   ConflictFile,
@@ -72,7 +73,12 @@ export const unstageHunk = (repoId: string, path: string, hunkRaw: string) =>
 export const discardHunk = (repoId: string, path: string, hunkRaw: string) =>
   invoke<void>("discard_hunk", { repoId, path, hunkRaw });
 export const commitChanges = (repoId: string, message: string) =>
-  invoke<void>("commit_changes", { repoId, message });
+  invoke<string | null>("commit_changes", { repoId, message });
+
+// Undo/redo primitives
+export const resetTo = (repoId: string, sha: string, mode: "soft" | "mixed" | "hard") =>
+  invoke<void>("reset_to", { repoId, sha, mode });
+export const getHeadSha = (repoId: string) => invoke<string | null>("get_head_sha", { repoId });
 
 // Merge conflict resolution
 export const getConflictSections = (repoId: string, path: string) =>
@@ -81,6 +87,12 @@ export const writeResolvedFile = (repoId: string, path: string, content: string)
   invoke<void>("write_resolved_file", { repoId, path, content });
 export const keepOurs = (repoId: string, path: string) => invoke<void>("keep_ours", { repoId, path });
 export const keepTheirs = (repoId: string, path: string) => invoke<void>("keep_theirs", { repoId, path });
+
+// File history & blame
+export const listTrackedFiles = (repoId: string) => invoke<string[]>("list_tracked_files", { repoId });
+export const getFileHistory = (repoId: string, path: string, limit: number) =>
+  invoke<CommitNode[]>("get_file_history", { repoId, path, limit });
+export const getBlame = (repoId: string, path: string) => invoke<BlameLine[]>("get_blame", { repoId, path });
 
 // Branches
 export const listBranches = (repoId: string) => invoke<BranchInfo[]>("list_branches", { repoId });

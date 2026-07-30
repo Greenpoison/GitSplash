@@ -74,6 +74,8 @@ export interface MergeResult {
   success: boolean;
   conflictedFiles: string[];
   message: string | null;
+  previousHeadSha: string | null;
+  newHeadSha: string | null;
 }
 
 export interface SecretFile {
@@ -133,4 +135,13 @@ export type ConflictSegment =
 export interface ConflictFile {
   isBinary: boolean;
   segments: ConflictSegment[];
+}
+
+export interface BlameLine {
+  lineNumber: number;
+  commitHash: string;
+  author: string;
+  authorTime: string;
+  summary: string;
+  content: string;
 }

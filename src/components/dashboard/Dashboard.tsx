@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/store/appStore";
 import { AddRepoDialog } from "@/components/repos/AddRepoDialog";
 import { GroupManagerDialog } from "@/components/groups/GroupManagerDialog";
@@ -9,6 +10,8 @@ export function Dashboard() {
   const repos = useAppStore((s) => s.repos);
   const groups = useAppStore((s) => s.groups);
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
+  const setAddRepoDialogOpen = useAppStore((s) => s.setAddRepoDialogOpen);
+  const setGroupManagerOpen = useAppStore((s) => s.setGroupManagerOpen);
 
   useEffect(() => {
     const interval = setInterval(() => refreshStatuses(), 60_000);
@@ -22,6 +25,12 @@ export function Dashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Dashboard</h1>
         <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setGroupManagerOpen(true)}>
+            Manage groups
+          </Button>
+          <Button size="sm" onClick={() => setAddRepoDialogOpen(true)}>
+            Add repo
+          </Button>
           <GroupManagerDialog />
           <AddRepoDialog />
         </div>

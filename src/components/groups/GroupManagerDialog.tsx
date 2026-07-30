@@ -6,15 +6,16 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
 
+/// Driven by the store's groupManagerOpen flag — see AddRepoDialog for why.
 export function GroupManagerDialog() {
-  const [open, setOpen] = useState(false);
+  const open = useAppStore((s) => s.groupManagerOpen);
+  const setOpen = useAppStore((s) => s.setGroupManagerOpen);
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -54,11 +55,6 @@ export function GroupManagerDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          Manage groups
-        </Button>
-      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Groups</DialogTitle>

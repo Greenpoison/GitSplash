@@ -1,4 +1,5 @@
 use super::process::run_git;
+use super::refs::get_head_sha;
 use std::path::Path;
 
 fn git_err(prefix: &str, stderr: &str) -> String {
@@ -64,12 +65,15 @@ pub async fn discard_file(repo_path: &Path, rel_path: &str, is_untracked: bool) 
     Ok(())
 }
 
-pub async fn commit(repo_path: &Path, message: &str) -> Result<(), String> {
+/// Returns the HEAD sha from just before the commit — None only for a
+/// repo's very first commit, where there's nothing to undo back to.
+pub async fn commit(repo_path: &Path, message: &str) -> Result<Option<String>, String> {
+    let previous_head_sha = get_head_sha(repo_path).await;
     let output = run_git(repo_path, &["commit", "-m", message])
         .await
         .map_err(|e| e.to_string())?;
     if !output.success {
         return Err(git_err("commit failed", &output.stderr));
     }
-    Ok(())
+    Ok(previous_head_sha)
 }

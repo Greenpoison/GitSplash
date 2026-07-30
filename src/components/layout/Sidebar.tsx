@@ -1,8 +1,8 @@
 import { GitBranch, LayoutDashboard, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
-
-export type View = "dashboard" | "settings";
+import { UndoRedoControls } from "@/components/UndoRedoControls";
+import type { View } from "@/store/appStore";
 
 const NAV_ITEMS: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -37,9 +37,12 @@ export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) =>
           );
         })}
       </nav>
-      <div className="mt-auto flex items-center justify-between px-4 py-4">
-        <span className="text-xs text-muted-foreground">v0.1.0</span>
-        <ThemeToggle />
+      <div className="mt-auto flex flex-col gap-2 px-4 py-4">
+        <UndoRedoControls />
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">v0.1.0</span>
+          <ThemeToggle />
+        </div>
       </div>
     </aside>
   );

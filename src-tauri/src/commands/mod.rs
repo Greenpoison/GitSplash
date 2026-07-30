@@ -4,11 +4,13 @@ pub mod changes;
 pub mod conflicts;
 pub mod git_ops;
 pub mod groups;
+pub mod history;
 pub mod open;
 pub mod pr;
 pub mod repos;
 pub mod secrets;
 pub mod settings;
+pub mod undo;
 
 use crate::db;
 use crate::error::{AppError, AppResult};

@@ -1,3 +1,4 @@
+pub mod blame;
 pub mod branch;
 pub mod changes;
 pub mod commit;
@@ -5,7 +6,9 @@ pub mod conflict;
 pub mod config;
 pub mod diff;
 pub mod fetch;
+pub mod files;
 pub mod log;
 pub mod process;
+pub mod refs;
 pub mod remote;
 pub mod status;

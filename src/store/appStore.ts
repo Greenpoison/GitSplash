@@ -2,6 +2,8 @@ import { create } from "zustand";
 import * as api from "@/lib/api";
 import type { Account, Group, Repo, RepoGitStatus, Settings } from "@/lib/types";
 
+export type View = "dashboard" | "settings";
+
 interface AppState {
   repos: Repo[];
   groups: Group[];
@@ -9,6 +11,21 @@ interface AppState {
   settings: Settings | null;
   statuses: Record<string, RepoGitStatus>;
   loaded: boolean;
+
+  // Shared UI state — lifted here (rather than local component state) so
+  // keyboard shortcuts and the command palette can drive the same dialogs
+  // the sidebar/buttons do, from anywhere in the tree.
+  view: View;
+  commandPaletteOpen: boolean;
+  addRepoDialogOpen: boolean;
+  groupManagerOpen: boolean;
+  shortcutsHelpOpen: boolean;
+
+  setView: (view: View) => void;
+  setCommandPaletteOpen: (open: boolean) => void;
+  setAddRepoDialogOpen: (open: boolean) => void;
+  setGroupManagerOpen: (open: boolean) => void;
+  setShortcutsHelpOpen: (open: boolean) => void;
 
   refreshAll: () => Promise<void>;
   refreshRepos: () => Promise<void>;
@@ -26,6 +43,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   settings: null,
   statuses: {},
   loaded: false,
+
+  view: "dashboard",
+  commandPaletteOpen: false,
+  addRepoDialogOpen: false,
+  groupManagerOpen: false,
+  shortcutsHelpOpen: false,
+
+  setView: (view) => set({ view }),
+  setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+  setAddRepoDialogOpen: (open) => set({ addRepoDialogOpen: open }),
+  setGroupManagerOpen: (open) => set({ groupManagerOpen: open }),
+  setShortcutsHelpOpen: (open) => set({ shortcutsHelpOpen: open }),
 
   refreshAll: async () => {
     await Promise.all([

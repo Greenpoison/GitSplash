@@ -9,7 +9,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +17,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
 
+/// Driven entirely by the store's addRepoDialogOpen flag (rather than local
+/// state) so keyboard shortcuts and the command palette can open it too,
+/// not just its own trigger button.
 export function AddRepoDialog() {
-  const [open, setOpen] = useState(false);
+  const open = useAppStore((s) => s.addRepoDialogOpen);
+  const setOpen = useAppStore((s) => s.setAddRepoDialogOpen);
   const [path, setPath] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
@@ -64,9 +67,6 @@ export function AddRepoDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">Add repo</Button>
-      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a repository</DialogTitle>

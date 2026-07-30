@@ -16,36 +16,13 @@ pub struct CommitNode {
 const FIELD_SEP: char = '\u{1f}';
 const RECORD_SEP: char = '\u{1e}';
 
-/// Returns recent commit topology across local branches (hash, parents,
-/// ref decorations) so the frontend can lay out a lane graph. Lane
-/// positioning is left to the UI layer; Rust only supplies raw topology.
-pub async fn get_commit_graph(repo_path: &Path, limit: u32) -> Result<Vec<CommitNode>, String> {
-    let format = format!("%H{FIELD_SEP}%P{FIELD_SEP}%D{FIELD_SEP}%s{FIELD_SEP}%an{FIELD_SEP}%ad{RECORD_SEP}");
-    let limit_arg = format!("-n{limit}");
-    let output = run_git(
-        repo_path,
-        &[
-            "log",
-            "--branches",
-            "--topo-order",
-            "--date=iso-strict",
-            &format!("--pretty=format:{format}"),
-            &limit_arg,
-        ],
-    )
-    .await
-    .map_err(|e| format!("failed to run git log: {e}"))?;
+fn log_format() -> String {
+    format!("%H{FIELD_SEP}%P{FIELD_SEP}%D{FIELD_SEP}%s{FIELD_SEP}%an{FIELD_SEP}%ad{RECORD_SEP}")
+}
 
-    if !output.success {
-        return Err(if output.stderr.trim().is_empty() {
-            "git log failed".to_string()
-        } else {
-            output.stderr.trim().to_string()
-        });
-    }
-
+fn parse_log_records(stdout: &str) -> Vec<CommitNode> {
     let mut nodes = Vec::new();
-    for record in output.stdout.split(RECORD_SEP) {
+    for record in stdout.split(RECORD_SEP) {
         let record = record.trim();
         if record.is_empty() {
             continue;
@@ -72,7 +49,64 @@ pub async fn get_commit_graph(repo_path: &Path, limit: u32) -> Result<Vec<Commit
             date: fields[5].to_string(),
         });
     }
-    Ok(nodes)
+    nodes
+}
+
+/// Returns recent commit topology across local branches (hash, parents,
+/// ref decorations) so the frontend can lay out a lane graph. Lane
+/// positioning is left to the UI layer; Rust only supplies raw topology.
+pub async fn get_commit_graph(repo_path: &Path, limit: u32) -> Result<Vec<CommitNode>, String> {
+    let limit_arg = format!("-n{limit}");
+    let output = run_git(
+        repo_path,
+        &[
+            "log",
+            "--branches",
+            "--topo-order",
+            "--date=iso-strict",
+            &format!("--pretty=format:{}", log_format()),
+            &limit_arg,
+        ],
+    )
+    .await
+    .map_err(|e| format!("failed to run git log: {e}"))?;
+
+    if !output.success {
+        return Err(if output.stderr.trim().is_empty() {
+            "git log failed".to_string()
+        } else {
+            output.stderr.trim().to_string()
+        });
+    }
+    Ok(parse_log_records(&output.stdout))
+}
+
+/// History of a single file, following renames across its lifetime.
+pub async fn get_file_history(repo_path: &Path, rel_path: &str, limit: u32) -> Result<Vec<CommitNode>, String> {
+    let limit_arg = format!("-n{limit}");
+    let output = run_git(
+        repo_path,
+        &[
+            "log",
+            "--follow",
+            "--date=iso-strict",
+            &format!("--pretty=format:{}", log_format()),
+            &limit_arg,
+            "--",
+            rel_path,
+        ],
+    )
+    .await
+    .map_err(|e| format!("failed to run git log: {e}"))?;
+
+    if !output.success {
+        return Err(if output.stderr.trim().is_empty() {
+            "git log failed".to_string()
+        } else {
+            output.stderr.trim().to_string()
+        });
+    }
+    Ok(parse_log_records(&output.stdout))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

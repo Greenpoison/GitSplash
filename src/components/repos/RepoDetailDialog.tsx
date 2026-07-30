@@ -9,6 +9,7 @@ import { useAppStore } from "@/store/appStore";
 import type { Repo } from "@/lib/types";
 import { BranchesPanel } from "./BranchesPanel";
 import { ChangesPanel } from "./ChangesPanel";
+import { FileHistoryPanel } from "./FileHistoryPanel";
 import { PullRequestsPanel } from "./PullRequestsPanel";
 import { SecretsPanel } from "./SecretsPanel";
 
@@ -32,7 +33,8 @@ export function RepoDetailDialog({
         <Tabs defaultValue="changes">
           <TabsList>
             <TabsTrigger value="changes">Changes</TabsTrigger>
-            <TabsTrigger value="branches">Branches &amp; History</TabsTrigger>
+            <TabsTrigger value="branches">Branches</TabsTrigger>
+            <TabsTrigger value="filehistory">File History</TabsTrigger>
             <TabsTrigger value="prs">Pull Requests</TabsTrigger>
             <TabsTrigger value="secrets">Secrets</TabsTrigger>
           </TabsList>
@@ -41,6 +43,9 @@ export function RepoDetailDialog({
           </TabsContent>
           <TabsContent value="branches">
             <BranchesPanel repo={repo} onChanged={() => refreshStatuses([repo.id])} />
+          </TabsContent>
+          <TabsContent value="filehistory">
+            <FileHistoryPanel repo={repo} />
           </TabsContent>
           <TabsContent value="prs">
             <PullRequestsPanel repo={repo} />

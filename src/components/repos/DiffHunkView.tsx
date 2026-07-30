@@ -1,0 +1,62 @@
+import { ArrowLeft, ArrowRight, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import type { DiffHunk } from "@/lib/types";
+
+const LINE_STYLES: Record<string, string> = {
+  add: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  del: "bg-red-500/10 text-red-700 dark:text-red-400",
+  context: "text-muted-foreground",
+};
+
+export function DiffHunkView({
+  hunk,
+  staged,
+  patchable,
+  onStage,
+  onUnstage,
+  onDiscard,
+}: {
+  hunk: DiffHunk;
+  staged: boolean;
+  patchable: boolean;
+  onStage?: () => void;
+  onUnstage?: () => void;
+  onDiscard?: () => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-md border">
+      <div className="flex items-center justify-between bg-muted/50 px-2 py-1">
+        <span className="font-mono text-xs text-muted-foreground">{hunk.header}</span>
+        {patchable && (
+          <div className="flex gap-1">
+            {staged ? (
+              <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs" onClick={onUnstage}>
+                <ArrowLeft className="size-3" /> Unstage hunk
+              </Button>
+            ) : (
+              <>
+                <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs" onClick={onDiscard}>
+                  <Trash2 className="size-3" /> Discard hunk
+                </Button>
+                <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs" onClick={onStage}>
+                  <ArrowRight className="size-3" /> Stage hunk
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="font-mono text-xs">
+        {hunk.lines.map((line, i) => (
+          <div key={i} className={cn("whitespace-pre px-2", LINE_STYLES[line.kind])}>
+            <span className="select-none opacity-60">
+              {line.kind === "add" ? "+" : line.kind === "del" ? "-" : " "}
+            </span>
+            {line.content}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

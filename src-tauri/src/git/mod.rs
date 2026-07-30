@@ -1,5 +1,8 @@
 pub mod branch;
+pub mod changes;
+pub mod commit;
 pub mod config;
+pub mod diff;
 pub mod fetch;
 pub mod log;
 pub mod process;

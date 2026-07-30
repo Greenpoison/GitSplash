@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppStore } from "@/store/appStore";
 import type { Repo } from "@/lib/types";
 import { BranchesPanel } from "./BranchesPanel";
+import { ChangesPanel } from "./ChangesPanel";
 import { PullRequestsPanel } from "./PullRequestsPanel";
 import { SecretsPanel } from "./SecretsPanel";
 
@@ -24,16 +25,20 @@ export function RepoDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>{repo.displayName}</DialogTitle>
         </DialogHeader>
-        <Tabs defaultValue="branches">
+        <Tabs defaultValue="changes">
           <TabsList>
+            <TabsTrigger value="changes">Changes</TabsTrigger>
             <TabsTrigger value="branches">Branches &amp; History</TabsTrigger>
             <TabsTrigger value="prs">Pull Requests</TabsTrigger>
             <TabsTrigger value="secrets">Secrets</TabsTrigger>
           </TabsList>
+          <TabsContent value="changes">
+            <ChangesPanel repo={repo} onChanged={() => refreshStatuses([repo.id])} />
+          </TabsContent>
           <TabsContent value="branches">
             <BranchesPanel repo={repo} onChanged={() => refreshStatuses([repo.id])} />
           </TabsContent>

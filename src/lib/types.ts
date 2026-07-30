@@ -91,3 +91,30 @@ export interface PullRequestSummary {
   headRefName: string;
   baseRefName: string;
 }
+
+export interface FileChange {
+  path: string;
+  origPath: string | null;
+  indexStatus: string;
+  worktreeStatus: string;
+  isUntracked: boolean;
+  isConflicted: boolean;
+}
+
+export type DiffLineKind = "context" | "add" | "del";
+
+export interface DiffLine {
+  kind: DiffLineKind;
+  content: string;
+}
+
+export interface DiffHunk {
+  header: string;
+  lines: DiffLine[];
+  raw: string;
+}
+
+export interface FileDiff {
+  isBinary: boolean;
+  hunks: DiffHunk[];
+}

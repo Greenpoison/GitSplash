@@ -1,21 +1,10 @@
-use crate::db;
+use super::repo_path;
 use crate::error::{AppError, AppResult};
 use crate::git;
 use crate::git::branch::MergeResult;
 use crate::git::log::{BranchInfo, CommitNode};
 use crate::state::AppState;
-use std::path::PathBuf;
 use tauri::State;
-
-async fn repo_path(state: &State<'_, AppState>, repo_id: &str) -> AppResult<PathBuf> {
-    let path = {
-        let conn = state.db.lock().unwrap();
-        db::get_repo(&conn, repo_id)?
-            .ok_or_else(|| AppError::NotFound(format!("repo {repo_id} not found")))?
-            .path
-    };
-    Ok(PathBuf::from(path))
-}
 
 #[tauri::command]
 pub async fn list_branches(state: State<'_, AppState>, repo_id: String) -> AppResult<Vec<BranchInfo>> {

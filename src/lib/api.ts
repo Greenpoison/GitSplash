@@ -3,6 +3,8 @@ import type {
   Account,
   BranchInfo,
   CommitNode,
+  FileChange,
+  FileDiff,
   Group,
   MergeResult,
   PullRequestSummary,
@@ -51,6 +53,25 @@ export const assignRepoAccount = (repoId: string, accountId: string | null) =>
 // Batch git ops
 export const batchUpdateGroup = (groupId: string, pull: boolean) =>
   invoke<string>("batch_update_group", { groupId, pull });
+
+// Changes: diff, staging, commit
+export const getFileChanges = (repoId: string) => invoke<FileChange[]>("get_file_changes", { repoId });
+export const getFileDiff = (repoId: string, path: string, staged: boolean, isUntracked: boolean) =>
+  invoke<FileDiff>("get_file_diff", { repoId, path, staged, isUntracked });
+export const stageFile = (repoId: string, path: string) => invoke<void>("stage_file", { repoId, path });
+export const unstageFile = (repoId: string, path: string) => invoke<void>("unstage_file", { repoId, path });
+export const discardFile = (repoId: string, path: string, isUntracked: boolean) =>
+  invoke<void>("discard_file", { repoId, path, isUntracked });
+export const stageAll = (repoId: string) => invoke<void>("stage_all", { repoId });
+export const unstageAll = (repoId: string) => invoke<void>("unstage_all", { repoId });
+export const stageHunk = (repoId: string, path: string, hunkRaw: string) =>
+  invoke<void>("stage_hunk", { repoId, path, hunkRaw });
+export const unstageHunk = (repoId: string, path: string, hunkRaw: string) =>
+  invoke<void>("unstage_hunk", { repoId, path, hunkRaw });
+export const discardHunk = (repoId: string, path: string, hunkRaw: string) =>
+  invoke<void>("discard_hunk", { repoId, path, hunkRaw });
+export const commitChanges = (repoId: string, message: string) =>
+  invoke<void>("commit_changes", { repoId, message });
 
 // Branches
 export const listBranches = (repoId: string) => invoke<BranchInfo[]>("list_branches", { repoId });

@@ -132,7 +132,7 @@ export function CommitGraph({ commits }: { commits: CommitNode[] }) {
             style={{ height: ROW_HEIGHT }}
             className="flex items-center gap-2 px-2 text-xs"
           >
-            <span className="truncate font-medium">{node.subject}</span>
+            <span className="min-w-0 flex-1 truncate font-medium">{node.subject}</span>
             {node.refs
               .filter((r) => !r.startsWith("HEAD"))
               .map((ref) => (

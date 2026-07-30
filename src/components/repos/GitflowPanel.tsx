@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -192,9 +193,18 @@ export function GitflowPanel({
             className="h-8 w-32 text-xs"
           />
         </div>
-        <Button size="sm" onClick={start} disabled={busy || !name.trim()}>
-          Start {kind}/{name || "…"}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="sm" onClick={start} disabled={busy || !name.trim()}>
+              {name.trim() ? `Start ${kind}/${name.trim()}` : `Start ${kind}`}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {name.trim()
+              ? `Creates ${kind}/${name.trim()} off ${baseBranch.trim() || DEFAULT_BASE[kind]} and checks it out`
+              : `Enter a name above to start a new ${kind} branch`}
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

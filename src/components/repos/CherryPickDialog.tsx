@@ -255,7 +255,7 @@ export function CherryPickDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={(o) => phase !== "busy" && onOpenChange(o)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Cherry-pick commits</DialogTitle>
           </DialogHeader>

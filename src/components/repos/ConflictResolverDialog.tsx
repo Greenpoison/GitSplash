@@ -107,7 +107,7 @@ export function ConflictResolverDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="font-mono text-sm">{path}</DialogTitle>
         </DialogHeader>

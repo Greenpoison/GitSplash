@@ -317,7 +317,7 @@ export function RebaseDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={(o) => phase !== "busy" && onOpenChange(o)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Interactive rebase</DialogTitle>
           </DialogHeader>

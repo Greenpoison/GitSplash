@@ -72,7 +72,7 @@ export function GroupSection({ group, repos }: { group: Group; repos: Repo[] }) 
       </div>
 
       {log.length > 0 && (
-        <div className="gradient-border flex flex-col gap-1 rounded-md bg-muted/30 p-2 text-xs">
+        <div className="gradient-border [--gradient-border-bg:transparent] flex flex-col gap-1 rounded-md bg-muted/30 p-2 text-xs">
           {log.map((e, i) => {
             const Icon = PHASE_ICON[e.phase];
             return (

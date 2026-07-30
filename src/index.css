@@ -142,17 +142,23 @@
 
 /* Gradient-outline treatment for cards/panels/dialogs — a real border (not
    a box-shadow ring), painted via the standard two-background trick so it
-   respects whatever border-radius the element already has: one fully
-   transparent background-image clipped to the padding-box lets any
-   existing background-color show through in the interior, while a second,
-   diagonal gradient clipped to the border-box paints the 1px ring itself. */
+   respects whatever border-radius the element already has: an opaque
+   background-image clipped to the padding-box masks the interior (a plain
+   background-color can't do this — it always paints behind every
+   background-image layer, even ones clipped to a smaller box, so it can
+   never occlude the gradient layer above it), while a second, diagonal
+   gradient clipped to the border-box paints the 1px ring itself.
+   --gradient-border-bg defaults to --card (identical to --popover in both
+   themes, covering every current bg-card/bg-popover pairing); override it
+   per-element for any other paired background, or set it to `transparent`
+   to opt back into the old full-surface wash. */
 @layer utilities {
   .gradient-border {
     border-width: 1px;
     border-style: solid;
     border-color: transparent;
     background-image:
-      linear-gradient(transparent, transparent),
+      linear-gradient(var(--gradient-border-bg, var(--card)), var(--gradient-border-bg, var(--card))),
       linear-gradient(135deg, var(--gradient-border-from), var(--gradient-border-to));
     background-origin: border-box;
     background-clip: padding-box, border-box;
@@ -163,7 +169,7 @@
     border-style: solid;
     border-color: transparent;
     background-image:
-      linear-gradient(transparent, transparent),
+      linear-gradient(var(--gradient-border-bg, var(--card)), var(--gradient-border-bg, var(--card))),
       linear-gradient(135deg, var(--gradient-border-strong-from), var(--gradient-border-strong-to));
     background-origin: border-box;
     background-clip: padding-box, border-box;

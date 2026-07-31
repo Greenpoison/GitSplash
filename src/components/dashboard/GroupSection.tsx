@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
 import type { BatchEvent, Group, Repo } from "@/lib/types";
+import { groupColorHex } from "@/lib/groupColors";
 import { RepoCard } from "./RepoCard";
 
 const PHASE_ICON: Record<BatchEvent["phase"], typeof CheckCircle2> = {
@@ -62,6 +63,12 @@ export function GroupSection({ group, repos }: { group: Group; repos: Repo[] }) 
           className="flex items-center gap-1 text-sm font-semibold"
         >
           {collapsed ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
+          {group.color && (
+            <span
+              className="size-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: groupColorHex(group.color) ?? undefined }}
+            />
+          )}
           {group.name}
           <span className="text-xs font-normal text-muted-foreground">({repos.length})</span>
         </button>

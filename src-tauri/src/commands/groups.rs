@@ -12,11 +12,12 @@ pub fn list_groups(state: State<'_, AppState>) -> AppResult<Vec<Group>> {
 }
 
 #[tauri::command]
-pub fn create_group(state: State<'_, AppState>, name: String) -> AppResult<Group> {
+pub fn create_group(state: State<'_, AppState>, name: String, color: Option<String>) -> AppResult<Group> {
     let conn = state.db.lock().unwrap();
     let group = Group {
         id: new_id(),
         name,
+        color,
         created_at: now_iso(),
     };
     db::insert_group(&conn, &group)?;
@@ -27,6 +28,13 @@ pub fn create_group(state: State<'_, AppState>, name: String) -> AppResult<Group
 pub fn rename_group(state: State<'_, AppState>, id: String, name: String) -> AppResult<()> {
     let conn = state.db.lock().unwrap();
     db::rename_group(&conn, &id, &name)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_group_color(state: State<'_, AppState>, id: String, color: Option<String>) -> AppResult<()> {
+    let conn = state.db.lock().unwrap();
+    db::set_group_color(&conn, &id, color.as_deref())?;
     Ok(())
 }
 

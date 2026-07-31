@@ -35,6 +35,7 @@ pub fn open(data_dir: &Path) -> rusqlite::Result<Connection> {
         CREATE TABLE IF NOT EXISTS groups (
             id          TEXT PRIMARY KEY,
             name        TEXT NOT NULL UNIQUE,
+            color       TEXT,
             created_at  TEXT NOT NULL
         );
 
@@ -71,6 +72,7 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     add_column_if_missing(conn, "accounts", "hostname", "TEXT NOT NULL DEFAULT 'github.com'")?;
     add_column_if_missing(conn, "accounts", "signing_method", "TEXT NOT NULL DEFAULT 'ssh'")?;
     add_column_if_missing(conn, "accounts", "gpg_key_id", "TEXT")?;
+    add_column_if_missing(conn, "groups", "color", "TEXT")?;
     Ok(())
 }
 

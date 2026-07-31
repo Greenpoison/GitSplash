@@ -25,6 +25,7 @@ export interface GhAuthProgress {
 export interface Group {
   id: string;
   name: string;
+  color: string | null;
   createdAt: string;
 }
 

@@ -38,6 +38,7 @@ pub fn run() {
             commands::groups::list_groups,
             commands::groups::create_group,
             commands::groups::rename_group,
+            commands::groups::set_group_color,
             commands::groups::delete_group,
             commands::groups::set_repo_groups,
             commands::accounts::list_accounts,

@@ -29,6 +29,10 @@ pub struct Account {
 pub struct Group {
     pub id: String,
     pub name: String,
+    /// One of the fixed swatch keys from the frontend's color picker (e.g.
+    /// "blue"), or None for no color. Free-form rather than an enum since
+    /// the palette lives in the frontend and may grow independently.
+    pub color: Option<String>,
     pub created_at: String,
 }
 

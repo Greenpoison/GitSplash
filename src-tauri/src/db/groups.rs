@@ -3,12 +3,13 @@ use rusqlite::{params, Connection};
 
 pub fn list_groups(conn: &Connection) -> rusqlite::Result<Vec<Group>> {
     let mut stmt =
-        conn.prepare("SELECT id, name, created_at FROM groups ORDER BY name ASC")?;
+        conn.prepare("SELECT id, name, color, created_at FROM groups ORDER BY name ASC")?;
     let rows = stmt.query_map([], |row| {
         Ok(Group {
             id: row.get(0)?,
             name: row.get(1)?,
-            created_at: row.get(2)?,
+            color: row.get(2)?,
+            created_at: row.get(3)?,
         })
     })?;
     rows.collect()
@@ -16,8 +17,8 @@ pub fn list_groups(conn: &Connection) -> rusqlite::Result<Vec<Group>> {
 
 pub fn insert_group(conn: &Connection, group: &Group) -> rusqlite::Result<()> {
     conn.execute(
-        "INSERT INTO groups (id, name, created_at) VALUES (?1, ?2, ?3)",
-        params![group.id, group.name, group.created_at],
+        "INSERT INTO groups (id, name, color, created_at) VALUES (?1, ?2, ?3, ?4)",
+        params![group.id, group.name, group.color, group.created_at],
     )?;
     Ok(())
 }
@@ -26,6 +27,14 @@ pub fn rename_group(conn: &Connection, id: &str, name: &str) -> rusqlite::Result
     conn.execute(
         "UPDATE groups SET name = ?2 WHERE id = ?1",
         params![id, name],
+    )?;
+    Ok(())
+}
+
+pub fn set_group_color(conn: &Connection, id: &str, color: Option<&str>) -> rusqlite::Result<()> {
+    conn.execute(
+        "UPDATE groups SET color = ?2 WHERE id = ?1",
+        params![id, color],
     )?;
     Ok(())
 }

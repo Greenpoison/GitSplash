@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
 
@@ -25,9 +32,11 @@ export function AddRepoDialog() {
   const setOpen = useAppStore((s) => s.setAddRepoDialogOpen);
   const [path, setPath] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [accountId, setAccountId] = useState<string>("");
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const groups = useAppStore((s) => s.groups);
+  const accounts = useAppStore((s) => s.accounts);
   const repos = useAppStore((s) => s.repos);
   const refreshRepos = useAppStore((s) => s.refreshRepos);
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
@@ -41,6 +50,7 @@ export function AddRepoDialog() {
   const reset = () => {
     setPath("");
     setDisplayName("");
+    setAccountId("");
     setSelectedGroups(new Set());
   };
 
@@ -52,7 +62,10 @@ export function AddRepoDialog() {
     const isFirstRepo = repos.length === 0;
     setSubmitting(true);
     try {
-      const repo = await api.addRepo(path.trim(), displayName.trim() || undefined);
+      let repo = await api.addRepo(path.trim(), displayName.trim() || undefined);
+      if (accountId) {
+        repo = await api.assignRepoAccount(repo.id, accountId);
+      }
       if (selectedGroups.size > 0) {
         await api.setRepoGroups(repo.id, Array.from(selectedGroups));
       }
@@ -114,6 +127,27 @@ export function AddRepoDialog() {
               placeholder="Defaults to folder name"
             />
           </div>
+          {accounts.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <Label>Account (optional)</Label>
+              <Select
+                value={accountId || "none"}
+                onValueChange={(v) => setAccountId(v === "none" ? "" : v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Assign after adding…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Assign after adding…</SelectItem>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {groups.length > 0 && (
             <div className="flex flex-col gap-2">
               <Label>Groups</Label>

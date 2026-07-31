@@ -53,8 +53,11 @@ export const getRepoStatuses = (ids: string[]) => invoke<RepoGitStatus[]>("get_r
 
 // Groups
 export const listGroups = () => invoke<Group[]>("list_groups");
-export const createGroup = (name: string) => invoke<Group>("create_group", { name });
+export const createGroup = (name: string, color: string | null) =>
+  invoke<Group>("create_group", { name, color });
 export const renameGroup = (id: string, name: string) => invoke<void>("rename_group", { id, name });
+export const setGroupColor = (id: string, color: string | null) =>
+  invoke<void>("set_group_color", { id, color });
 export const deleteGroup = (id: string) => invoke<void>("delete_group", { id });
 export const setRepoGroups = (repoId: string, groupIds: string[]) =>
   invoke<void>("set_repo_groups", { repoId, groupIds });

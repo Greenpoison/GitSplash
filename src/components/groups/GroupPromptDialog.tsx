@@ -36,7 +36,7 @@ export function GroupPromptDialog() {
     if (!name.trim() || !repoId) return;
     setCreating(true);
     try {
-      const group = await api.createGroup(name.trim());
+      const group = await api.createGroup(name.trim(), null);
       await api.setRepoGroups(repoId, [group.id]);
       await Promise.all([refreshGroups(), refreshRepos()]);
       toast.success(`Created "${group.name}" and added the repo to it`);

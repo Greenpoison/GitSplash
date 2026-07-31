@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { Copy } from "lucide-react";
 import {
   Dialog,
@@ -29,7 +30,7 @@ export function PublicKeyDialog({
     api
       .getPublicKey(accountId, keyKind)
       .then(setKey)
-      .catch((e) => toast.error(String(e)));
+      .catch((e) => reportGitError(e));
   }, [open, accountId, keyKind]);
 
   const copy = async () => {

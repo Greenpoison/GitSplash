@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +43,7 @@ export function GroupPromptDialog() {
       toast.success(`Created "${group.name}" and added the repo to it`);
       close(false);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setCreating(false);
     }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { Check, FileWarning, Pencil } from "lucide-react";
 import {
   Dialog,
@@ -53,7 +54,7 @@ export function ConflictResolverDialog({
     api
       .getConflictSections(repoId, path)
       .then(setFile)
-      .catch((e) => toast.error(String(e)));
+      .catch((e) => reportGitError(e));
   }, [open, repoId, path]);
 
   const conflictIndexes =
@@ -92,7 +93,7 @@ export function ConflictResolverDialog({
       onResolved();
       onOpenChange(false);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setSaving(false);
     }
@@ -107,7 +108,7 @@ export function ConflictResolverDialog({
       onResolved();
       onOpenChange(false);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setSaving(false);
     }

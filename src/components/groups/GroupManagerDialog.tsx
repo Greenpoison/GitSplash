@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { Ban, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -83,7 +84,7 @@ export function GroupManagerDialog() {
       setNewColor(null);
       await refreshGroups();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 
@@ -92,7 +93,7 @@ export function GroupManagerDialog() {
       await api.setGroupColor(id, color);
       await refreshGroups();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 
@@ -111,7 +112,7 @@ export function GroupManagerDialog() {
       setEditingId(null);
       await refreshGroups();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 
@@ -121,7 +122,7 @@ export function GroupManagerDialog() {
       await Promise.all([refreshGroups(), refreshRepos()]);
       toast.success("Group deleted");
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setRemoveTarget(null);
     }

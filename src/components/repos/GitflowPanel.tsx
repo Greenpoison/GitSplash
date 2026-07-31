@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { GitBranch, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,7 +101,7 @@ export function GitflowPanel({
       setName("");
       onChanged();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }
@@ -137,7 +138,7 @@ export function GitflowPanel({
       }
       onChanged();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }

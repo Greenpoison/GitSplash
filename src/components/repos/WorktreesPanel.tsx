@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { FolderPlus, Lock, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +42,7 @@ export function WorktreesPanel({ repo }: { repo: Repo }) {
       setWorktrees(w);
       setBranches(b);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 
@@ -80,7 +81,7 @@ export function WorktreesPanel({ repo }: { repo: Repo }) {
       setNewBranchName("");
       await load();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }
@@ -95,7 +96,7 @@ export function WorktreesPanel({ repo }: { repo: Repo }) {
       setRemoveTarget(null);
       await load();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }
@@ -108,7 +109,7 @@ export function WorktreesPanel({ repo }: { repo: Repo }) {
       toast.success("Pruned stale worktrees");
       await load();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { GitCompareArrows, GitMerge } from "lucide-react";
 import {
   AlertDialog,
@@ -66,7 +67,7 @@ export function DivergedPullDialog({
       }
       onChanged();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setMerging(false);
     }

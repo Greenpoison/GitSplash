@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { FileWarning } from "lucide-react";
 import {
   Dialog,
@@ -40,7 +40,7 @@ export function CommitDetailDialog({
     api
       .getCommitFiles(repo.id, commit.hash)
       .then(setFiles)
-      .catch((e) => toast.error(String(e)));
+      .catch((e) => reportGitError(e));
   }, [open, commit, repo.id]);
 
   const selectFile = async (path: string) => {
@@ -51,7 +51,7 @@ export function CommitDetailDialog({
     try {
       setDiff(await api.getCommitFileDiff(repo.id, commit.hash, path));
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setLoadingFile(false);
     }

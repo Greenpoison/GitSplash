@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +37,7 @@ export function EditRepoGroupsDialog({
       await refreshRepos();
       onOpenChange(false);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 

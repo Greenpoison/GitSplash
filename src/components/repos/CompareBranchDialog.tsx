@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { FileWarning, Search } from "lucide-react";
 import {
   Dialog,
@@ -50,7 +50,7 @@ export function CompareBranchDialog({
         setCompareFiles(changes);
         setBranchFiles(files);
       })
-      .catch((e) => toast.error(String(e)));
+      .catch((e) => reportGitError(e));
   }, [open, repo.id, base, branch]);
 
   const statusMap = useMemo(() => {
@@ -77,7 +77,7 @@ export function CompareBranchDialog({
         setRawContent((await api.readBranchFile(repo.id, branch, path)) ?? "");
       }
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setLoadingFile(false);
     }

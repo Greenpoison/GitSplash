@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { listen } from "@tauri-apps/api/event";
 import { Copy, ExternalLink, LogIn, Loader2 } from "lucide-react";
 import {
@@ -64,7 +65,7 @@ export function CreateAccountDialog() {
       setOpen(false);
       reset();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       unlisten();
       setLoggingIn(false);
@@ -84,7 +85,7 @@ export function CreateAccountDialog() {
       setOpen(false);
       reset();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setSubmitting(false);
     }

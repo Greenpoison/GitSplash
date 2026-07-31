@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { FileWarning, Save, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,7 @@ export function FileEditorPanel({
     api
       .listTrackedFiles(repo.id)
       .then(setFiles)
-      .catch((e) => toast.error(String(e)));
+      .catch((e) => reportGitError(e));
   }, [repo.id]);
 
   const dirty = original !== null && content !== original;
@@ -60,7 +61,7 @@ export function FileEditorPanel({
       setContent(file.isBinary ? "" : file.content);
       setModifiedAt(file.modifiedAt);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
       setSelected(null);
     } finally {
       setLoading(false);
@@ -85,7 +86,7 @@ export function FileEditorPanel({
       setModifiedAt(newModifiedAt);
       toast.success(`Saved ${selected}`);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setSaving(false);
     }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,7 +50,7 @@ export function GeneralSettingsPanel() {
       await refreshSettings();
       toast.success("Settings saved");
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setSaving(false);
     }
@@ -60,7 +61,7 @@ export function GeneralSettingsPanel() {
       const update = await checkUpdateNow();
       toast.success(update ? `Update available: ${update.version}` : "You're on the latest version");
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 
@@ -76,7 +77,7 @@ export function GeneralSettingsPanel() {
       await refreshSettings();
       setTutorialActive(true);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 

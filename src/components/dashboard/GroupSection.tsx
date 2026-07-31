@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { CheckCircle2, ChevronDown, ChevronRight, Download, GitPullRequestArrow, Loader2, MinusCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as api from "@/lib/api";
@@ -78,7 +79,7 @@ export function GroupSection({ group, repos }: { group: Group; repos: Repo[] }) 
         toast.success(`${pull ? "Fetch & pull" : "Fetch"} finished for ${group.name}`);
       }
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       unlisten();
       setRunning(false);

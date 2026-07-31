@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { KeyRound, PenLine, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +43,7 @@ function AccountRow({ account }: { account: Account }) {
       await refreshAccounts();
       toast.success(enabled ? "Now routing SSH over port 443" : "Back to routing SSH over port 22");
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setTogglingHttpsPort(false);
     }
@@ -78,7 +79,7 @@ function AccountRow({ account }: { account: Account }) {
         toast.success("Signing key generated and switched to SSH signing");
       }
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setGenerating(false);
     }
@@ -95,7 +96,7 @@ function AccountRow({ account }: { account: Account }) {
           : "Switched to SSH signing, but no signing key exists yet — commits will be unsigned until you generate one",
       );
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setSwitchingSigning(false);
     }
@@ -106,7 +107,7 @@ function AccountRow({ account }: { account: Account }) {
       await api.deleteAccount(account.id);
       await refreshAccounts();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 

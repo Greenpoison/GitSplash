@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import {
   ArrowLeft,
   Crosshair,
@@ -119,7 +120,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
       setRebaseInProgress(!!rebasing);
       setCherryPickInProgress(!!cherryPicking);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 
@@ -146,7 +147,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
       await load();
       onChanged();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }
@@ -177,7 +178,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
       await load();
       onChanged();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }
@@ -212,7 +213,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
       await load();
       onChanged();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }
@@ -231,7 +232,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
       await load();
       onChanged();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }
@@ -253,7 +254,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         setDeleteTarget(null);
         setForceDeleteTarget({ name, message: String(e) });
       } else {
-        toast.error(String(e));
+        reportGitError(e);
       }
     } finally {
       setBusy(false);

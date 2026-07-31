@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { ExternalLink, GitPullRequest, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -85,7 +86,7 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
       setShowCreate(false);
       await load();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setCreating(false);
     }
@@ -100,7 +101,7 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
       toast.success(`PR #${pr.number} merged (${method})`);
       await load();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 

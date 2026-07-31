@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { Archive, FileWarning, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,7 @@ export function SecretsPanel({ repo }: { repo: Repo }) {
       setFiles(found);
       setSelected(new Set(found.map((f) => f.absolutePath)));
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setLoading(false);
     }
@@ -60,7 +61,7 @@ export function SecretsPanel({ repo }: { repo: Repo }) {
       );
       setPassword("");
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setExporting(false);
     }

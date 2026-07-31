@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import {
   AlertTriangle,
   ArrowDown,
@@ -76,7 +77,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
       }
       await Promise.all([refreshRepos(), refreshStatuses([repo.id])]);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setFetching(false);
     }
@@ -88,7 +89,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
       await refreshRepos();
       toast.success(accountId ? "Account assigned" : "Account cleared");
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 
@@ -98,7 +99,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
       await refreshRepos();
       toast.success(`Removed ${repo.displayName} from GitSplash (files untouched)`);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 
@@ -198,7 +199,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
         size="icon"
         onClick={(e) => {
           e.stopPropagation();
-          api.openRepoExternal(repo.id).catch((err) => toast.error(String(err)));
+          api.openRepoExternal(repo.id).catch((err) => reportGitError(err));
         }}
         title="Open in git GUI / file explorer"
       >

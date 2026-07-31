@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { Check } from "lucide-react";
 import {
   Dialog,
@@ -36,7 +37,7 @@ export function GpgKeyPickerDialog({
     api
       .listGpgSecretKeys()
       .then(setKeys)
-      .catch((e) => toast.error(String(e)));
+      .catch((e) => reportGitError(e));
   }, [open]);
 
   const save = async () => {
@@ -54,7 +55,7 @@ export function GpgKeyPickerDialog({
       onDone();
       onOpenChange(false);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setSaving(false);
     }

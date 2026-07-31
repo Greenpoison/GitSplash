@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { History, Search } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,7 @@ function HistoryList({ repo, path }: { repo: Repo; path: string }) {
     api
       .getFileHistory(repo.id, path, 100)
       .then(setCommits)
-      .catch((e) => toast.error(String(e)));
+      .catch((e) => reportGitError(e));
   }, [repo.id, path]);
 
   if (!commits) return <p className="p-2 text-sm text-muted-foreground">Loading…</p>;
@@ -90,7 +90,7 @@ function BlameView({ repoId, path }: { repoId: string; path: string }) {
     api
       .getBlame(repoId, path)
       .then(setLines)
-      .catch((e) => toast.error(String(e)));
+      .catch((e) => reportGitError(e));
   }, [repoId, path]);
 
   if (!lines) return <p className="p-2 text-sm text-muted-foreground">Loading…</p>;
@@ -121,7 +121,7 @@ export function FileHistoryPanel({ repo }: { repo: Repo }) {
     api
       .listTrackedFiles(repo.id)
       .then(setFiles)
-      .catch((e) => toast.error(String(e)));
+      .catch((e) => reportGitError(e));
   }, [repo.id]);
 
   return (

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import {
   ArrowUpDown,
   Download,
@@ -89,7 +90,7 @@ export function TagsPanel({ repo }: { repo: Repo }) {
     try {
       setTags(await api.listTags(repo.id));
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
     try {
       const remote = await api.listRemoteTags(repo.id);
@@ -125,7 +126,7 @@ export function TagsPanel({ repo }: { repo: Repo }) {
       setNewTagMessage("");
       await load();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }
@@ -141,7 +142,7 @@ export function TagsPanel({ repo }: { repo: Repo }) {
       setMoveTo("HEAD");
       await load();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }
@@ -160,7 +161,7 @@ export function TagsPanel({ repo }: { repo: Repo }) {
       setDeleteRemoteToo(false);
       await load();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }
@@ -178,7 +179,7 @@ export function TagsPanel({ repo }: { repo: Repo }) {
       toast.success(`Pushed ${tag.name} to origin`);
       await load();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }
@@ -191,7 +192,7 @@ export function TagsPanel({ repo }: { repo: Repo }) {
       toast.success("Pushed all tags to origin");
       await load();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }
@@ -204,7 +205,7 @@ export function TagsPanel({ repo }: { repo: Repo }) {
       toast.success("Fetched latest tags from origin");
       await load();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setFetchingRemote(false);
     }
@@ -219,7 +220,7 @@ export function TagsPanel({ repo }: { repo: Repo }) {
       }
       setSelectedCommit(commit);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 

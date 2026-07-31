@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import {
   DndContext,
   PointerSensor,
@@ -179,7 +180,7 @@ export function RebaseDialog({
           if (current) setOriginalBranch(current.name);
         }
       } catch (e) {
-        toast.error(String(e));
+        reportGitError(e);
       }
     })();
   }, [open, repo.id]);
@@ -206,7 +207,7 @@ export function RebaseDialog({
       );
       setPhase("plan");
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
       setPhase("select");
     }
   };
@@ -278,7 +279,7 @@ export function RebaseDialog({
       const result = await api.startRebase(repo.id, onto, plan);
       handleResult(result);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
       await refreshInProgress();
     }
   };
@@ -290,7 +291,7 @@ export function RebaseDialog({
       const result = await api.continueRebase(repo.id);
       handleResult(result);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
       setPhase("conflict");
     }
   };
@@ -304,7 +305,7 @@ export function RebaseDialog({
       onChanged();
       onOpenChange(false);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
       setPhase("conflict");
     }
   };

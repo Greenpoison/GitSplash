@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import {
   DndContext,
   PointerSensor,
@@ -132,7 +133,7 @@ export function CherryPickDialog({
           setPhase("conflict");
         }
       } catch (e) {
-        toast.error(String(e));
+        reportGitError(e);
       }
     })();
   }, [open, repo.id]);
@@ -158,7 +159,7 @@ export function CherryPickDialog({
       );
       setPhase("plan");
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
       setPhase("select");
     }
   };
@@ -221,7 +222,7 @@ export function CherryPickDialog({
       const result = await api.startCherryPick(repo.id, shas);
       handleResult(result);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
       await refreshInProgress();
     }
   };
@@ -233,7 +234,7 @@ export function CherryPickDialog({
       const result = await api.continueCherryPick(repo.id);
       handleResult(result);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
       setPhase("conflict");
     }
   };
@@ -247,7 +248,7 @@ export function CherryPickDialog({
       onChanged();
       onOpenChange(false);
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
       setPhase("conflict");
     }
   };

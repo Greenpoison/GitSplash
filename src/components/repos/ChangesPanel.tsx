@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -146,7 +147,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
         setDiff(null);
       }
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 
@@ -162,7 +163,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
     api
       .getFileDiff(repo.id, selected.path, selected.staged, change.isUntracked && !selected.staged)
       .then(setDiff)
-      .catch((e) => toast.error(String(e)));
+      .catch((e) => reportGitError(e));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, repo.id]);
 
@@ -190,7 +191,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
       });
       await refreshAfterAction();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
   const unstage = async (path: string) => {
@@ -205,7 +206,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
       });
       await refreshAfterAction();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
   const discard = async () => {
@@ -218,7 +219,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
       setDiscardTarget(null);
       await refreshAfterAction();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
   const stageAll = async () => {
@@ -234,7 +235,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
       });
       await refreshAfterAction();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
   const unstageAll = async () => {
@@ -250,7 +251,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
       });
       await refreshAfterAction();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 
@@ -268,7 +269,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
       });
       await refreshAfterAction();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
   const unstageHunk = async (raw: string) => {
@@ -285,7 +286,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
       });
       await refreshAfterAction();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
   const discardHunk = async () => {
@@ -296,7 +297,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
       setDiscardHunkRaw(null);
       await refreshAfterAction();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 
@@ -336,7 +337,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
         }
       }
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setCommitting(false);
     }

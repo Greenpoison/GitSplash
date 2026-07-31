@@ -1,5 +1,6 @@
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import {
   Contrast,
   Download,
@@ -124,7 +125,7 @@ export function CommandPalette() {
               {repos.map((r) => (
                 <CommandItem
                   key={r.id}
-                  onSelect={() => run(() => api.openRepoExternal(r.id).catch((e) => toast.error(String(e))))}
+                  onSelect={() => run(() => api.openRepoExternal(r.id).catch((e) => reportGitError(e)))}
                 >
                   <ExternalLink /> Open {r.displayName} externally
                 </CommandItem>

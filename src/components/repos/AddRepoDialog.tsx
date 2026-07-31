@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { FolderOpen } from "lucide-react";
 import {
   Dialog,
@@ -82,7 +83,7 @@ export function AddRepoDialog() {
         setGroupPromptRepoId(repo.id);
       }
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setSubmitting(false);
     }

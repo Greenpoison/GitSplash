@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 
 export interface UndoEntry {
   id: string;
@@ -61,7 +61,7 @@ async function run(
       });
     }
   } catch (e) {
-    toast.error(String(e));
+    reportGitError(e);
   } finally {
     set({ busy: false });
   }

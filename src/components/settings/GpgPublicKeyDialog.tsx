@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { Copy } from "lucide-react";
 import {
   Dialog,
@@ -27,7 +28,7 @@ export function GpgPublicKeyDialog({
     api
       .getGpgPublicKey(gpgKeyId)
       .then(setKey)
-      .catch((e) => toast.error(String(e)));
+      .catch((e) => reportGitError(e));
   }, [open, gpgKeyId]);
 
   const copy = async () => {

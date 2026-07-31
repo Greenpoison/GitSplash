@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportGitError } from "@/lib/gitErrors";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +30,7 @@ export function SubmodulesPanel({ repo }: { repo: Repo }) {
     try {
       setSubmodules(await api.listSubmodules(repo.id));
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     }
   };
 
@@ -45,7 +46,7 @@ export function SubmodulesPanel({ repo }: { repo: Repo }) {
       toast.success(paths.length === 0 ? "Updated all submodules" : `Updated ${paths.join(", ")}`);
       await load();
     } catch (e) {
-      toast.error(String(e));
+      reportGitError(e);
     } finally {
       setBusy(false);
     }

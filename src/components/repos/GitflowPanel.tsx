@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import * as api from "@/lib/api";
 import type { BranchInfo, GitflowKind, Repo } from "@/lib/types";
+import { GitCommandPreview } from "@/components/GitCommandPreview";
 
 const DEFAULT_BASE: Record<GitflowKind, string> = {
   feature: "develop",
@@ -219,6 +220,18 @@ export function GitflowPanel({
                   merging" first if you'd rather keep the branch around.
                 </AlertDialogDescription>
               </AlertDialogHeader>
+              {current && (
+                <GitCommandPreview
+                  command={[
+                    ...Array.from(targets).flatMap((t) => [
+                      `git switch ${t}`,
+                      `git merge --no-edit ${current.name}`,
+                    ]),
+                    ...(finishing.kind !== "feature" && tag.trim() ? [`git tag ${tag.trim()}`] : []),
+                    `git branch -d ${current.name}`,
+                  ]}
+                />
+              )}
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={doFinish}>Finish and delete</AlertDialogAction>

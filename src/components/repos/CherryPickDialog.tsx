@@ -182,6 +182,8 @@ export function CherryPickDialog({
           repoId: repo.id,
           label: `Cherry-pick from ${source || "another branch"}`,
           destructive: true,
+          undoCommand: `git reset --hard ${result.previousHeadSha!.slice(0, 7)}`,
+          redoCommand: `git reset --hard ${result.newHeadSha!.slice(0, 7)}`,
           undo: () => api.resetTo(repo.id, result.previousHeadSha!, "hard").then(onChanged),
           redo: () => api.resetTo(repo.id, result.newHeadSha!, "hard").then(onChanged),
         });

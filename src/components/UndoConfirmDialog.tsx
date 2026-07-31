@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useUndoStore } from "@/store/undoStore";
 import { useAppStore } from "@/store/appStore";
+import { GitCommandPreview } from "@/components/GitCommandPreview";
 
 export function UndoConfirmDialog() {
   const pending = useUndoStore((s) => s.pendingConfirm);
@@ -20,6 +21,11 @@ export function UndoConfirmDialog() {
   const repoName = pending
     ? (repos.find((r) => r.id === pending.entry.repoId)?.displayName ?? "unknown repo")
     : "";
+  const command = pending
+    ? pending.direction === "undo"
+      ? pending.entry.undoCommand
+      : pending.entry.redoCommand
+    : undefined;
 
   return (
     <AlertDialog open={!!pending} onOpenChange={(o) => !o && cancelPending()}>
@@ -34,6 +40,7 @@ export function UndoConfirmDialog() {
             still need would be lost.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {command && <GitCommandPreview command={command} />}
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={confirmPending}>

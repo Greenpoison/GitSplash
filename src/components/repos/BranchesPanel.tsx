@@ -46,6 +46,7 @@ import type { BranchInfo, CommitNode, Repo } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useUndoStore } from "@/store/undoStore";
 import { CherryPickDialog } from "./CherryPickDialog";
+import { GitCommandPreview } from "@/components/GitCommandPreview";
 import { CommitDetailDialog } from "./CommitDetailDialog";
 import { CommitGraph } from "./CommitGraph";
 import { CompareBranchDialog } from "./CompareBranchDialog";
@@ -195,6 +196,8 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
             repoId: repo.id,
             label: `Merge ${mergeTarget}`,
             destructive: true,
+            undoCommand: `git reset --hard ${result.previousHeadSha!.slice(0, 7)}`,
+            redoCommand: `git reset --hard ${result.newHeadSha!.slice(0, 7)}`,
             undo: () =>
               api.resetTo(repo.id, result.previousHeadSha!, "hard").then(() => { load(); onChanged(); }),
             redo: () =>
@@ -527,6 +530,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
               Refused if it has commits not reachable from anywhere else.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteTarget && <GitCommandPreview command={`git branch -d ${deleteTarget}`} />}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => deleteTarget && deleteBranch(deleteTarget, false)}>
@@ -545,6 +549,9 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
               this branch that aren't reachable from anywhere else — there's no undo for that.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {forceDeleteTarget && (
+            <GitCommandPreview command={`git branch -D ${forceDeleteTarget.name}`} />
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => forceDeleteTarget && deleteBranch(forceDeleteTarget.name, true)}>

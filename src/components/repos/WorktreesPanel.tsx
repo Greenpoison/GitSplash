@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import * as api from "@/lib/api";
 import type { BranchInfo, Repo, WorktreeInfo } from "@/lib/types";
+import { GitCommandPreview } from "@/components/GitCommandPreview";
 
 export function WorktreesPanel({ repo }: { repo: Repo }) {
   const [worktrees, setWorktrees] = useState<WorktreeInfo[]>([]);
@@ -226,6 +227,11 @@ export function WorktreesPanel({ repo }: { repo: Repo }) {
               {removeTarget?.isLocked && " This worktree is locked — removing it needs to be forced."}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {removeTarget && (
+            <GitCommandPreview
+              command={`git worktree remove${removeTarget.isLocked ? " --force" : ""} ${removeTarget.path}`}
+            />
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => remove(!!removeTarget?.isLocked)}>

@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import * as api from "@/lib/api";
 import type { BranchInfo, PullRequestSummary, Repo } from "@/lib/types";
+import { GitCommandPreview } from "@/components/GitCommandPreview";
 
 export function PullRequestsPanel({ repo }: { repo: Repo }) {
   const [ghAvailable, setGhAvailable] = useState<boolean | null>(null);
@@ -219,6 +220,9 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
               GitHub right away — this can't be undone from here.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {mergeTarget && (
+            <GitCommandPreview command={`gh pr merge ${mergeTarget.pr.number} --${mergeTarget.method}`} />
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={merge}>Merge</AlertDialogAction>

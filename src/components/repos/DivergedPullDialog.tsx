@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import * as api from "@/lib/api";
 import { useUndoStore } from "@/store/undoStore";
 import type { Repo } from "@/lib/types";
+import { GitCommandPreview } from "@/components/GitCommandPreview";
 import { CompareBranchDialog } from "./CompareBranchDialog";
 
 /// Shown when a pull can't fast-forward because the local branch and its
@@ -51,6 +52,8 @@ export function DivergedPullDialog({
             repoId: repo.id,
             label: `Merge ${upstream}`,
             destructive: true,
+            undoCommand: `git reset --hard ${result.previousHeadSha!.slice(0, 7)}`,
+            redoCommand: `git reset --hard ${result.newHeadSha!.slice(0, 7)}`,
             undo: () => api.resetTo(repo.id, result.previousHeadSha!, "hard").then(onChanged),
             redo: () => api.resetTo(repo.id, result.newHeadSha!, "hard").then(onChanged),
           });
@@ -83,6 +86,7 @@ export function DivergedPullDialog({
               {upstream} in now if you already know what changed.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <GitCommandPreview command={`git merge --no-edit ${upstream}`} />
           <AlertDialogFooter>
             <AlertDialogCancel>Not now</AlertDialogCancel>
             <Button

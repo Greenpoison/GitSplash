@@ -10,6 +10,11 @@ export interface UndoEntry {
   /// dialog instead of firing immediately like safe entries (stage/unstage,
   /// soft-reset commit undo) do.
   destructive?: boolean;
+  /// The actual git command each direction runs, shown next to the
+  /// confirmation prompt for destructive entries — only meaningful when
+  /// `destructive` is true, since safe entries never show a confirm dialog.
+  undoCommand?: string;
+  redoCommand?: string;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
 }

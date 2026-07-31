@@ -25,6 +25,7 @@ import * as api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { FileChange, FileDiff, Repo } from "@/lib/types";
 import { useUndoStore } from "@/store/undoStore";
+import { GitCommandPreview } from "@/components/GitCommandPreview";
 import { ConflictResolverDialog } from "./ConflictResolverDialog";
 import { DiffHunkView } from "./DiffHunkView";
 
@@ -477,6 +478,15 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
                 : "This permanently discards the unstaged changes to this file."}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {discardTarget && (
+            <GitCommandPreview
+              command={
+                discardTarget.isUntracked
+                  ? `rm ${discardTarget.path}`
+                  : `git restore -- ${discardTarget.path}`
+              }
+            />
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={discard}>Discard</AlertDialogAction>
@@ -492,6 +502,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
               This permanently discards these lines from {selected?.path} — it can't be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <GitCommandPreview command="git apply --reverse (just this hunk)" />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={discardHunk}>Discard</AlertDialogAction>

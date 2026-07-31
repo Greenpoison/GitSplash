@@ -69,7 +69,7 @@ export function RepoDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={requestOpenChange}>
-      <DialogContent className="flex max-h-[85vh] sm:max-w-4xl flex-col overflow-hidden">
+      <DialogContent className="flex h-[97vh] max-h-[97vh] w-[98vw] sm:max-w-[98vw] flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>{repo.displayName}</DialogTitle>
         </DialogHeader>

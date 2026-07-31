@@ -43,8 +43,14 @@ export function GpgKeyPickerDialog({
     if (!selected) return;
     setSaving(true);
     try {
-      await api.setAccountGpgSigning(accountId, selected);
-      toast.success("Now signing with GPG");
+      const result = await api.setAccountGpgSigning(accountId, selected);
+      if (result.githubUploadError) {
+        toast.warning("Now signing with GPG, but couldn't register the key with GitHub", {
+          description: result.githubUploadError,
+        });
+      } else {
+        toast.success("Now signing with GPG");
+      }
       onDone();
       onOpenChange(false);
     } catch (e) {

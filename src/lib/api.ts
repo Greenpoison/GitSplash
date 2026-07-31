@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   Account,
+  AccountUploadResult,
   BlameLine,
   BranchInfo,
   CherryPickInProgress,
@@ -77,14 +78,14 @@ export const createAccount = (
 export const createAccountViaBrowser = (name: string, hostAlias: string, hostname?: string) =>
   invoke<Account>("create_account_via_browser", { name, hostAlias, hostname: hostname ?? null });
 export const generateSigningKey = (accountId: string) =>
-  invoke<Account>("generate_signing_key", { accountId });
+  invoke<AccountUploadResult>("generate_signing_key", { accountId });
 export const getPublicKey = (accountId: string, keyKind: "auth" | "signing") =>
   invoke<string>("get_public_key", { accountId, keyKind });
 export const deleteAccount = (id: string) => invoke<void>("delete_account", { id });
 export const assignRepoAccount = (repoId: string, accountId: string | null) =>
   invoke<Repo>("assign_repo_account", { repoId, accountId });
 export const setAccountGpgSigning = (accountId: string, gpgKeyId: string) =>
-  invoke<Account>("set_account_gpg_signing", { accountId, gpgKeyId });
+  invoke<AccountUploadResult>("set_account_gpg_signing", { accountId, gpgKeyId });
 export const setAccountSshSigning = (accountId: string) =>
   invoke<Account>("set_account_ssh_signing", { accountId });
 export const listGpgSecretKeys = () => invoke<GpgKeyInfo[]>("list_gpg_secret_keys");

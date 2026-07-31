@@ -51,9 +51,15 @@ function AccountRow({ account }: { account: Account }) {
     setConfirmGenerateOpen(false);
     setGenerating(true);
     try {
-      await api.generateSigningKey(account.id);
+      const result = await api.generateSigningKey(account.id);
       await refreshAccounts();
-      toast.success("Signing key generated and switched to SSH signing");
+      if (result.githubUploadError) {
+        toast.warning("Signing key generated, but couldn't register it with GitHub", {
+          description: result.githubUploadError,
+        });
+      } else {
+        toast.success("Signing key generated and switched to SSH signing");
+      }
     } catch (e) {
       toast.error(String(e));
     } finally {

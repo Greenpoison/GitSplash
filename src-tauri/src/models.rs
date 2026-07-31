@@ -24,6 +24,19 @@ pub struct Account {
     pub created_at: String,
 }
 
+/// Returned by any command that best-effort-uploads a signing key to
+/// GitHub after applying a local change (new SSH signing key, switching to
+/// GPG signing, etc). The local change always succeeds independently of the
+/// upload, so callers surface `github_upload_error` as a warning rather
+/// than failing the whole command — same "nice-to-have" reasoning as the
+/// upload itself.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountUploadResult {
+    pub account: Account,
+    pub github_upload_error: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Group {

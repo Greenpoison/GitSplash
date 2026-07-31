@@ -18,6 +18,11 @@ export interface GpgKeyInfo {
   uid: string;
 }
 
+export interface AccountUploadResult {
+  account: Account;
+  githubUploadError: string | null;
+}
+
 export interface GhAuthProgress {
   line: string;
 }

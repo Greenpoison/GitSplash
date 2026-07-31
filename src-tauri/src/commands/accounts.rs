@@ -2,7 +2,7 @@ use crate::db;
 use crate::error::{AppError, AppResult};
 use crate::gh;
 use crate::git;
-use crate::models::{Account, Repo};
+use crate::models::{Account, AccountUploadResult, Repo};
 use crate::ssh;
 use crate::state::AppState;
 use crate::util::{new_id, now_iso, slugify};
@@ -15,34 +15,40 @@ pub fn list_accounts(state: State<'_, AppState>) -> AppResult<Vec<Account>> {
     Ok(db::list_accounts(&conn)?)
 }
 
-/// Best-effort: generates a signing key and uploads it via gh if this
-/// account has a known github_username. Never fails the caller — a signing
-/// key is a nice-to-have, not a requirement for the account to work, and
-/// the "Generate signing key" button covers backfilling it later either way.
+/// Generates a signing key and uploads it via gh if this account has a
+/// known github_username. The local key generation is never skipped, but
+/// the upload is best-effort — its result is returned (rather than swallowed)
+/// so the caller can surface it as a warning, since a key that's generated
+/// but not actually registered with GitHub leaves commits unverified with
+/// no visible indication why.
 async fn try_generate_signing_key(
     hostname: &str,
     github_username: Option<&str>,
     host_alias: &str,
-) -> Option<String> {
+) -> Option<(String, Option<String>)> {
     let ssh_dir = ssh::config::ssh_dir().ok()?;
     let key_path = ssh_dir.join(format!("id_ed25519_{}_signing", slugify(host_alias)));
     ssh::keygen::generate_ed25519_key(&key_path, &format!("gitsplash-signing-{host_alias}"))
         .await
         .ok()?;
 
+    let mut upload_error = None;
     if let Some(username) = github_username {
         let pubkey_path = ssh::keygen::public_key_path(&key_path);
-        let _ = gh::upload_ssh_key(
+        if let Err(e) = gh::upload_ssh_key(
             hostname,
             username,
             &pubkey_path,
             &format!("GitSplash - {host_alias} (signing)"),
             "signing",
         )
-        .await;
+        .await
+        {
+            upload_error = Some(e);
+        }
     }
 
-    Some(key_path.to_string_lossy().to_string())
+    Some((key_path.to_string_lossy().to_string(), upload_error))
 }
 
 #[tauri::command]
@@ -148,14 +154,14 @@ fn assigned_repo_paths(conn: &rusqlite::Connection, account_id: &str) -> AppResu
 }
 
 #[tauri::command]
-pub async fn generate_signing_key(state: State<'_, AppState>, account_id: String) -> AppResult<Account> {
+pub async fn generate_signing_key(state: State<'_, AppState>, account_id: String) -> AppResult<AccountUploadResult> {
     let mut account = {
         let conn = state.db.lock().unwrap();
         db::get_account(&conn, &account_id)?
             .ok_or_else(|| AppError::NotFound(format!("account {account_id} not found")))?
     };
 
-    let signing_key_path = try_generate_signing_key(
+    let (signing_key_path, github_upload_error) = try_generate_signing_key(
         &account.hostname,
         account.github_username.as_deref(),
         &account.host_alias,
@@ -177,22 +183,22 @@ pub async fn generate_signing_key(state: State<'_, AppState>, account_id: String
             .ok();
     }
 
-    Ok(account)
+    Ok(AccountUploadResult { account, github_upload_error })
 }
 
 /// Switches an account to sign with an existing local GPG key instead of
 /// its SSH signing key, applying the change to every repo already assigned
-/// to it. Also best-effort uploads the public key to GitHub if the account
-/// has a known username — same nice-to-have treatment as the SSH signing
-/// key upload in try_generate_signing_key; a failed upload never blocks the
-/// signing method switch itself, since the public key can always be copied
-/// over by hand via the "GPG public key" button either way.
+/// to it. Also uploads the public key to GitHub if the account has a known
+/// username — the local signing-method switch always applies regardless of
+/// whether that upload succeeds, since the public key can always be copied
+/// over by hand via the "GPG public key" button either way, but the result
+/// is still returned so the caller can warn rather than fail silently.
 #[tauri::command]
 pub async fn set_account_gpg_signing(
     state: State<'_, AppState>,
     account_id: String,
     gpg_key_id: String,
-) -> AppResult<Account> {
+) -> AppResult<AccountUploadResult> {
     let mut account = {
         let conn = state.db.lock().unwrap();
         db::get_account(&conn, &account_id)?
@@ -213,19 +219,26 @@ pub async fn set_account_gpg_signing(
             .ok();
     }
 
+    let mut github_upload_error = None;
     if let Some(username) = &account.github_username {
-        if let Ok(armored) = crate::gpg::export_public_key(&gpg_key_id).await {
-            let _ = gh::upload_gpg_key(
-                &account.hostname,
-                username,
-                &armored,
-                &format!("GitSplash - {}", account.host_alias),
-            )
-            .await;
+        match crate::gpg::export_public_key(&gpg_key_id).await {
+            Ok(armored) => {
+                if let Err(e) = gh::upload_gpg_key(
+                    &account.hostname,
+                    username,
+                    &armored,
+                    &format!("GitSplash - {}", account.host_alias),
+                )
+                .await
+                {
+                    github_upload_error = Some(e);
+                }
+            }
+            Err(e) => github_upload_error = Some(format!("failed to export public key: {e}")),
         }
     }
 
-    Ok(account)
+    Ok(AccountUploadResult { account, github_upload_error })
 }
 
 /// Switches back to SSH signing. Re-applies the account's SSH signing key

@@ -18,10 +18,22 @@
 
 ## Contents
 
+- [Download](#download)
 - [Features](#features)
 - [Getting started](#getting-started)
 - [Contributing](#contributing)
 - [License](#license)
+
+## Download
+
+**[⬇ Download GitSplash for Windows](https://github.com/Greenpoison/GitSplash/releases/latest)**
+
+Grab the `.exe` installer from the [latest release](https://github.com/Greenpoison/GitSplash/releases/latest),
+run it, and choose whether to add Start Menu / Desktop shortcuts. No need to install
+Node.js, Rust, or anything else first — that's only required if you want to build
+from source (see [Getting started](#getting-started) below).
+
+GitSplash is currently in **beta**, so expect occasional rough edges.
 
 I hate subscription software. You should be able to manage your repos with ease.
 

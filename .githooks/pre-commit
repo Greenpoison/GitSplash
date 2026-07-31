@@ -11,4 +11,4 @@ cd "$(git rev-parse --show-toplevel)"
 
 node scripts/bump-version.cjs >/dev/null
 
-git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock

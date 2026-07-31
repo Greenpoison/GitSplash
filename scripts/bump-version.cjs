@@ -42,4 +42,19 @@ const cargoToml = fs.readFileSync(cargoTomlPath, "utf8");
 const updatedCargoToml = cargoToml.replace(/^version = ".*"$/m, `version = "${newVersion}"`);
 fs.writeFileSync(cargoTomlPath, updatedCargoToml);
 
+// Cargo itself only rewrites this on the next build, which otherwise leaves
+// the lockfile's own version metadata one commit behind — same class of
+// lag as the version-bump hook's original pre-push bug, just for a
+// different file. Only touches the gitsplash package's own block, not any
+// dependency that happens to be on the same version number.
+const cargoLockPath = path.join(root, "src-tauri", "Cargo.lock");
+if (fs.existsSync(cargoLockPath)) {
+  const cargoLock = fs.readFileSync(cargoLockPath, "utf8");
+  const updatedCargoLock = cargoLock.replace(
+    /(\[\[package\]\]\nname = "gitsplash"\nversion = ").*(")/,
+    `$1${newVersion}$2`,
+  );
+  fs.writeFileSync(cargoLockPath, updatedCargoLock);
+}
+
 console.log(newVersion);

@@ -11,6 +11,7 @@ import { useAppStore } from "@/store/appStore";
 export function GeneralSettingsPanel() {
   const settings = useAppStore((s) => s.settings);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
+  const setTutorialActive = useAppStore((s) => s.setTutorialActive);
   const [gitGuiPath, setGitGuiPath] = useState("");
   const [batchConcurrency, setBatchConcurrency] = useState(6);
   const [saving, setSaving] = useState(false);
@@ -47,12 +48,17 @@ export function GeneralSettingsPanel() {
     }
   };
 
-  const resetTutorial = async () => {
+  const restartTutorial = async () => {
     if (!settings) return;
     try {
+      // Clearing the flag alone wouldn't visibly do anything for most
+      // users — the tutorial only auto-launches on a genuinely empty
+      // install (no accounts/repos), which won't be true once you've
+      // actually used the app. Start it immediately instead of just
+      // waiting on a condition that may never occur again.
       await api.saveSettings({ ...settings, tutorialCompleted: false });
       await refreshSettings();
-      toast.success("Tutorial will show next time you launch GitSplash");
+      setTutorialActive(true);
     } catch (e) {
       toast.error(String(e));
     }
@@ -96,19 +102,17 @@ export function GeneralSettingsPanel() {
       <div className="flex flex-col gap-1.5 border-t pt-4">
         <Label>Tutorial</Label>
         <p className="text-xs text-muted-foreground">
-          {settings?.tutorialCompleted
-            ? "You've already been through the first-run tutorial."
-            : "The first-run tutorial hasn't been completed yet — it auto-launches only when there are no accounts or repos."}
+          Walks through adding an account, adding a repo, making a group, and exploring a repo.
         </p>
         <Button
           type="button"
           variant="outline"
           size="sm"
           className="w-fit"
-          onClick={resetTutorial}
-          disabled={!settings || !settings.tutorialCompleted}
+          onClick={restartTutorial}
+          disabled={!settings}
         >
-          Reset tutorial
+          Restart tutorial
         </Button>
       </div>
     </div>

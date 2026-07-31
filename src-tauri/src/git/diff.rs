@@ -1,4 +1,5 @@
 use super::process::run_git;
+use crate::util::no_window_tokio;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Stdio;
@@ -131,7 +132,9 @@ async fn apply_patch(repo_path: &Path, patch: &str, reverse: bool, cached: bool)
     }
     args.push("-");
 
-    let mut child = Command::new("git")
+    let mut cmd = Command::new("git");
+    no_window_tokio(&mut cmd);
+    let mut child = cmd
         .arg("-C")
         .arg(repo_path)
         .args(&args)

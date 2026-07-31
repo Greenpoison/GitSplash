@@ -1,3 +1,4 @@
+use crate::util::no_window_tokio;
 use std::path::Path;
 use std::process::Output;
 use tokio::process::Command;
@@ -36,7 +37,9 @@ pub async fn run_git_with_env(
     args: &[&str],
     envs: &[(&str, &str)],
 ) -> std::io::Result<GitOutput> {
-    let output = Command::new("git")
+    let mut cmd = Command::new("git");
+    no_window_tokio(&mut cmd);
+    let output = cmd
         .arg("-C")
         .arg(repo_path)
         .args(args)

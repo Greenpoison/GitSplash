@@ -1,3 +1,4 @@
+use crate::util::{no_window_std, no_window_tokio};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Stdio;
@@ -11,7 +12,9 @@ use tokio::time::timeout;
 /// without touching gh's globally "active" account — this is what lets
 /// concurrent operations across two different GitHub identities be safe.
 async fn token_for_user(hostname: &str, username: &str) -> Result<String, String> {
-    let output = Command::new("gh")
+    let mut cmd = Command::new("gh");
+    no_window_tokio(&mut cmd);
+    let output = cmd
         .args(["auth", "token", "--hostname", hostname, "--user", username])
         .output()
         .await
@@ -32,6 +35,7 @@ async fn run_gh(
     args: &[&str],
 ) -> Result<String, String> {
     let mut cmd = Command::new("gh");
+    no_window_tokio(&mut cmd);
     // `gh pr create` normally prompts interactively (e.g. "push this branch
     // to a remote?") if it thinks it can — with a GUI app there's no visible
     // terminal for that prompt to appear on, so it would otherwise hang
@@ -53,8 +57,9 @@ async fn run_gh(
 }
 
 pub async fn is_gh_installed() -> bool {
-    Command::new("gh")
-        .arg("--version")
+    let mut cmd = Command::new("gh");
+    no_window_tokio(&mut cmd);
+    cmd.arg("--version")
         .output()
         .await
         .map(|o| o.status.success())
@@ -79,7 +84,9 @@ pub struct GhAuthProgress {
 /// deliberately — gh detects the non-interactive context and skips its
 /// "press Enter to open browser" prompt rather than hanging on it.
 pub async fn login_with_browser(app: &AppHandle, hostname: &str) -> Result<(), String> {
-    let mut child = Command::new("gh")
+    let mut cmd = Command::new("gh");
+    no_window_tokio(&mut cmd);
+    let mut child = cmd
         .args([
             "auth",
             "login",
@@ -139,12 +146,16 @@ pub async fn login_with_browser(app: &AppHandle, hostname: &str) -> Result<(), S
 fn handle_login_line(app: &AppHandle, line: &str) {
     let _ = app.emit("gh-auth-progress", GhAuthProgress { line: line.to_string() });
     if let Some(url) = line.split("Open this URL to continue in your web browser: ").nth(1) {
-        std::process::Command::new("explorer").arg(url.trim()).spawn().ok();
+        let mut cmd = std::process::Command::new("explorer");
+        no_window_std(&mut cmd);
+        cmd.arg(url.trim()).spawn().ok();
     }
 }
 
 pub async fn get_authenticated_username(hostname: &str) -> Result<String, String> {
-    let output = Command::new("gh")
+    let mut cmd = Command::new("gh");
+    no_window_tokio(&mut cmd);
+    let output = cmd
         .args(["api", "user", "--hostname", hostname, "--jq", ".login"])
         .output()
         .await
@@ -168,7 +179,9 @@ pub async fn upload_ssh_key(
     key_type: &str, // "authentication" | "signing"
 ) -> Result<(), String> {
     let token = token_for_user(hostname, username).await?;
-    let output = Command::new("gh")
+    let mut cmd = Command::new("gh");
+    no_window_tokio(&mut cmd);
+    let output = cmd
         .args([
             "ssh-key",
             "add",
@@ -206,7 +219,9 @@ pub async fn upload_gpg_key(
         .await
         .map_err(|e| format!("failed to write temp key file: {e}"))?;
 
-    let result = Command::new("gh")
+    let mut cmd = Command::new("gh");
+    no_window_tokio(&mut cmd);
+    let result = cmd
         .args(["gpg-key", "add", &temp_path.to_string_lossy(), "--title", title])
         .env("GH_TOKEN", token)
         .env("GH_HOST", hostname)

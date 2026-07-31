@@ -1,3 +1,4 @@
+use crate::util::no_window_tokio;
 use std::path::Path;
 use tokio::process::Command;
 
@@ -22,7 +23,9 @@ pub async fn clone_repo(url: &str, dest: &Path) -> Result<(), String> {
             .map_err(|e| format!("failed to create {}: {e}", parent.display()))?;
     }
 
-    let output = Command::new("git")
+    let mut cmd = Command::new("git");
+    no_window_tokio(&mut cmd);
+    let output = cmd
         .arg("clone")
         .arg(url)
         .arg(dest)

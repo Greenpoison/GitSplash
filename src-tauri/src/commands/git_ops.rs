@@ -1,6 +1,7 @@
 use crate::db;
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::git;
+use crate::git::fetch::FetchOutcome;
 use crate::models::{BatchEvent, BatchPhase};
 use crate::state::AppState;
 use crate::util::{new_id, now_iso};
@@ -8,6 +9,25 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::Semaphore;
+
+/// Fetches (and optionally pulls) a single repo, independent of any group —
+/// the per-repo counterpart to `batch_update_group`, for repos that aren't
+/// in a group at all or when you just want to update one repo on its own.
+#[tauri::command]
+pub async fn fetch_repo(state: State<'_, AppState>, repo_id: String, pull: bool) -> AppResult<FetchOutcome> {
+    let repo_path = {
+        let conn = state.db.lock().unwrap();
+        db::get_repo(&conn, &repo_id)?
+            .ok_or_else(|| AppError::NotFound(format!("repo {repo_id} not found")))?
+            .path
+    };
+    let outcome = git::fetch::fetch_and_maybe_pull(&repo_id, &PathBuf::from(repo_path), pull).await;
+    if outcome.fetched {
+        let conn = state.db.lock().unwrap();
+        db::touch_last_fetched(&conn, &repo_id, &now_iso()).ok();
+    }
+    Ok(outcome)
+}
 
 /// Runs fetch (and optionally pull) across every repo in a group, in
 /// parallel up to the configured concurrency, streaming a BatchEvent per

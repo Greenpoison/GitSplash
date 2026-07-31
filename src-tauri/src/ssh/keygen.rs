@@ -1,3 +1,4 @@
+use crate::util::no_window_tokio;
 use std::path::{Path, PathBuf};
 use tokio::process::Command;
 
@@ -21,7 +22,9 @@ pub async fn generate_ed25519_key(key_path: &Path, comment: &str) -> Result<(), 
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
 
-    let output = Command::new("ssh-keygen")
+    let mut cmd = Command::new("ssh-keygen");
+    no_window_tokio(&mut cmd);
+    let output = cmd
         .arg("-t")
         .arg("ed25519")
         .arg("-f")

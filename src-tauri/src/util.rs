@@ -13,3 +13,24 @@ pub fn slugify(s: &str) -> String {
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
         .collect()
 }
+
+/// Windows briefly flashes a console window for every child process spawned
+/// from a GUI app that has no console of its own — every git/gh/ssh-keygen
+/// invocation otherwise. Suppresses that. No-op on other platforms.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+#[cfg(windows)]
+pub fn no_window_tokio(cmd: &mut tokio::process::Command) {
+    cmd.creation_flags(CREATE_NO_WINDOW);
+}
+#[cfg(not(windows))]
+pub fn no_window_tokio(_cmd: &mut tokio::process::Command) {}
+
+#[cfg(windows)]
+pub fn no_window_std(cmd: &mut std::process::Command) {
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(CREATE_NO_WINDOW);
+}
+#[cfg(not(windows))]
+pub fn no_window_std(_cmd: &mut std::process::Command) {}

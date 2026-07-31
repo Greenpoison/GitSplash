@@ -8,6 +8,7 @@ import type {
   CommitNode,
   CompareFile,
   ConflictFile,
+  FetchOutcome,
   FileChange,
   FileDiff,
   FileTextContent,
@@ -92,6 +93,8 @@ export const getGpgPublicKey = (keyId: string) => invoke<string>("get_gpg_public
 // Batch git ops
 export const batchUpdateGroup = (groupId: string, pull: boolean) =>
   invoke<string>("batch_update_group", { groupId, pull });
+export const fetchRepo = (repoId: string, pull: boolean) =>
+  invoke<FetchOutcome>("fetch_repo", { repoId, pull });
 
 // Branch comparison
 export const compareBranches = (repoId: string, base: string, branch: string) =>

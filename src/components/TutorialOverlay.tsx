@@ -30,6 +30,13 @@ export function TutorialOverlay() {
 
   const step = TUTORIAL_STEPS[stepIndex];
 
+  // This component never unmounts (it just renders null while inactive), so
+  // without this, restarting the tour after finishing it once would resume
+  // at whatever step it was left on instead of starting over from Welcome.
+  useEffect(() => {
+    if (tutorialActive) setStepIndex(0);
+  }, [tutorialActive]);
+
   useEffect(() => {
     if (!tutorialActive) return;
     if (step.view) setView(step.view);

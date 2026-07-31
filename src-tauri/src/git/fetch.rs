@@ -1,7 +1,10 @@
 use super::process::run_git;
 use super::status::get_status;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FetchOutcome {
     /// True as soon as `git fetch` itself succeeds, regardless of what
     /// happens to the optional pull step afterwards.

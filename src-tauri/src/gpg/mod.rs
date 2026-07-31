@@ -1,3 +1,4 @@
+use crate::util::no_window_tokio;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 
@@ -14,7 +15,9 @@ pub struct GpgKeyInfo {
 /// key from the local keyring is the standard flow GitHub's own docs
 /// recommend anyway.
 pub async fn list_secret_keys() -> Result<Vec<GpgKeyInfo>, String> {
-    let output = Command::new("gpg")
+    let mut cmd = Command::new("gpg");
+    no_window_tokio(&mut cmd);
+    let output = cmd
         .args(["--list-secret-keys", "--with-colons"])
         .output()
         .await
@@ -59,7 +62,9 @@ fn parse_secret_keys(stdout: &str) -> Vec<GpgKeyInfo> {
 }
 
 pub async fn export_public_key(key_id: &str) -> Result<String, String> {
-    let output = Command::new("gpg")
+    let mut cmd = Command::new("gpg");
+    no_window_tokio(&mut cmd);
+    let output = cmd
         .args(["--armor", "--export", key_id])
         .output()
         .await

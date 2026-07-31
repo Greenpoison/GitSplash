@@ -104,6 +104,13 @@ export interface MergeResult {
   newHeadSha: string | null;
 }
 
+export interface FetchOutcome {
+  fetched: boolean;
+  pulled: boolean;
+  skippedPull: boolean;
+  message: string | null;
+}
+
 export type RebaseAction = "pick" | "reword" | "squash" | "fixup" | "drop";
 
 export interface RebasePlanItem {

@@ -6,8 +6,11 @@ import {
   ArrowUp,
   Check,
   CheckCircle2,
+  Download,
   ExternalLink,
   FolderOpen,
+  GitPullRequestArrow,
+  Loader2,
   MoreVertical,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -48,11 +51,32 @@ export function RepoCard({ repo }: { repo: Repo }) {
   const status = useAppStore((s) => s.statuses[repo.id]);
   const accounts = useAppStore((s) => s.accounts);
   const refreshRepos = useAppStore((s) => s.refreshRepos);
+  const refreshStatuses = useAppStore((s) => s.refreshStatuses);
   const [editGroupsOpen, setEditGroupsOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
+  const [fetching, setFetching] = useState(false);
 
   const account = accounts.find((a) => a.id === repo.accountId);
+
+  const doFetch = async (pull: boolean) => {
+    setFetching(true);
+    try {
+      const outcome = await api.fetchRepo(repo.id, pull);
+      if (!outcome.fetched) {
+        toast.error(outcome.message ?? "Fetch failed");
+      } else if (pull && !outcome.pulled) {
+        toast.warning(outcome.message ?? "Fetched, but didn't pull", { description: repo.displayName });
+      } else {
+        toast.success(`${pull ? "Fetch & pull" : "Fetch"} finished for ${repo.displayName}`);
+      }
+      await Promise.all([refreshRepos(), refreshStatuses([repo.id])]);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setFetching(false);
+    }
+  };
 
   const assign = async (accountId: string | null) => {
     try {
@@ -142,6 +166,19 @@ export function RepoCard({ repo }: { repo: Repo }) {
       <Button
         variant="ghost"
         size="icon"
+        disabled={fetching}
+        onClick={(e) => {
+          e.stopPropagation();
+          doFetch(false);
+        }}
+        title="Fetch"
+      >
+        {fetching ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={(e) => {
           e.stopPropagation();
           api.openRepoExternal(repo.id).catch((err) => toast.error(String(err)));
@@ -170,6 +207,9 @@ export function RepoCard({ repo }: { repo: Repo }) {
         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
           <DropdownMenuItem onClick={() => api.openRepoExternal(repo.id)}>
             <ExternalLink className="size-4" /> Open externally
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={fetching} onClick={() => doFetch(true)}>
+            <GitPullRequestArrow className="size-4" /> Fetch &amp; pull
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setEditGroupsOpen(true)}>Edit groups</DropdownMenuItem>
           <DropdownMenuSub>

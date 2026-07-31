@@ -21,6 +21,12 @@ pub struct Account {
     /// An existing local GPG secret key's long key ID, picked from the
     /// user's keyring rather than generated (unlike the SSH signing key).
     pub gpg_key_id: Option<String>,
+    /// Routes SSH over ssh.github.com:443 instead of github.com:22 — the
+    /// workaround GitHub documents for networks that block outbound SSH.
+    /// Only meaningful for the public github.com; there's no equivalent
+    /// fixed hostname for GitHub Enterprise, so the UI only offers this
+    /// when `hostname == "github.com"`.
+    pub use_ssh_over_https: bool,
     pub created_at: String,
 }
 

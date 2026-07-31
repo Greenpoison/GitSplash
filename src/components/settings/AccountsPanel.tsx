@@ -3,6 +3,9 @@ import { toast } from "sonner";
 import { KeyRound, PenLine, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +33,20 @@ function AccountRow({ account }: { account: Account }) {
   const [gpgKeyDialogOpen, setGpgKeyDialogOpen] = useState(false);
   const [switchingSigning, setSwitchingSigning] = useState(false);
   const [confirmGenerateOpen, setConfirmGenerateOpen] = useState(false);
+  const [togglingHttpsPort, setTogglingHttpsPort] = useState(false);
+
+  const toggleSshOverHttps = async (enabled: boolean) => {
+    setTogglingHttpsPort(true);
+    try {
+      await api.setAccountSshOverHttps(account.id, enabled);
+      await refreshAccounts();
+      toast.success(enabled ? "Now routing SSH over port 443" : "Back to routing SSH over port 22");
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setTogglingHttpsPort(false);
+    }
+  };
 
   useEffect(() => {
     if (!account.githubUsername) {
@@ -160,6 +177,24 @@ function AccountRow({ account }: { account: Account }) {
           </Button>
         )}
       </div>
+      {account.hostname === "github.com" && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <label className="flex w-fit items-center gap-1.5 text-xs text-muted-foreground">
+              <Checkbox
+                checked={account.useSshOverHttps}
+                disabled={togglingHttpsPort}
+                onCheckedChange={(c) => toggleSshOverHttps(!!c)}
+              />
+              <Label className="font-normal">Use port 443 for SSH</Label>
+            </label>
+          </TooltipTrigger>
+          <TooltipContent>
+            For networks that block outbound SSH on port 22 — routes over ssh.github.com:443
+            instead, GitHub's own workaround for this.
+          </TooltipContent>
+        </Tooltip>
+      )}
       {keyDialog && (
         <PublicKeyDialog
           accountId={account.id}

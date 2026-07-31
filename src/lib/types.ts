@@ -10,6 +10,7 @@ export interface Account {
   signingKeyPath: string | null;
   signingMethod: SigningMethod;
   gpgKeyId: string | null;
+  useSshOverHttps: boolean;
   createdAt: string;
 }
 
@@ -113,6 +114,8 @@ export interface FetchOutcome {
   fetched: boolean;
   pulled: boolean;
   skippedPull: boolean;
+  diverged: boolean;
+  upstream: string | null;
   message: string | null;
 }
 

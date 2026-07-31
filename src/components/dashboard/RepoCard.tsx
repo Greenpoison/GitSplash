@@ -46,6 +46,7 @@ import { displayPath, relativeTime } from "@/lib/utils";
 import type { Repo } from "@/lib/types";
 import { EditRepoGroupsDialog } from "@/components/repos/EditRepoGroupsDialog";
 import { RepoDetailDialog } from "@/components/repos/RepoDetailDialog";
+import { DivergedPullDialog } from "@/components/repos/DivergedPullDialog";
 
 export function RepoCard({ repo }: { repo: Repo }) {
   const status = useAppStore((s) => s.statuses[repo.id]);
@@ -56,6 +57,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [fetching, setFetching] = useState(false);
+  const [diverged, setDiverged] = useState<{ branch: string; upstream: string } | null>(null);
 
   const account = accounts.find((a) => a.id === repo.accountId);
 
@@ -65,6 +67,8 @@ export function RepoCard({ repo }: { repo: Repo }) {
       const outcome = await api.fetchRepo(repo.id, pull);
       if (!outcome.fetched) {
         toast.error(outcome.message ?? "Fetch failed");
+      } else if (outcome.diverged && outcome.upstream && status?.branch) {
+        setDiverged({ branch: status.branch, upstream: outcome.upstream });
       } else if (pull && !outcome.pulled) {
         toast.warning(outcome.message ?? "Fetched, but didn't pull", { description: repo.displayName });
       } else {
@@ -244,6 +248,16 @@ export function RepoCard({ repo }: { repo: Repo }) {
       <div onClick={(e) => e.stopPropagation()}>
         <EditRepoGroupsDialog repo={repo} open={editGroupsOpen} onOpenChange={setEditGroupsOpen} />
         <RepoDetailDialog repo={repo} open={detailOpen} onOpenChange={setDetailOpen} />
+        {diverged && (
+          <DivergedPullDialog
+            repo={repo}
+            branch={diverged.branch}
+            upstream={diverged.upstream}
+            open={!!diverged}
+            onOpenChange={(o) => !o && setDiverged(null)}
+            onChanged={() => refreshStatuses([repo.id])}
+          />
+        )}
 
         <AlertDialog open={removeOpen} onOpenChange={setRemoveOpen}>
           <AlertDialogContent>

@@ -66,7 +66,7 @@ pub async fn create_account(
     ssh::keygen::generate_ed25519_key(&key_path, &format!("gitsplash-auth-{host_alias}"))
         .await
         .map_err(AppError::Ssh)?;
-    ssh::config::upsert_host_block(&host_alias, &hostname, &key_path).map_err(AppError::Ssh)?;
+    ssh::config::upsert_host_block(&host_alias, &hostname, &key_path, false).map_err(AppError::Ssh)?;
 
     // Signing keys are opt-in via the "Generate signing key" button, not
     // generated automatically here — see generate_signing_key.
@@ -80,6 +80,7 @@ pub async fn create_account(
         signing_key_path: None,
         signing_method: "ssh".to_string(),
         gpg_key_id: None,
+        use_ssh_over_https: false,
         created_at: now_iso(),
     };
 
@@ -110,7 +111,7 @@ pub async fn create_account_via_browser(
     ssh::keygen::generate_ed25519_key(&key_path, &format!("gitsplash-auth-{host_alias}"))
         .await
         .map_err(AppError::Ssh)?;
-    ssh::config::upsert_host_block(&host_alias, &hostname, &key_path).map_err(AppError::Ssh)?;
+    ssh::config::upsert_host_block(&host_alias, &hostname, &key_path, false).map_err(AppError::Ssh)?;
 
     let pubkey_path = ssh::keygen::public_key_path(&key_path);
     if let Err(e) = gh::upload_ssh_key(&hostname, &username, &pubkey_path, &format!("GitSplash - {host_alias}"), "authentication").await {
@@ -135,6 +136,7 @@ pub async fn create_account_via_browser(
         signing_key_path: None,
         signing_method: "ssh".to_string(),
         gpg_key_id: None,
+        use_ssh_over_https: false,
         created_at: now_iso(),
     };
 
@@ -270,6 +272,42 @@ pub async fn set_account_ssh_signing(state: State<'_, AppState>, account_id: Str
                 git::config::clear_signing_config(&repo_path_buf).await.ok();
             }
         }
+    }
+
+    Ok(account)
+}
+
+/// Toggles routing this account's SSH traffic over ssh.github.com:443
+/// instead of github.com:22 — see `ssh::config::upsert_host_block` for why.
+/// Only meaningful when the account's hostname is the public github.com.
+#[tauri::command]
+pub async fn set_account_ssh_over_https(
+    state: State<'_, AppState>,
+    account_id: String,
+    enabled: bool,
+) -> AppResult<Account> {
+    let mut account = {
+        let conn = state.db.lock().unwrap();
+        db::get_account(&conn, &account_id)?
+            .ok_or_else(|| AppError::NotFound(format!("account {account_id} not found")))?
+    };
+
+    account.use_ssh_over_https = enabled;
+    {
+        let conn = state.db.lock().unwrap();
+        db::update_account(&conn, &account)?;
+    }
+
+    ssh::config::upsert_host_block(
+        &account.host_alias,
+        &account.hostname,
+        &PathBuf::from(&account.ssh_key_path),
+        enabled,
+    )
+    .map_err(AppError::Ssh)?;
+
+    if enabled {
+        ssh::config::ensure_https_port_known_host().await;
     }
 
     Ok(account)

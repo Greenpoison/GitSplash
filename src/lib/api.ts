@@ -88,6 +88,8 @@ export const setAccountGpgSigning = (accountId: string, gpgKeyId: string) =>
   invoke<AccountUploadResult>("set_account_gpg_signing", { accountId, gpgKeyId });
 export const setAccountSshSigning = (accountId: string) =>
   invoke<Account>("set_account_ssh_signing", { accountId });
+export const setAccountSshOverHttps = (accountId: string, enabled: boolean) =>
+  invoke<Account>("set_account_ssh_over_https", { accountId, enabled });
 export const listGpgSecretKeys = () => invoke<GpgKeyInfo[]>("list_gpg_secret_keys");
 export const getGpgPublicKey = (keyId: string) => invoke<string>("get_gpg_public_key", { keyId });
 

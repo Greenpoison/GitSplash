@@ -50,6 +50,7 @@ pub fn run() {
             commands::accounts::assign_repo_account,
             commands::accounts::set_account_gpg_signing,
             commands::accounts::set_account_ssh_signing,
+            commands::accounts::set_account_ssh_over_https,
             commands::gpg::list_gpg_secret_keys,
             commands::gpg::get_gpg_public_key,
             commands::git_ops::batch_update_group,

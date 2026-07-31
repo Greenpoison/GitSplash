@@ -29,6 +29,7 @@ pub fn open(data_dir: &Path) -> rusqlite::Result<Connection> {
             signing_key_path  TEXT,
             signing_method    TEXT NOT NULL DEFAULT 'ssh',
             gpg_key_id        TEXT,
+            use_ssh_over_https INTEGER NOT NULL DEFAULT 0,
             created_at        TEXT NOT NULL
         );
 
@@ -73,6 +74,7 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     add_column_if_missing(conn, "accounts", "signing_method", "TEXT NOT NULL DEFAULT 'ssh'")?;
     add_column_if_missing(conn, "accounts", "gpg_key_id", "TEXT")?;
     add_column_if_missing(conn, "groups", "color", "TEXT")?;
+    add_column_if_missing(conn, "accounts", "use_ssh_over_https", "INTEGER NOT NULL DEFAULT 0")?;
     Ok(())
 }
 

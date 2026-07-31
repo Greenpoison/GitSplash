@@ -78,7 +78,7 @@ export function RepoDetailDialog({
             gitflow panel + commit graph all stacked) never pushes the tab
             bar itself out of view. */}
         <Tabs value={activeTab} onValueChange={requestTabChange} className="flex min-h-0 flex-1 flex-col">
-          <TabsList className="w-full shrink-0 justify-start overflow-x-auto">
+          <TabsList className="w-full shrink-0 justify-start overflow-x-auto overflow-y-hidden">
             <TabsTrigger value="changes" className="shrink-0">Changes</TabsTrigger>
             <TabsTrigger value="branches" className="shrink-0">Branches</TabsTrigger>
             <TabsTrigger value="worktrees" className="shrink-0">Worktrees</TabsTrigger>

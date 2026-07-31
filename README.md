@@ -71,6 +71,7 @@ I hate subscription software. You should be able to manage your repos with ease.
 - [Node.js](https://nodejs.org) 18+ and npm
 - [Rust](https://rustup.rs) (stable toolchain)
 - [GitHub CLI](https://cli.github.com) (`gh`) — needed for account login and PRs
+- [GnuPG](https://gnupg.org) (`gpg`) — needed only if you use GPG commit signing instead of SSH signing
 - Both Cargo's bin dir and the GitHub CLI's install dir need to be on `PATH`
 
 ### Install & run

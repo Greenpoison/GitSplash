@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
-import { relativeTime } from "@/lib/utils";
+import { displayPath, relativeTime } from "@/lib/utils";
 import type { Repo } from "@/lib/types";
 import { EditRepoGroupsDialog } from "@/components/repos/EditRepoGroupsDialog";
 import { RepoDetailDialog } from "@/components/repos/RepoDetailDialog";
@@ -89,7 +89,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
             </Badge>
           )}
         </div>
-        <span className="truncate text-xs text-muted-foreground max-w-md">{repo.path}</span>
+        <span className="truncate text-xs text-muted-foreground max-w-md">{displayPath(repo.path)}</span>
       </div>
 
       <div className="flex items-center gap-2 text-sm">

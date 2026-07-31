@@ -5,6 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Windows' extended-length path prefix (`\\?\`, or `\\?\UNC\` for network
+// paths) — std::fs::canonicalize() on the Rust side returns paths in this
+// form, which is what lets it round-trip paths longer than MAX_PATH, but
+// it's meaningless to show a user.
+export function displayPath(path: string): string {
+  if (path.startsWith("\\\\?\\UNC\\")) return "\\\\" + path.slice(8);
+  if (path.startsWith("\\\\?\\")) return path.slice(4);
+  return path;
+}
+
 export function relativeTime(iso: string | null): string {
   if (!iso) return "never";
   const then = new Date(iso).getTime();

@@ -64,7 +64,7 @@ export function CommitDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[92vh] max-h-[92vh] w-[95vw] sm:max-w-[95vw] flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle className="truncate">{commit.subject}</DialogTitle>
+          <DialogTitle className="leading-snug whitespace-normal break-words">{commit.subject}</DialogTitle>
           <DialogDescription>
             <span className="font-mono">{commit.hash.slice(0, 7)}</span> · {commit.author} ·{" "}
             {new Date(commit.date).toLocaleString()}

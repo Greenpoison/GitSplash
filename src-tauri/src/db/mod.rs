@@ -16,7 +16,7 @@ pub fn open(data_dir: &Path) -> rusqlite::Result<Connection> {
     let conn = Connection::open(data_dir.join("gitsplash.sqlite3"))?;
     conn.execute_batch(
         "
-        PRAGMA journal_mode = WAL;
+        PRAGMA journal_mode = DELETE;
         PRAGMA foreign_keys = ON;
 
         CREATE TABLE IF NOT EXISTS accounts (

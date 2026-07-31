@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import * as api from "@/lib/api";
 import type { BlameLine, CommitNode, Repo } from "@/lib/types";
+import { CommitDetailDialog } from "./CommitDetailDialog";
 import { FileTree } from "./FileTree";
 
 function formatDate(iso: string): string {
@@ -24,17 +25,18 @@ function colorForHash(hash: string): string {
   return LINE_COLORS[sum % LINE_COLORS.length];
 }
 
-function HistoryList({ repoId, path }: { repoId: string; path: string }) {
+function HistoryList({ repo, path }: { repo: Repo; path: string }) {
   const [commits, setCommits] = useState<CommitNode[] | null>(null);
   const [wrapText, setWrapText] = useState(true);
+  const [selectedCommit, setSelectedCommit] = useState<CommitNode | null>(null);
 
   useEffect(() => {
     setCommits(null);
     api
-      .getFileHistory(repoId, path, 100)
+      .getFileHistory(repo.id, path, 100)
       .then(setCommits)
       .catch((e) => toast.error(String(e)));
-  }, [repoId, path]);
+  }, [repo.id, path]);
 
   if (!commits) return <p className="p-2 text-sm text-muted-foreground">Loading…</p>;
   if (commits.length === 0) return <p className="p-2 text-sm text-muted-foreground">No history found.</p>;
@@ -54,9 +56,11 @@ function HistoryList({ repoId, path }: { repoId: string; path: string }) {
       </div>
       <div className="flex w-full min-w-0 flex-col divide-y">
         {commits.map((c) => (
-          <div
+          <button
             key={c.hash}
-            className="flex w-full min-w-0 flex-col gap-0.5 px-2 py-2 text-sm text-foreground dark:text-foreground/75"
+            onClick={() => setSelectedCommit(c)}
+            title="Explore this commit"
+            className="flex w-full min-w-0 flex-col gap-0.5 px-2 py-2 text-left text-sm text-foreground hover:bg-accent/50 dark:text-foreground/75"
           >
             <span className={cn("min-w-0 font-medium", wrapText ? "whitespace-normal break-words" : "truncate")}>
               {c.subject}
@@ -64,9 +68,16 @@ function HistoryList({ repoId, path }: { repoId: string; path: string }) {
             <span className="text-xs text-muted-foreground">
               {c.author} · {formatDate(c.date)} · <span className="font-mono">{c.hash.slice(0, 7)}</span>
             </span>
-          </div>
+          </button>
         ))}
       </div>
+
+      <CommitDetailDialog
+        repo={repo}
+        commit={selectedCommit}
+        open={!!selectedCommit}
+        onOpenChange={(o) => !o && setSelectedCommit(null)}
+      />
     </div>
   );
 }
@@ -141,7 +152,7 @@ export function FileHistoryPanel({ repo }: { repo: Repo }) {
             </TabsList>
             <TabsContent value="history" className="flex-1 overflow-hidden">
               <ScrollArea className="gradient-border h-full rounded-md bg-card">
-                <HistoryList repoId={repo.id} path={selected} />
+                <HistoryList repo={repo} path={selected} />
               </ScrollArea>
             </TabsContent>
             <TabsContent value="blame" className="flex-1 overflow-hidden">

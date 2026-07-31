@@ -9,6 +9,11 @@ pub struct CommitNode {
     pub parents: Vec<String>,
     pub refs: Vec<String>,
     pub subject: String,
+    /// The extended commit message body (everything after the subject
+    /// line's blank-line separator) — empty when there isn't one. Lets the
+    /// UI offer a quick peek at what a commit was actually about beyond its
+    /// one-line subject, without a separate round-trip per commit.
+    pub body: String,
     pub author: String,
     pub date: String,
 }
@@ -17,7 +22,7 @@ const FIELD_SEP: char = '\u{1f}';
 const RECORD_SEP: char = '\u{1e}';
 
 fn log_format() -> String {
-    format!("%H{FIELD_SEP}%P{FIELD_SEP}%D{FIELD_SEP}%s{FIELD_SEP}%an{FIELD_SEP}%ad{RECORD_SEP}")
+    format!("%H{FIELD_SEP}%P{FIELD_SEP}%D{FIELD_SEP}%s{FIELD_SEP}%an{FIELD_SEP}%ad{FIELD_SEP}%b{RECORD_SEP}")
 }
 
 fn parse_log_records(stdout: &str) -> Vec<CommitNode> {
@@ -28,7 +33,7 @@ fn parse_log_records(stdout: &str) -> Vec<CommitNode> {
             continue;
         }
         let fields: Vec<&str> = record.split(FIELD_SEP).collect();
-        if fields.len() < 6 {
+        if fields.len() < 7 {
             continue;
         }
         let parents = fields[1]
@@ -45,6 +50,7 @@ fn parse_log_records(stdout: &str) -> Vec<CommitNode> {
             parents,
             refs,
             subject: fields[3].to_string(),
+            body: fields[6].trim().to_string(),
             author: fields[4].to_string(),
             date: fields[5].to_string(),
         });

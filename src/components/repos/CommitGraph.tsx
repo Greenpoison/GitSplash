@@ -3,6 +3,7 @@ import type { CommitNode } from "@/lib/types";
 import { cn, relativeTime } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const ROW_HEIGHT = 30;
 const WRAPPED_ROW_HEIGHT = 54;
@@ -171,14 +172,27 @@ export function CommitGraph({
                 onSelectCommit && "cursor-pointer hover:bg-accent/50",
               )}
             >
-              <span
-                className={cn(
-                  "min-w-0 flex-1 font-medium",
-                  wrapText ? "line-clamp-2 break-words whitespace-normal" : "truncate",
-                )}
-              >
-                {node.subject}
-              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 font-medium",
+                      wrapText ? "line-clamp-2 break-words whitespace-normal" : "truncate",
+                    )}
+                  >
+                    {node.subject}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="bottom"
+                  align="start"
+                  className="max-w-sm items-start overflow-y-auto whitespace-pre-wrap text-left"
+                  style={{ maxHeight: "var(--radix-tooltip-content-available-height)" }}
+                >
+                  {node.subject}
+                  {node.body && `\n\n${node.body}`}
+                </TooltipContent>
+              </Tooltip>
               {node.refs
                 .filter((r) => !r.startsWith("HEAD"))
                 .map((ref) => (

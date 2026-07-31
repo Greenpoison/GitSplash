@@ -70,6 +70,7 @@ export interface CommitNode {
   parents: string[];
   refs: string[];
   subject: string;
+  body: string;
   author: string;
   date: string;
 }

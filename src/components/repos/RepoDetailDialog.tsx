@@ -81,11 +81,11 @@ export function RepoDetailDialog({
           <TabsList className="w-full shrink-0 justify-start overflow-x-auto overflow-y-hidden">
             <TabsTrigger value="changes" className="shrink-0">Changes</TabsTrigger>
             <TabsTrigger value="branches" className="shrink-0">Branches</TabsTrigger>
-            <TabsTrigger value="worktrees" className="shrink-0">Worktrees</TabsTrigger>
-            <TabsTrigger value="submodules" className="shrink-0">Submodules</TabsTrigger>
+            <TabsTrigger value="prs" className="shrink-0">Pull Requests</TabsTrigger>
             <TabsTrigger value="filehistory" className="shrink-0">File History</TabsTrigger>
             <TabsTrigger value="editor" className="shrink-0">Editor</TabsTrigger>
-            <TabsTrigger value="prs" className="shrink-0">Pull Requests</TabsTrigger>
+            <TabsTrigger value="worktrees" className="shrink-0">Worktrees</TabsTrigger>
+            <TabsTrigger value="submodules" className="shrink-0">Submodules</TabsTrigger>
             <TabsTrigger value="secrets" className="shrink-0">Secrets</TabsTrigger>
           </TabsList>
           <div className="min-h-0 flex-1 overflow-y-auto">
@@ -95,11 +95,8 @@ export function RepoDetailDialog({
             <TabsContent value="branches">
               <BranchesPanel repo={repo} onChanged={() => refreshStatuses([repo.id])} />
             </TabsContent>
-            <TabsContent value="worktrees">
-              <WorktreesPanel repo={repo} />
-            </TabsContent>
-            <TabsContent value="submodules">
-              <SubmodulesPanel repo={repo} />
+            <TabsContent value="prs">
+              <PullRequestsPanel repo={repo} />
             </TabsContent>
             <TabsContent value="filehistory">
               <FileHistoryPanel repo={repo} />
@@ -107,8 +104,11 @@ export function RepoDetailDialog({
             <TabsContent value="editor">
               <FileEditorPanel repo={repo} onDirtyChange={setEditorDirty} />
             </TabsContent>
-            <TabsContent value="prs">
-              <PullRequestsPanel repo={repo} />
+            <TabsContent value="worktrees">
+              <WorktreesPanel repo={repo} />
+            </TabsContent>
+            <TabsContent value="submodules">
+              <SubmodulesPanel repo={repo} />
             </TabsContent>
             <TabsContent value="secrets">
               <SecretsPanel repo={repo} />

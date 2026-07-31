@@ -10,6 +10,7 @@ import { ShortcutsHelpDialog } from "@/components/ShortcutsHelpDialog";
 import { UndoConfirmDialog } from "@/components/UndoConfirmDialog";
 import { CreateAccountDialog } from "@/components/settings/CreateAccountDialog";
 import { TutorialOverlay } from "@/components/TutorialOverlay";
+import { UpdateNotifier } from "@/components/UpdateNotifier";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useAppStore } from "@/store/appStore";
 
@@ -64,6 +65,7 @@ function App() {
         <UndoConfirmDialog />
         <CreateAccountDialog />
         <TutorialOverlay />
+        <UpdateNotifier />
       </div>
     </TooltipProvider>
   );

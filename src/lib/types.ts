@@ -59,6 +59,7 @@ export interface Settings {
   gitGuiPath: string | null;
   batchConcurrency: number;
   tutorialCompleted: boolean;
+  checkForUpdates: boolean;
 }
 
 export type BatchPhase = "started" | "success" | "failed" | "skipped";

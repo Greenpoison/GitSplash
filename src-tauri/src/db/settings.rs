@@ -37,6 +37,17 @@ pub fn get_settings(conn: &Connection) -> rusqlite::Result<Settings> {
         settings.tutorial_completed = v == "true";
     }
 
+    let check_for_updates: Option<String> = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'check_for_updates'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if let Some(v) = check_for_updates {
+        settings.check_for_updates = v == "true";
+    }
+
     Ok(settings)
 }
 
@@ -58,6 +69,11 @@ pub fn save_settings(conn: &Connection, settings: &Settings) -> rusqlite::Result
         "INSERT INTO settings (key, value) VALUES ('tutorial_completed', ?1)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![settings.tutorial_completed.to_string()],
+    )?;
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES ('check_for_updates', ?1)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![settings.check_for_updates.to_string()],
     )?;
     Ok(())
 }

@@ -1,6 +1,6 @@
 [package]
 name = "gitsplash"
-version = "1.0.8-beta"
+version = "1.0.9-beta"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -29,6 +29,8 @@ chrono = { version = "0.4.45", features = ["serde"] }
 thiserror = "2.0.19"
 tokio = { version = "1.53.1", features = ["process", "sync", "time", "rt-multi-thread"] }
 tauri-plugin-dialog = "2.7.2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 dirs = "6.0.0"
 zip = { version = "8.6.0", features = ["aes-crypto", "deflate"] }
 walkdir = "2.5.0"

@@ -5,8 +5,10 @@ import { FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
+import { useUpdateStore } from "@/store/updateStore";
 
 export function GeneralSettingsPanel() {
   const settings = useAppStore((s) => s.settings);
@@ -14,12 +16,16 @@ export function GeneralSettingsPanel() {
   const setTutorialActive = useAppStore((s) => s.setTutorialActive);
   const [gitGuiPath, setGitGuiPath] = useState("");
   const [batchConcurrency, setBatchConcurrency] = useState(6);
+  const [checkForUpdates, setCheckForUpdates] = useState(true);
   const [saving, setSaving] = useState(false);
+  const checkingUpdate = useUpdateStore((s) => s.checking);
+  const checkUpdateNow = useUpdateStore((s) => s.checkNow);
 
   useEffect(() => {
     if (settings) {
       setGitGuiPath(settings.gitGuiPath ?? "");
       setBatchConcurrency(settings.batchConcurrency);
+      setCheckForUpdates(settings.checkForUpdates);
     }
   }, [settings]);
 
@@ -38,6 +44,7 @@ export function GeneralSettingsPanel() {
         gitGuiPath: gitGuiPath.trim() || null,
         batchConcurrency: Math.min(32, Math.max(1, batchConcurrency)),
         tutorialCompleted: settings?.tutorialCompleted ?? false,
+        checkForUpdates,
       });
       await refreshSettings();
       toast.success("Settings saved");
@@ -45,6 +52,15 @@ export function GeneralSettingsPanel() {
       toast.error(String(e));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const checkForUpdatesNow = async () => {
+    try {
+      const update = await checkUpdateNow();
+      toast.success(update ? `Update available: ${update.version}` : "You're on the latest version");
+    } catch (e) {
+      toast.error(String(e));
     }
   };
 
@@ -95,9 +111,31 @@ export function GeneralSettingsPanel() {
           className="w-24"
         />
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        <Checkbox
+          checked={checkForUpdates}
+          onCheckedChange={(c) => setCheckForUpdates(!!c)}
+        />
+        Check for updates on launch
+      </label>
+
       <Button onClick={save} disabled={saving} className="w-fit">
         {saving ? "Saving…" : "Save settings"}
       </Button>
+
+      <div className="flex flex-col gap-1.5 border-t pt-4">
+        <Label>Updates</Label>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          onClick={checkForUpdatesNow}
+          disabled={checkingUpdate}
+        >
+          {checkingUpdate ? "Checking…" : "Check for updates now"}
+        </Button>
+      </div>
 
       <div className="flex flex-col gap-1.5 border-t pt-4">
         <Label>Tutorial</Label>

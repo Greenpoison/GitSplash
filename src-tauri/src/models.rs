@@ -88,6 +88,10 @@ pub struct Settings {
     /// auto-launches again. Reset from the settings page to bring it back
     /// on the next launch.
     pub tutorial_completed: bool,
+    /// Whether to check for a newer release on every launch. On by default;
+    /// the check itself is a single request to the update manifest and
+    /// never installs anything without the user clicking "Update now".
+    pub check_for_updates: bool,
 }
 
 impl Default for Settings {
@@ -96,6 +100,7 @@ impl Default for Settings {
             git_gui_path: None,
             batch_concurrency: 6,
             tutorial_completed: false,
+            check_for_updates: true,
         }
     }
 }

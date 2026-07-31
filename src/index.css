@@ -4,6 +4,7 @@
 @import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant dim (&:is(.dim *));
 
 @theme inline {
     --font-heading: var(--font-sans);
@@ -119,6 +120,49 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+    --gradient-border-from: oklch(0.65 0.22 264 / 80%);
+    --gradient-border-to: var(--border);
+    --gradient-border-strong-from: oklch(0.7 0.2 264 / 90%);
+    --gradient-border-strong-to: oklch(0.68 0.18 312 / 75%);
+}
+
+/* "Dim" — a dark slate-blue theme, the same idea as X/Twitter's "Dim"
+   mode: still dark-family (light text on a dark surface) so it doesn't
+   read as a washed-out gray, but lighter and blue-tinted rather than
+   near-black, using the app's existing accent-blue hue (260) for the tint
+   so it doesn't look like an arbitrary color. */
+.dim {
+    --background: oklch(0.28 0.02 260);
+    --foreground: oklch(0.92 0.005 260);
+    --card: oklch(0.34 0.02 260);
+    --card-foreground: oklch(0.92 0.005 260);
+    --popover: oklch(0.34 0.02 260);
+    --popover-foreground: oklch(0.92 0.005 260);
+    --primary: oklch(0.88 0.01 260);
+    --primary-foreground: oklch(0.28 0.02 260);
+    --secondary: oklch(0.4 0.02 260);
+    --secondary-foreground: oklch(0.92 0.005 260);
+    --muted: oklch(0.4 0.02 260);
+    --muted-foreground: oklch(0.72 0.01 260);
+    --accent: oklch(0.4 0.02 260);
+    --accent-foreground: oklch(0.92 0.005 260);
+    --destructive: oklch(0.65 0.2 25);
+    --border: oklch(1 0 0 / 12%);
+    --input: oklch(1 0 0 / 16%);
+    --ring: oklch(0.6 0.02 260);
+    --chart-1: oklch(0.7 0.19 260);
+    --chart-2: oklch(0.72 0.17 150);
+    --chart-3: oklch(0.8 0.16 70);
+    --chart-4: oklch(0.7 0.21 300);
+    --chart-5: oklch(0.72 0.22 20);
+    --sidebar: oklch(0.22 0.02 260);
+    --sidebar-foreground: oklch(0.92 0.005 260);
+    --sidebar-primary: oklch(0.55 0.2 264);
+    --sidebar-primary-foreground: oklch(0.95 0 0);
+    --sidebar-accent: oklch(0.36 0.02 260);
+    --sidebar-accent-foreground: oklch(0.95 0.005 260);
+    --sidebar-border: oklch(1 0 0 / 12%);
+    --sidebar-ring: oklch(0.6 0.02 260);
     --gradient-border-from: oklch(0.65 0.22 264 / 80%);
     --gradient-border-to: var(--border);
     --gradient-border-strong-from: oklch(0.7 0.2 264 / 90%);

@@ -1,6 +1,7 @@
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import {
+  Contrast,
   Download,
   ExternalLink,
   FolderPlus,
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/command";
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
+import { nextTheme } from "@/lib/theme";
 
 export function CommandPalette() {
   const open = useAppStore((s) => s.commandPaletteOpen);
@@ -82,8 +84,15 @@ export function CommandPalette() {
           <CommandItem onSelect={() => run(() => refreshStatuses())}>
             <RefreshCw /> Refresh all statuses
           </CommandItem>
-          <CommandItem onSelect={() => run(() => setTheme(resolvedTheme === "dark" ? "light" : "dark"))}>
-            {resolvedTheme === "dark" ? <Sun /> : <Moon />} Toggle theme
+          <CommandItem onSelect={() => run(() => setTheme(nextTheme(resolvedTheme)))}>
+            {resolvedTheme === "dark" ? (
+              <Moon />
+            ) : resolvedTheme === "dim" ? (
+              <Contrast />
+            ) : (
+              <Sun />
+            )}{" "}
+            Toggle theme
           </CommandItem>
           <CommandItem onSelect={() => run(() => setShortcutsHelpOpen(true))}>
             <Keyboard /> Show keyboard shortcuts

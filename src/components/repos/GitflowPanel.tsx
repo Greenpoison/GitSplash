@@ -137,10 +137,21 @@ export function GitflowPanel({
           <TooltipTrigger asChild>
             <Info className="size-3.5 cursor-help" />
           </TooltipTrigger>
-          <TooltipContent className="max-w-64">
-            feature: branches off develop, merges back to develop. release: branches off develop,
-            merges to main and develop, usually tagged. hotfix: branches off main, merges to main
-            and develop, usually tagged.
+          <TooltipContent className="max-w-72">
+            <dl className="flex flex-col gap-1.5">
+              <div>
+                <dt className="font-semibold">Feature</dt>
+                <dd>Branches off develop, merges back into develop.</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Release</dt>
+                <dd>Branches off develop, merges into main and develop. Usually tagged.</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Hotfix</dt>
+                <dd>Branches off main, merges into main and develop. Usually tagged.</dd>
+              </div>
+            </dl>
           </TooltipContent>
         </Tooltip>
       </Label>

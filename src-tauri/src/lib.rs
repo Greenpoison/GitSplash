@@ -56,6 +56,7 @@ pub fn run() {
             commands::branches::list_branches,
             commands::branches::get_commit_graph,
             commands::branches::checkout_branch,
+            commands::branches::create_branch,
             commands::branches::checkout_previous_branch,
             commands::branches::merge_branch,
             commands::rebase::get_rebase_candidates,

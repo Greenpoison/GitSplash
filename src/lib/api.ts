@@ -142,6 +142,8 @@ export const getCommitGraph = (repoId: string, limit: number) =>
   invoke<CommitNode[]>("get_commit_graph", { repoId, limit });
 export const checkoutBranch = (repoId: string, branch: string) =>
   invoke<void>("checkout_branch", { repoId, branch });
+export const createBranch = (repoId: string, name: string, base?: string) =>
+  invoke<void>("create_branch", { repoId, name, base });
 export const checkoutPreviousBranch = (repoId: string) =>
   invoke<string>("checkout_previous_branch", { repoId });
 export const mergeBranch = (repoId: string, fromBranch: string) =>

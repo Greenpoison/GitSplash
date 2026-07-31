@@ -23,6 +23,23 @@ pub async fn checkout_branch(repo_path: &Path, branch: &str) -> Result<(), Strin
     Ok(())
 }
 
+/// Creates a plain branch off `base` (defaults to current HEAD) and checks
+/// it out immediately — unlike Gitflow's start command, this doesn't apply
+/// any naming convention.
+pub async fn create_branch(repo_path: &Path, name: &str, base: Option<&str>) -> Result<(), String> {
+    let mut args = vec!["switch", "-c", name];
+    if let Some(base) = base {
+        args.push(base);
+    }
+    let output = run_git(repo_path, &args)
+        .await
+        .map_err(|e| format!("failed to run git switch: {e}"))?;
+    if !output.success {
+        return Err(git_err("could not create branch", &output.stderr));
+    }
+    Ok(())
+}
+
 /// Switches back to whatever branch was checked out before the current one,
 /// using git's own "@{-1}" shorthand rather than app-tracked state.
 pub async fn checkout_previous_branch(repo_path: &Path) -> Result<String, String> {

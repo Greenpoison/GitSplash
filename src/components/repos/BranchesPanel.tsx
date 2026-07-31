@@ -8,9 +8,20 @@ import {
   GitBranchPlus,
   GitCommitHorizontal,
   GitMerge,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -71,6 +82,9 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const [rebaseInProgress, setRebaseInProgress] = useState(false);
   const [cherryPickOpen, setCherryPickOpen] = useState(false);
   const [cherryPickInProgress, setCherryPickInProgress] = useState(false);
+  const [newBranchOpen, setNewBranchOpen] = useState(false);
+  const [newBranchName, setNewBranchName] = useState("");
+  const [newBranchBase, setNewBranchBase] = useState("");
   const pushUndo = useUndoStore((s) => s.push);
 
   const load = async () => {
@@ -183,6 +197,25 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
     }
   };
 
+  const createBranch = async () => {
+    const name = newBranchName.trim();
+    if (!name) return;
+    setBusy(true);
+    try {
+      await api.createBranch(repo.id, name, newBranchBase || undefined);
+      toast.success(`Created and switched to ${name}`);
+      setNewBranchOpen(false);
+      setNewBranchName("");
+      setNewBranchBase("");
+      await load();
+      onChanged();
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const current = branches.find((b) => b.isCurrent);
 
   const visibleBranches = useMemo(() => {
@@ -273,6 +306,16 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         </Button>
         <Button
           size="sm"
+          variant="outline"
+          onClick={() => setNewBranchOpen(true)}
+          disabled={busy || blockedByOp}
+          title={blockedByOp ? blockedTitle : "Create a plain branch — no naming convention required"}
+        >
+          <Plus className="size-3.5" />
+          New branch…
+        </Button>
+        <Button
+          size="sm"
           variant={rebaseInProgress ? "destructive" : "outline"}
           onClick={() => setRebaseOpen(true)}
           disabled={busy}
@@ -347,6 +390,56 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
           onChanged();
         }}
       />
+
+      <Dialog open={newBranchOpen} onOpenChange={setNewBranchOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New branch</DialogTitle>
+            <DialogDescription>
+              Any name — not tied to Gitflow's feature/release/hotfix convention.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="new-branch-name">Name</Label>
+              <Input
+                id="new-branch-name"
+                autoFocus
+                value={newBranchName}
+                onChange={(e) => setNewBranchName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && createBranch()}
+                placeholder="my-branch"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Base branch</Label>
+              <Select
+                value={newBranchBase || "current"}
+                onValueChange={(v) => setNewBranchBase(v === "current" ? "" : v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="current">Current ({current?.name ?? "HEAD"})</SelectItem>
+                  {branches
+                    .filter((b) => !b.isCurrent)
+                    .map((b) => (
+                      <SelectItem key={b.name} value={b.name}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={createBranch} disabled={busy || !newBranchName.trim()}>
+              Create &amp; checkout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -183,6 +183,19 @@ export function RepoCard({ repo }: { repo: Repo }) {
       <Button
         variant="ghost"
         size="icon"
+        disabled={fetching}
+        onClick={(e) => {
+          e.stopPropagation();
+          doFetch(true);
+        }}
+        title="Fetch & pull"
+      >
+        {fetching ? <Loader2 className="size-4 animate-spin" /> : <GitPullRequestArrow className="size-4" />}
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={(e) => {
           e.stopPropagation();
           api.openRepoExternal(repo.id).catch((err) => toast.error(String(err)));
@@ -211,9 +224,6 @@ export function RepoCard({ repo }: { repo: Repo }) {
         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
           <DropdownMenuItem onClick={() => api.openRepoExternal(repo.id)}>
             <ExternalLink className="size-4" /> Open externally
-          </DropdownMenuItem>
-          <DropdownMenuItem disabled={fetching} onClick={() => doFetch(true)}>
-            <GitPullRequestArrow className="size-4" /> Fetch &amp; pull
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setEditGroupsOpen(true)}>Edit groups</DropdownMenuItem>
           <DropdownMenuSub>

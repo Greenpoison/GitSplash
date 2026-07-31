@@ -40,6 +40,20 @@ pub async fn create_branch(repo_path: &Path, name: &str, base: Option<&str>) -> 
     Ok(())
 }
 
+/// Deletes a local branch. Safe (`-d`) by default, which git itself refuses
+/// if the branch has commits not reachable from elsewhere — `force` uses
+/// `-D` to delete it anyway. Never touches the branch's remote counterpart.
+pub async fn delete_branch(repo_path: &Path, name: &str, force: bool) -> Result<(), String> {
+    let flag = if force { "-D" } else { "-d" };
+    let output = run_git(repo_path, &["branch", flag, name])
+        .await
+        .map_err(|e| format!("failed to run git branch: {e}"))?;
+    if !output.success {
+        return Err(git_err("could not delete branch", &output.stderr));
+    }
+    Ok(())
+}
+
 /// Switches back to whatever branch was checked out before the current one,
 /// using git's own "@{-1}" shorthand rather than app-tracked state.
 pub async fn checkout_previous_branch(repo_path: &Path) -> Result<String, String> {

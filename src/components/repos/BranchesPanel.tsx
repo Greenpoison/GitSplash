@@ -10,6 +10,7 @@ import {
   GitCompareArrows,
   GitMerge,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -90,6 +101,8 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const [newBranchBase, setNewBranchBase] = useState("");
   const [compareBranch, setCompareBranch] = useState<string | null>(null);
   const [selectedCommit, setSelectedCommit] = useState<CommitNode | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [forceDeleteTarget, setForceDeleteTarget] = useState<{ name: string; message: string } | null>(null);
   const pushUndo = useUndoStore((s) => s.push);
 
   const load = async () => {
@@ -221,6 +234,29 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
     }
   };
 
+  const deleteBranch = async (name: string, force: boolean) => {
+    setBusy(true);
+    try {
+      await api.deleteBranch(repo.id, name, force);
+      toast.success(`Deleted ${name}`);
+      setDeleteTarget(null);
+      setForceDeleteTarget(null);
+      await load();
+      onChanged();
+    } catch (e) {
+      if (!force) {
+        // Git's own safe-delete refusal, almost always "not fully merged" —
+        // offer to force it instead of just dead-ending on the error.
+        setDeleteTarget(null);
+        setForceDeleteTarget({ name, message: String(e) });
+      } else {
+        toast.error(String(e));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const current = branches.find((b) => b.isCurrent);
 
   const visibleBranches = useMemo(() => {
@@ -281,6 +317,17 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
                 onClick={() => setCompareBranch(b.name)}
               >
                 <GitCompareArrows className="size-3.5" />
+              </Button>
+            )}
+            {!b.isCurrent && (
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                title={`Delete ${b.name}`}
+                disabled={busy}
+                onClick={() => setDeleteTarget(b.name)}
+              >
+                <Trash2 className="size-3.5" />
               </Button>
             )}
           </div>
@@ -470,6 +517,42 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         open={!!selectedCommit}
         onOpenChange={(o) => !o && setSelectedCommit(null)}
       />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteTarget}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This only deletes the local branch — its remote counterpart, if any, is untouched.
+              Refused if it has commits not reachable from anywhere else.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteTarget && deleteBranch(deleteTarget, false)}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!forceDeleteTarget} onOpenChange={(o) => !o && setForceDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Force delete {forceDeleteTarget?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {forceDeleteTarget?.message} Forcing it through permanently discards any commits on
+              this branch that aren't reachable from anywhere else — there's no undo for that.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => forceDeleteTarget && deleteBranch(forceDeleteTarget.name, true)}>
+              Force delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

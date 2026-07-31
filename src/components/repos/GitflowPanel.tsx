@@ -61,6 +61,19 @@ export function GitflowPanel({
   const current = branches.find((b) => b.isCurrent);
   const finishing = current ? parseGitflowBranch(current.name) : null;
 
+  const branchExists = (n: string) => branches.some((b) => b.name === n);
+  const resolveBase = (k: GitflowKind) =>
+    branchExists(DEFAULT_BASE[k]) ? DEFAULT_BASE[k] : (current?.name ?? branches[0]?.name ?? "");
+
+  // Once the branch list actually loads (it's empty on first render), swap
+  // out a default that doesn't exist in this repo for one that does.
+  useEffect(() => {
+    if (branches.length > 0 && !branchExists(baseBranch)) {
+      setBaseBranch(resolveBase(kind));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branches]);
+
   const [targets, setTargets] = useState<Set<string>>(new Set());
   const [tag, setTag] = useState("");
   const [deleteBranch, setDeleteBranch] = useState(true);
@@ -223,7 +236,7 @@ export function GitflowPanel({
             onValueChange={(v) => {
               const k = v as GitflowKind;
               setKind(k);
-              setBaseBranch(DEFAULT_BASE[k]);
+              setBaseBranch(resolveBase(k));
             }}
           >
             <SelectTrigger className="h-8 w-28 text-xs">
@@ -247,11 +260,18 @@ export function GitflowPanel({
         </div>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Base branch</Label>
-          <Input
-            value={baseBranch}
-            onChange={(e) => setBaseBranch(e.target.value)}
-            className="h-8 w-32 text-xs"
-          />
+          <Select value={baseBranch} onValueChange={setBaseBranch}>
+            <SelectTrigger className="h-8 w-32 text-xs">
+              <SelectValue placeholder="Select a branch" />
+            </SelectTrigger>
+            <SelectContent>
+              {branches.map((b) => (
+                <SelectItem key={b.name} value={b.name}>
+                  {b.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Tooltip>
           <TooltipTrigger asChild>

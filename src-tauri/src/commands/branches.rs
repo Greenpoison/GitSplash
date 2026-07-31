@@ -40,6 +40,17 @@ pub async fn create_branch(
 }
 
 #[tauri::command]
+pub async fn delete_branch(
+    state: State<'_, AppState>,
+    repo_id: String,
+    name: String,
+    force: bool,
+) -> AppResult<()> {
+    let path = repo_path(&state, &repo_id).await?;
+    git::branch::delete_branch(&path, &name, force).await.map_err(AppError::Git)
+}
+
+#[tauri::command]
 pub async fn checkout_previous_branch(state: State<'_, AppState>, repo_id: String) -> AppResult<String> {
     let path = repo_path(&state, &repo_id).await?;
     git::branch::checkout_previous_branch(&path).await.map_err(AppError::Git)

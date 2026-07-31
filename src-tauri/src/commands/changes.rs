@@ -52,6 +52,12 @@ pub async fn discard_file(
 }
 
 #[tauri::command]
+pub async fn untrack_paths(state: State<'_, AppState>, repo_id: String, paths: Vec<String>) -> AppResult<()> {
+    let repo = repo_path(&state, &repo_id).await?;
+    git::commit::untrack_paths(&repo, &paths).await.map_err(AppError::Git)
+}
+
+#[tauri::command]
 pub async fn stage_all(state: State<'_, AppState>, repo_id: String) -> AppResult<()> {
     let repo = repo_path(&state, &repo_id).await?;
     git::commit::stage_all(&repo).await.map_err(AppError::Git)

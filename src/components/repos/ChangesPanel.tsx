@@ -28,6 +28,8 @@ import type { FileChange, FileDiff, Repo } from "@/lib/types";
 import { useUndoStore } from "@/store/undoStore";
 import { GitCommandPreview } from "@/components/GitCommandPreview";
 import { ConflictResolverDialog } from "./ConflictResolverDialog";
+import { GitignoreAssistant } from "./GitignoreAssistant";
+import { lintCommitMessage } from "@/lib/commitMessageLint";
 import { DiffHunkView } from "./DiffHunkView";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -137,6 +139,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
     [files],
   );
   const conflicted = useMemo(() => files.filter((f) => f.isConflicted), [files]);
+  const messageTips = useMemo(() => lintCommitMessage(message), [message]);
 
   const loadFiles = async () => {
     try {
@@ -344,7 +347,9 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   };
 
   return (
-    <div className="flex h-[480px] gap-4">
+    <div className="flex flex-col gap-2">
+      <GitignoreAssistant repo={repo} changedFiles={files} onChanged={refreshAfterAction} />
+      <div className="flex h-[480px] gap-4">
       <div className="flex w-64 shrink-0 flex-col gap-3">
         <ScrollArea className="gradient-border flex-1 rounded-md bg-card p-2">
           {conflicted.length > 0 && (
@@ -423,6 +428,16 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
             rows={3}
             className="text-sm"
           />
+          {messageTips.length > 0 && (
+            <ul className="flex flex-col gap-0.5 text-[11px] text-muted-foreground">
+              {messageTips.map((tip, i) => (
+                <li key={i} className="flex gap-1">
+                  <span className="shrink-0">·</span>
+                  {tip.text}
+                </li>
+              ))}
+            </ul>
+          )}
           <Button
             onClick={commit}
             disabled={committing || staged.length === 0 || conflicted.length > 0 || !message.trim()}
@@ -520,6 +535,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
           onResolved={refreshAfterAction}
         />
       )}
+      </div>
     </div>
   );
 }

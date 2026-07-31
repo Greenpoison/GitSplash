@@ -18,20 +18,22 @@ const PHASE_ICON: Record<BatchEvent["phase"], typeof CheckCircle2> = {
 export function GroupSection({ group, repos }: { group: Group; repos: Repo[] }) {
   const [collapsed, setCollapsed] = useState(false);
   const [running, setRunning] = useState(false);
-  const [log, setLog] = useState<BatchEvent[]>([]);
+  const [log, setLog] = useState<Record<string, BatchEvent>>({});
   const refreshRepos = useAppStore((s) => s.refreshRepos);
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
 
   const runBatch = async (pull: boolean) => {
     if (repos.length === 0) return;
     setRunning(true);
-    setLog([]);
+    setLog({});
     const repoIds = new Set(repos.map((r) => r.id));
     let failures = 0;
     const unlisten = await listen<BatchEvent>("batch-progress", (event) => {
       if (!repoIds.has(event.payload.repoId)) return;
       if (event.payload.phase === "failed") failures++;
-      setLog((prev) => [...prev, event.payload]);
+      // Keyed by repo so the "started" line updates in place to its final
+      // result instead of both lingering as separate entries.
+      setLog((prev) => ({ ...prev, [event.payload.repoId]: event.payload }));
     });
     try {
       await api.batchUpdateGroup(group.id, pull);
@@ -84,18 +86,21 @@ export function GroupSection({ group, repos }: { group: Group; repos: Repo[] }) 
         </div>
       </div>
 
-      {log.length > 0 && (
+      {Object.keys(log).length > 0 && (
         <div className="gradient-border [--gradient-border-bg:transparent] flex flex-col gap-1 rounded-md bg-muted/30 p-2 text-xs">
-          {log.map((e, i) => {
-            const Icon = PHASE_ICON[e.phase];
-            return (
-              <div key={i} className="flex items-center gap-2">
-                <Icon className={`size-3.5 ${e.phase === "started" ? "animate-spin" : ""}`} />
-                <span className="font-medium">{e.repoName}</span>
-                {e.message && <span className="text-muted-foreground">{e.message}</span>}
-              </div>
-            );
-          })}
+          {repos
+            .filter((r) => log[r.id])
+            .map((r) => {
+              const e = log[r.id];
+              const Icon = PHASE_ICON[e.phase];
+              return (
+                <div key={r.id} className="flex items-center gap-2">
+                  <Icon className={`size-3.5 ${e.phase === "started" ? "animate-spin" : ""}`} />
+                  <span className="font-medium">{e.repoName}</span>
+                  {e.message && <span className="text-muted-foreground">{e.message}</span>}
+                </div>
+              );
+            })}
         </div>
       )}
 

@@ -7,6 +7,7 @@ import {
   EyeOff,
   GitBranchPlus,
   GitCommitHorizontal,
+  GitCompareArrows,
   GitMerge,
   Plus,
 } from "lucide-react";
@@ -34,7 +35,9 @@ import type { BranchInfo, CommitNode, Repo } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useUndoStore } from "@/store/undoStore";
 import { CherryPickDialog } from "./CherryPickDialog";
+import { CommitDetailDialog } from "./CommitDetailDialog";
 import { CommitGraph } from "./CommitGraph";
+import { CompareBranchDialog } from "./CompareBranchDialog";
 import { GitflowPanel } from "./GitflowPanel";
 import { RebaseDialog } from "./RebaseDialog";
 
@@ -85,6 +88,8 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const [newBranchOpen, setNewBranchOpen] = useState(false);
   const [newBranchName, setNewBranchName] = useState("");
   const [newBranchBase, setNewBranchBase] = useState("");
+  const [compareBranch, setCompareBranch] = useState<string | null>(null);
+  const [selectedCommit, setSelectedCommit] = useState<CommitNode | null>(null);
   const pushUndo = useUndoStore((s) => s.push);
 
   const load = async () => {
@@ -253,25 +258,33 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         {branches.map((b) => (
-          <Button
-            key={b.name}
-            size="sm"
-            variant={b.isCurrent ? "default" : "outline"}
-            disabled={busy || b.isCurrent || blockedByOp}
-            title={blockedByOp ? blockedTitle : undefined}
-            onClick={() => checkout(b.name)}
-          >
-            {b.name}
-            {b.upstream && (
-              <Badge variant="secondary" className="ml-1 text-[10px]">
-                {b.upstream}
-              </Badge>
+          <div key={b.name} className="flex items-center gap-0.5">
+            <Button
+              size="sm"
+              variant={b.isCurrent ? "default" : "outline"}
+              disabled={busy || b.isCurrent || blockedByOp}
+              title={blockedByOp ? blockedTitle : undefined}
+              onClick={() => checkout(b.name)}
+            >
+              {b.name}
+              {b.upstream && (
+                <Badge variant="secondary" className="ml-1 text-[10px]">
+                  {b.upstream}
+                </Badge>
+              )}
+            </Button>
+            {!b.isCurrent && current && (
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                title={`Compare ${b.name} against ${current.name}`}
+                onClick={() => setCompareBranch(b.name)}
+              >
+                <GitCompareArrows className="size-3.5" />
+              </Button>
             )}
-          </Button>
+          </div>
         ))}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
           variant="outline"
@@ -370,7 +383,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         </div>
       )}
 
-      <CommitGraph commits={filteredCommits} />
+      <CommitGraph commits={filteredCommits} onSelectCommit={setSelectedCommit} />
 
       <RebaseDialog
         repo={repo}
@@ -440,6 +453,23 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {compareBranch && current && (
+        <CompareBranchDialog
+          repo={repo}
+          base={current.name}
+          branch={compareBranch}
+          open={!!compareBranch}
+          onOpenChange={(o) => !o && setCompareBranch(null)}
+        />
+      )}
+
+      <CommitDetailDialog
+        repo={repo}
+        commit={selectedCommit}
+        open={!!selectedCommit}
+        onOpenChange={(o) => !o && setSelectedCommit(null)}
+      />
     </div>
   );
 }

@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { FileWarning, Save, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
@@ -15,9 +14,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { cn } from "@/lib/utils";
 import * as api from "@/lib/api";
 import type { Repo } from "@/lib/types";
+import { FileTree } from "./FileTree";
 
 export function FileEditorPanel({
   repo,
@@ -50,12 +49,6 @@ export function FileEditorPanel({
     onDirtyChange?.(dirty);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dirty]);
-
-  const filtered = useMemo(() => {
-    if (!query.trim()) return files;
-    const q = query.toLowerCase();
-    return files.filter((f) => f.toLowerCase().includes(q));
-  }, [files, query]);
 
   const load = async (path: string) => {
     setSelected(path);
@@ -99,8 +92,8 @@ export function FileEditorPanel({
   };
 
   return (
-    <div className="flex h-[480px] gap-4">
-      <div className="flex w-64 shrink-0 flex-col gap-2">
+    <div className="flex h-[70vh] gap-4">
+      <div className="flex w-72 shrink-0 flex-col gap-2">
         <div className="relative">
           <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -110,25 +103,7 @@ export function FileEditorPanel({
             className="h-8 pl-7 text-xs"
           />
         </div>
-        <ScrollArea className="gradient-border flex-1 rounded-md bg-card">
-          <div className="flex flex-col p-1">
-            {filtered.map((f) => (
-              <button
-                key={f}
-                onClick={() => selectFile(f)}
-                className={cn(
-                  "truncate rounded-md px-2 py-1 text-left font-mono text-xs",
-                  selected === f ? "bg-accent" : "hover:bg-accent/50",
-                )}
-              >
-                {f}
-              </button>
-            ))}
-            {filtered.length === 0 && (
-              <p className="px-2 py-1 text-xs text-muted-foreground">No files match.</p>
-            )}
-          </div>
-        </ScrollArea>
+        <FileTree files={files} query={query} selected={selected} onSelect={selectFile} />
       </div>
 
       <div className="flex flex-1 flex-col gap-2 overflow-hidden">

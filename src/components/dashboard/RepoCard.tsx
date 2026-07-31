@@ -187,7 +187,9 @@ export function RepoCard({ repo }: { repo: Repo }) {
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel className="text-destructive">Danger zone</DropdownMenuLabel>
+          <DropdownMenuLabel className="cursor-default text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+            Danger zone
+          </DropdownMenuLabel>
           <DropdownMenuItem variant="destructive" onClick={() => setRemoveOpen(true)}>
             Remove from GitSplash
           </DropdownMenuItem>

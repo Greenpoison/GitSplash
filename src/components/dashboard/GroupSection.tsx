@@ -7,7 +7,13 @@ import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
 import type { BatchEvent, Group, Repo } from "@/lib/types";
 import { groupColorHex } from "@/lib/groupColors";
+import { cn } from "@/lib/utils";
 import { RepoCard } from "./RepoCard";
+
+// How long a successful row stays visible before fading out, and how long
+// the fade transition itself takes.
+const SUCCESS_LINGER_MS = 5000;
+const FADE_DURATION_MS = 400;
 
 const PHASE_ICON: Record<BatchEvent["phase"], typeof CheckCircle2> = {
   started: Loader2,
@@ -20,6 +26,7 @@ export function GroupSection({ group, repos }: { group: Group; repos: Repo[] }) 
   const [collapsed, setCollapsed] = useState(false);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState<Record<string, BatchEvent>>({});
+  const [fadingIds, setFadingIds] = useState<Set<string>>(new Set());
   const refreshRepos = useAppStore((s) => s.refreshRepos);
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
 
@@ -27,14 +34,37 @@ export function GroupSection({ group, repos }: { group: Group; repos: Repo[] }) 
     if (repos.length === 0) return;
     setRunning(true);
     setLog({});
+    setFadingIds(new Set());
     const repoIds = new Set(repos.map((r) => r.id));
     let failures = 0;
     const unlisten = await listen<BatchEvent>("batch-progress", (event) => {
       if (!repoIds.has(event.payload.repoId)) return;
-      if (event.payload.phase === "failed") failures++;
+      const payload = event.payload;
+      if (payload.phase === "failed") failures++;
       // Keyed by repo so the "started" line updates in place to its final
       // result instead of both lingering as separate entries.
-      setLog((prev) => ({ ...prev, [event.payload.repoId]: event.payload }));
+      setLog((prev) => ({ ...prev, [payload.repoId]: payload }));
+
+      if (payload.phase === "success") {
+        // Only a successful result self-clears — failed/skipped stay put
+        // until the next run so problems don't quietly disappear.
+        setTimeout(() => {
+          setFadingIds((prev) => new Set(prev).add(payload.repoId));
+          setTimeout(() => {
+            setLog((prev) => {
+              if (prev[payload.repoId] !== payload) return prev; // superseded by a newer run
+              const next = { ...prev };
+              delete next[payload.repoId];
+              return next;
+            });
+            setFadingIds((prev) => {
+              const next = new Set(prev);
+              next.delete(payload.repoId);
+              return next;
+            });
+          }, FADE_DURATION_MS);
+        }, SUCCESS_LINGER_MS);
+      }
     });
     try {
       await api.batchUpdateGroup(group.id, pull);
@@ -101,7 +131,13 @@ export function GroupSection({ group, repos }: { group: Group; repos: Repo[] }) 
               const e = log[r.id];
               const Icon = PHASE_ICON[e.phase];
               return (
-                <div key={r.id} className="flex items-center gap-2">
+                <div
+                  key={r.id}
+                  className={cn(
+                    "flex items-center gap-2 transition-opacity duration-[400ms]",
+                    fadingIds.has(r.id) && "opacity-0",
+                  )}
+                >
                   <Icon className={`size-3.5 ${e.phase === "started" ? "animate-spin" : ""}`} />
                   <span className="font-medium">{e.repoName}</span>
                   {e.message && <span className="text-muted-foreground">{e.message}</span>}

@@ -6,6 +6,7 @@ import type {
   CherryPickInProgress,
   CherryPickStepResult,
   CommitNode,
+  CompareFile,
   ConflictFile,
   FileChange,
   FileDiff,
@@ -89,6 +90,20 @@ export const getGpgPublicKey = (keyId: string) => invoke<string>("get_gpg_public
 // Batch git ops
 export const batchUpdateGroup = (groupId: string, pull: boolean) =>
   invoke<string>("batch_update_group", { groupId, pull });
+
+// Branch comparison
+export const compareBranches = (repoId: string, base: string, branch: string) =>
+  invoke<CompareFile[]>("compare_branches", { repoId, base, branch });
+export const getCompareFileDiff = (repoId: string, base: string, branch: string, path: string) =>
+  invoke<FileDiff>("get_compare_file_diff", { repoId, base, branch, path });
+export const listBranchFiles = (repoId: string, branch: string) =>
+  invoke<string[]>("list_branch_files", { repoId, branch });
+export const readBranchFile = (repoId: string, branch: string, path: string) =>
+  invoke<string | null>("read_branch_file", { repoId, branch, path });
+export const getCommitFiles = (repoId: string, hash: string) =>
+  invoke<CompareFile[]>("get_commit_files", { repoId, hash });
+export const getCommitFileDiff = (repoId: string, hash: string, path: string) =>
+  invoke<FileDiff>("get_commit_file_diff", { repoId, hash, path });
 
 // Changes: diff, staging, commit
 export const getFileChanges = (repoId: string) => invoke<FileChange[]>("get_file_changes", { repoId });

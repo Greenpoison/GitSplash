@@ -43,7 +43,7 @@ fn classify(line: &str) -> DiffLine {
     }
 }
 
-fn parse_diff(raw_output: &str) -> (String, Vec<DiffHunk>) {
+pub(crate) fn parse_diff(raw_output: &str) -> (String, Vec<DiffHunk>) {
     let lines: Vec<&str> = raw_output.lines().collect();
     let split_at = lines.iter().position(|l| l.starts_with("@@ ")).unwrap_or(lines.len());
     let file_header = lines[..split_at].join("\n");

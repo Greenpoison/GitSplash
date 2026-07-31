@@ -198,6 +198,14 @@ export interface FileDiff {
   hunks: DiffHunk[];
 }
 
+export type CompareFileStatus = "added" | "modified" | "deleted" | "renamed" | "copied";
+
+export interface CompareFile {
+  path: string;
+  origPath: string | null;
+  status: CompareFileStatus;
+}
+
 export type ConflictSegment =
   | { kind: "plain"; text: string }
   | {

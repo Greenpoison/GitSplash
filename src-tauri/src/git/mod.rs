@@ -4,6 +4,8 @@ pub mod changes;
 pub mod cherry_pick;
 pub mod clone;
 pub mod commit;
+pub mod commit_detail;
+pub mod compare;
 pub mod conflict;
 pub mod config;
 pub mod diff;

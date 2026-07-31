@@ -82,6 +82,20 @@ export interface BranchInfo {
   upstream: string | null;
 }
 
+export interface TagInfo {
+  name: string;
+  hash: string;
+  isAnnotated: boolean;
+  message: string | null;
+  tagger: string | null;
+  date: string | null;
+}
+
+export interface RemoteTag {
+  name: string;
+  hash: string;
+}
+
 export interface MergeResult {
   success: boolean;
   conflictedFiles: string[];

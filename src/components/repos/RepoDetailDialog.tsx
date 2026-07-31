@@ -25,6 +25,7 @@ import { FileHistoryPanel } from "./FileHistoryPanel";
 import { PullRequestsPanel } from "./PullRequestsPanel";
 import { SecretsPanel } from "./SecretsPanel";
 import { SubmodulesPanel } from "./SubmodulesPanel";
+import { TagsPanel } from "./TagsPanel";
 import { WorktreesPanel } from "./WorktreesPanel";
 
 type PendingAction = { type: "tab"; tab: string } | { type: "close" };
@@ -81,6 +82,7 @@ export function RepoDetailDialog({
           <TabsList className="w-full shrink-0 justify-start overflow-x-auto overflow-y-hidden">
             <TabsTrigger value="changes" className="shrink-0">Changes</TabsTrigger>
             <TabsTrigger value="branches" className="shrink-0">Branches</TabsTrigger>
+            <TabsTrigger value="tags" className="shrink-0">Tags</TabsTrigger>
             <TabsTrigger value="prs" className="shrink-0">Pull Requests</TabsTrigger>
             <TabsTrigger value="filehistory" className="shrink-0">File History</TabsTrigger>
             <TabsTrigger value="editor" className="shrink-0">Editor</TabsTrigger>
@@ -94,6 +96,9 @@ export function RepoDetailDialog({
             </TabsContent>
             <TabsContent value="branches">
               <BranchesPanel repo={repo} onChanged={() => refreshStatuses([repo.id])} />
+            </TabsContent>
+            <TabsContent value="tags">
+              <TagsPanel repo={repo} />
             </TabsContent>
             <TabsContent value="prs">
               <PullRequestsPanel repo={repo} />

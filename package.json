@@ -1,7 +1,7 @@
 {
   "name": "gitsplash",
   "private": true,
-  "version": "0.1.29-alpha",
+  "version": "0.1.30-alpha",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {

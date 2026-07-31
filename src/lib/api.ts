@@ -20,11 +20,13 @@ import type {
   RebaseInProgress,
   RebasePlanItem,
   RebaseStepResult,
+  RemoteTag,
   Repo,
   RepoGitStatus,
   SecretFile,
   Settings,
   SubmoduleInfo,
+  TagInfo,
   WorktreeInfo,
 } from "./types";
 
@@ -163,6 +165,24 @@ export const checkoutPreviousBranch = (repoId: string) =>
   invoke<string>("checkout_previous_branch", { repoId });
 export const mergeBranch = (repoId: string, fromBranch: string) =>
   invoke<MergeResult>("merge_branch", { repoId, fromBranch });
+export const getCommit = (repoId: string, rev: string) => invoke<CommitNode | null>("get_commit", { repoId, rev });
+
+// Tags
+export const listTags = (repoId: string) => invoke<TagInfo[]>("list_tags", { repoId });
+export const listRemoteTags = (repoId: string) => invoke<RemoteTag[]>("list_remote_tags", { repoId });
+export const createTag = (
+  repoId: string,
+  name: string,
+  target: string,
+  message: string | undefined,
+  force: boolean,
+) => invoke<void>("create_tag", { repoId, name, target, message, force });
+export const deleteTag = (repoId: string, name: string) => invoke<void>("delete_tag", { repoId, name });
+export const pushTag = (repoId: string, name: string, force: boolean) =>
+  invoke<void>("push_tag", { repoId, name, force });
+export const pushAllTags = (repoId: string) => invoke<void>("push_all_tags", { repoId });
+export const deleteRemoteTag = (repoId: string, name: string) => invoke<void>("delete_remote_tag", { repoId, name });
+export const fetchTags = (repoId: string) => invoke<void>("fetch_tags", { repoId });
 
 // Interactive rebase
 export const getRebaseCandidates = (repoId: string, onto: string) =>

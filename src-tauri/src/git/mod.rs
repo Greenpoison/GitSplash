@@ -19,4 +19,5 @@ pub mod refs;
 pub mod remote;
 pub mod status;
 pub mod submodule;
+pub mod tags;
 pub mod worktree;

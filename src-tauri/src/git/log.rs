@@ -58,6 +58,26 @@ fn parse_log_records(stdout: &str) -> Vec<CommitNode> {
     nodes
 }
 
+/// A single commit by any commit-ish (hash, branch, tag, etc.) — lets the
+/// frontend reuse CommitDetailDialog for things that resolve to a commit
+/// but aren't already a CommitNode from a graph/history call, like a tag.
+pub async fn get_commit(repo_path: &Path, rev: &str) -> Result<Option<CommitNode>, String> {
+    let output = run_git(
+        repo_path,
+        &["log", "-n1", "--date=iso-strict", &format!("--pretty=format:{}", log_format()), rev],
+    )
+    .await
+    .map_err(|e| format!("failed to run git log: {e}"))?;
+    if !output.success {
+        return Err(if output.stderr.trim().is_empty() {
+            "git log failed".to_string()
+        } else {
+            output.stderr.trim().to_string()
+        });
+    }
+    Ok(parse_log_records(&output.stdout).into_iter().next())
+}
+
 /// Returns recent commit topology across local branches (hash, parents,
 /// ref decorations) so the frontend can lay out a lane graph. Lane
 /// positioning is left to the UI layer; Rust only supplies raw topology.

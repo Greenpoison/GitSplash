@@ -17,6 +17,7 @@ pub mod repos;
 pub mod secrets;
 pub mod settings;
 pub mod submodule;
+pub mod tags;
 pub mod undo;
 pub mod worktree;
 

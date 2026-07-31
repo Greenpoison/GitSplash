@@ -27,15 +27,23 @@ export function GroupSection({ group, repos }: { group: Group; repos: Repo[] }) 
     setRunning(true);
     setLog([]);
     const repoIds = new Set(repos.map((r) => r.id));
+    let failures = 0;
     const unlisten = await listen<BatchEvent>("batch-progress", (event) => {
       if (!repoIds.has(event.payload.repoId)) return;
+      if (event.payload.phase === "failed") failures++;
       setLog((prev) => [...prev, event.payload]);
     });
     try {
       await api.batchUpdateGroup(group.id, pull);
       await refreshRepos();
       await refreshStatuses(Array.from(repoIds));
-      toast.success(`${pull ? "Fetch & pull" : "Fetch"} finished for ${group.name}`);
+      if (failures > 0) {
+        toast.warning(`${failures} repo${failures === 1 ? "" : "s"} failed to ${pull ? "fetch & pull" : "fetch"}`, {
+          description: `${group.name} — see the log above for details.`,
+        });
+      } else {
+        toast.success(`${pull ? "Fetch & pull" : "Fetch"} finished for ${group.name}`);
+      }
     } catch (e) {
       toast.error(String(e));
     } finally {
@@ -56,11 +64,16 @@ export function GroupSection({ group, repos }: { group: Group; repos: Repo[] }) 
           <span className="text-xs font-normal text-muted-foreground">({repos.length})</span>
         </button>
         <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="outline" disabled={running} onClick={() => runBatch(false)}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={running || repos.length === 0}
+            onClick={() => runBatch(false)}
+          >
             {running ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
             Fetch
           </Button>
-          <Button size="sm" disabled={running} onClick={() => runBatch(true)}>
+          <Button size="sm" disabled={running || repos.length === 0} onClick={() => runBatch(true)}>
             {running ? (
               <Loader2 className="size-3.5 animate-spin" />
             ) : (

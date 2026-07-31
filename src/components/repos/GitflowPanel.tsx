@@ -1,11 +1,21 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { GitBranch } from "lucide-react";
+import { GitBranch, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -54,6 +64,7 @@ export function GitflowPanel({
   const [targets, setTargets] = useState<Set<string>>(new Set());
   const [tag, setTag] = useState("");
   const [deleteBranch, setDeleteBranch] = useState(true);
+  const [confirmFinishOpen, setConfirmFinishOpen] = useState(false);
 
   useEffect(() => {
     if (finishing) {
@@ -83,6 +94,16 @@ export function GitflowPanel({
 
   const finish = async () => {
     if (!finishing || targets.size === 0) return;
+    if (deleteBranch) {
+      setConfirmFinishOpen(true);
+      return;
+    }
+    await doFinish();
+  };
+
+  const doFinish = async () => {
+    if (!finishing || targets.size === 0) return;
+    setConfirmFinishOpen(false);
     setBusy(true);
     try {
       const result = await api.finishGitflowBranch(
@@ -112,6 +133,16 @@ export function GitflowPanel({
     <div className="gradient-border flex flex-col gap-3 rounded-md bg-card p-3">
       <Label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
         <GitBranch className="size-3.5" /> Gitflow
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Info className="size-3.5 cursor-help" />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-64">
+            feature: branches off develop, merges back to develop. release: branches off develop,
+            merges to main and develop, usually tagged. hotfix: branches off main, merges to main
+            and develop, usually tagged.
+          </TooltipContent>
+        </Tooltip>
       </Label>
 
       {finishing && (
@@ -152,6 +183,24 @@ export function GitflowPanel({
           <Button size="sm" onClick={finish} disabled={busy || targets.size === 0} className="self-start">
             Finish {current!.name}
           </Button>
+
+          <AlertDialog open={confirmFinishOpen} onOpenChange={setConfirmFinishOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete {current?.name} after merging?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This finishes the gitflow branch by merging it into{" "}
+                  {Array.from(targets).join(", ")}, then permanently deletes{" "}
+                  <span className="font-mono">{current?.name}</span>. Uncheck "Delete after
+                  merging" first if you'd rather keep the branch around.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={doFinish}>Finish and delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
 

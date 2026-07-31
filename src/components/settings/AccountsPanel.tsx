@@ -29,6 +29,7 @@ function AccountRow({ account }: { account: Account }) {
   const [gpgPickerOpen, setGpgPickerOpen] = useState(false);
   const [gpgKeyDialogOpen, setGpgKeyDialogOpen] = useState(false);
   const [switchingSigning, setSwitchingSigning] = useState(false);
+  const [confirmGenerateOpen, setConfirmGenerateOpen] = useState(false);
 
   useEffect(() => {
     if (!account.githubUsername) {
@@ -39,11 +40,20 @@ function AccountRow({ account }: { account: Account }) {
   }, [account.id, account.githubUsername]);
 
   const generateSigning = async () => {
+    if (account.signingMethod === "gpg") {
+      setConfirmGenerateOpen(true);
+      return;
+    }
+    await doGenerateSigning();
+  };
+
+  const doGenerateSigning = async () => {
+    setConfirmGenerateOpen(false);
     setGenerating(true);
     try {
       await api.generateSigningKey(account.id);
       await refreshAccounts();
-      toast.success("Signing key generated");
+      toast.success("Signing key generated and switched to SSH signing");
     } catch (e) {
       toast.error(String(e));
     } finally {
@@ -56,7 +66,11 @@ function AccountRow({ account }: { account: Account }) {
     try {
       await api.setAccountSshSigning(account.id);
       await refreshAccounts();
-      toast.success("Switched to SSH signing");
+      toast.success(
+        account.signingKeyPath
+          ? "Switched to SSH signing"
+          : "Switched to SSH signing, but no signing key exists yet — commits will be unsigned until you generate one",
+      );
     } catch (e) {
       toast.error(String(e));
     } finally {
@@ -161,6 +175,22 @@ function AccountRow({ account }: { account: Account }) {
           onOpenChange={setGpgKeyDialogOpen}
         />
       )}
+
+      <AlertDialog open={confirmGenerateOpen} onOpenChange={setConfirmGenerateOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Switch away from GPG signing?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{account.name}" is currently set to sign commits with GPG. Generating an SSH
+              signing key switches it to SSH signing instead, for every repo assigned to it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doGenerateSigning}>Generate & switch</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -352,6 +352,10 @@ export function RebaseDialog({
 
           {phase === "plan" && (
             <>
+              <p className="text-xs text-muted-foreground">
+                Drag to reorder. Reordering commits that depend on each other is likely to cause
+                conflicts partway through.
+              </p>
               <ScrollArea className="gradient-border max-h-[420px] rounded-md bg-card p-2">
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
                   <SortableContext items={rows.map((r) => r.sha)} strategy={verticalListSortingStrategy}>

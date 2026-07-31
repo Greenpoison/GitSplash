@@ -216,6 +216,7 @@ export interface ConflictFile {
 export interface FileTextContent {
   isBinary: boolean;
   content: string;
+  modifiedAt: number | null;
 }
 
 export interface BlameLine {

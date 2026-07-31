@@ -124,15 +124,22 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
     setBusy(true);
     try {
       const toBranch = await api.checkoutPreviousBranch(repo.id);
-      toast.success(`Switched back to ${toBranch}`);
-      if (fromBranch && fromBranch !== toBranch) {
-        pushUndo({
-          id: crypto.randomUUID(),
-          repoId: repo.id,
-          label: `Switch back to ${toBranch}`,
-          undo: () => api.checkoutBranch(repo.id, fromBranch).then(() => { load(); onChanged(); }),
-          redo: () => api.checkoutBranch(repo.id, toBranch).then(() => { load(); onChanged(); }),
-        });
+      if (!toBranch) {
+        // The switch itself succeeded, but the previous position was a
+        // detached commit rather than a named branch — there's no branch
+        // name to report or to redo back to, so skip the undo entry.
+        toast.success("Switched back to the previous position (detached HEAD)");
+      } else {
+        toast.success(`Switched back to ${toBranch}`);
+        if (fromBranch && fromBranch !== toBranch) {
+          pushUndo({
+            id: crypto.randomUUID(),
+            repoId: repo.id,
+            label: `Switch back to ${toBranch}`,
+            undo: () => api.checkoutBranch(repo.id, fromBranch).then(() => { load(); onChanged(); }),
+            redo: () => api.checkoutBranch(repo.id, toBranch).then(() => { load(); onChanged(); }),
+          });
+        }
       }
       await load();
       onChanged();
@@ -202,6 +209,13 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
     setSoloedBranch((prev) => (prev === name ? null : name));
   };
 
+  const blockedByOp = rebaseInProgress || cherryPickInProgress;
+  const blockedTitle = rebaseInProgress
+    ? "Resolve or abort the in-progress rebase first"
+    : cherryPickInProgress
+      ? "Resolve or abort the in-progress cherry-pick first"
+      : undefined;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -210,7 +224,8 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
             key={b.name}
             size="sm"
             variant={b.isCurrent ? "default" : "outline"}
-            disabled={busy || b.isCurrent}
+            disabled={busy || b.isCurrent || blockedByOp}
+            title={blockedByOp ? blockedTitle : undefined}
             onClick={() => checkout(b.name)}
           >
             {b.name}
@@ -224,10 +239,16 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="outline" onClick={back} disabled={busy}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={back}
+          disabled={busy || blockedByOp}
+          title={blockedByOp ? blockedTitle : undefined}
+        >
           <ArrowLeft className="size-3.5" /> Checkout previous branch
         </Button>
-        <Select value={mergeTarget} onValueChange={setMergeTarget}>
+        <Select value={mergeTarget} onValueChange={setMergeTarget} disabled={blockedByOp}>
           <SelectTrigger className="h-8 w-48">
             <SelectValue placeholder="Merge branch…" />
           </SelectTrigger>
@@ -241,7 +262,12 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
               ))}
           </SelectContent>
         </Select>
-        <Button size="sm" onClick={merge} disabled={busy || !mergeTarget}>
+        <Button
+          size="sm"
+          onClick={merge}
+          disabled={busy || !mergeTarget || blockedByOp}
+          title={blockedByOp ? blockedTitle : undefined}
+        >
           <GitMerge className="size-3.5" />
           Merge into {current?.name ?? "current"}
         </Button>

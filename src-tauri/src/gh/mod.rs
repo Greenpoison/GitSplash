@@ -32,14 +32,19 @@ async fn run_gh(
     args: &[&str],
 ) -> Result<String, String> {
     let mut cmd = Command::new("gh");
-    cmd.current_dir(repo_path).args(args);
+    // `gh pr create` normally prompts interactively (e.g. "push this branch
+    // to a remote?") if it thinks it can — with a GUI app there's no visible
+    // terminal for that prompt to appear on, so it would otherwise hang
+    // indefinitely. Closing stdin makes gh detect the non-interactive
+    // context and fail fast with a clear error instead.
+    cmd.current_dir(repo_path).args(args).stdin(Stdio::null());
     if let Some(username) = github_username {
         let token = token_for_user(hostname, username).await?;
         cmd.env("GH_TOKEN", token).env("GH_HOST", hostname);
     }
-    let output = cmd
-        .output()
+    let output = timeout(Duration::from_secs(30), cmd.output())
         .await
+        .map_err(|_| "gh timed out after 30s".to_string())?
         .map_err(|e| format!("failed to run gh: {e}"))?;
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());

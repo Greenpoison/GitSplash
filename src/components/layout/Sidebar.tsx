@@ -1,8 +1,10 @@
-import { LayoutDashboard, Lock, Merge, Settings } from "lucide-react";
+import { HelpCircle, LayoutDashboard, Lock, Merge, Search, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UndoRedoControls } from "@/components/UndoRedoControls";
-import type { View } from "@/store/appStore";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAppStore, type View } from "@/store/appStore";
 
 const NAV_ITEMS: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -11,6 +13,9 @@ const NAV_ITEMS: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
 ];
 
 export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+  const setCommandPaletteOpen = useAppStore((s) => s.setCommandPaletteOpen);
+  const setShortcutsHelpOpen = useAppStore((s) => s.setShortcutsHelpOpen);
+
   return (
     <aside className="gradient-border-r flex h-full w-56 flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-2 px-4 py-4">
@@ -39,7 +44,35 @@ export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) =>
         })}
       </nav>
       <div className="mt-auto flex flex-col gap-2 px-4 py-4">
-        <UndoRedoControls />
+        <div className="flex items-center gap-1">
+          <UndoRedoControls />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Open command palette"
+                onClick={() => setCommandPaletteOpen(true)}
+              >
+                <Search className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Command palette (Ctrl+K)</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Show keyboard shortcuts"
+                onClick={() => setShortcutsHelpOpen(true)}
+              >
+                <HelpCircle className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Keyboard shortcuts (?)</TooltipContent>
+          </Tooltip>
+        </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">v{__APP_VERSION__}</span>
           <ThemeToggle />

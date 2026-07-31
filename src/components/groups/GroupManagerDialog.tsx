@@ -7,10 +7,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
+import type { Group } from "@/lib/types";
 
 /// Driven by the store's groupManagerOpen flag — see AddRepoDialog for why.
 export function GroupManagerDialog() {
@@ -19,8 +30,10 @@ export function GroupManagerDialog() {
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [removeTarget, setRemoveTarget] = useState<Group | null>(null);
   const groups = useAppStore((s) => s.groups);
   const refreshGroups = useAppStore((s) => s.refreshGroups);
+  const refreshRepos = useAppStore((s) => s.refreshRepos);
 
   const create = async () => {
     if (!newName.trim()) return;
@@ -33,10 +46,18 @@ export function GroupManagerDialog() {
     }
   };
 
-  const saveRename = async (id: string) => {
-    if (!editingName.trim()) return;
+  const saveRename = async (id: string, fallbackName: string) => {
+    const trimmed = editingName.trim();
+    if (!trimmed) {
+      setEditingId(null);
+      return;
+    }
+    if (trimmed === fallbackName) {
+      setEditingId(null);
+      return;
+    }
     try {
-      await api.renameGroup(id, editingName.trim());
+      await api.renameGroup(id, trimmed);
       setEditingId(null);
       await refreshGroups();
     } catch (e) {
@@ -47,9 +68,12 @@ export function GroupManagerDialog() {
   const remove = async (id: string) => {
     try {
       await api.deleteGroup(id);
-      await refreshGroups();
+      await Promise.all([refreshGroups(), refreshRepos()]);
+      toast.success("Group deleted");
     } catch (e) {
       toast.error(String(e));
+    } finally {
+      setRemoveTarget(null);
     }
   };
 
@@ -67,8 +91,8 @@ export function GroupManagerDialog() {
                   autoFocus
                   value={editingName}
                   onChange={(e) => setEditingName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && saveRename(g.id)}
-                  onBlur={() => saveRename(g.id)}
+                  onKeyDown={(e) => e.key === "Enter" && saveRename(g.id, g.name)}
+                  onBlur={() => saveRename(g.id, g.name)}
                   className="h-8"
                 />
               ) : (
@@ -78,6 +102,7 @@ export function GroupManagerDialog() {
                 size="icon"
                 variant="ghost"
                 className="size-7"
+                title="Rename group"
                 onClick={() => {
                   setEditingId(g.id);
                   setEditingName(g.name);
@@ -85,7 +110,13 @@ export function GroupManagerDialog() {
               >
                 <Pencil className="size-3.5" />
               </Button>
-              <Button size="icon" variant="ghost" className="size-7" onClick={() => remove(g.id)}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-7"
+                title="Delete group"
+                onClick={() => setRemoveTarget(g)}
+              >
                 <Trash2 className="size-3.5" />
               </Button>
             </div>
@@ -106,6 +137,24 @@ export function GroupManagerDialog() {
           </Button>
         </div>
       </DialogContent>
+
+      <AlertDialog open={!!removeTarget} onOpenChange={(o) => !o && setRemoveTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{removeTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Repos in this group aren't removed from GitSplash — they just become ungrouped. This
+              can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => removeTarget && remove(removeTarget.id)}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

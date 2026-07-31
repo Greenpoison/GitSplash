@@ -73,8 +73,13 @@ fn state_file_path(repo_path: &Path) -> PathBuf {
 /// Rebase and cherry-pick both drive git's cherry-pick sequencer and persist
 /// their own state file — running one while the other is mid-flight would
 /// step on the same `CHERRY_PICK_HEAD`, so each checks for the other's file.
-fn cherry_pick_state_file_path(repo_path: &Path) -> PathBuf {
+/// `pub(crate)` so `branch::merge_branch` can guard against the same clash.
+pub(crate) fn cherry_pick_state_file_path(repo_path: &Path) -> PathBuf {
     repo_path.join(".git").join("gitsplash-cherry-pick-state.json")
+}
+
+pub(crate) fn rebase_state_file_path(repo_path: &Path) -> PathBuf {
+    state_file_path(repo_path)
 }
 
 async fn persist_state(repo_path: &Path, state: &RebaseState) -> Result<(), String> {

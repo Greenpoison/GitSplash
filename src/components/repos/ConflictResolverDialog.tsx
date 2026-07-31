@@ -18,6 +18,14 @@ import type { ConflictFile } from "@/lib/types";
 
 type Resolution = "ours" | "theirs" | "both-ours-first" | "both-theirs-first" | "custom";
 
+const RESOLUTION_LABEL: Record<Resolution, string> = {
+  ours: "kept ours",
+  theirs: "kept theirs",
+  "both-ours-first": "kept both (ours first)",
+  "both-theirs-first": "kept both (theirs first)",
+  custom: "custom edit",
+};
+
 export function ConflictResolverDialog({
   repoId,
   path,
@@ -153,7 +161,7 @@ export function ConflictResolverDialog({
                         </Badge>
                         {choice && (
                           <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                            <Check className="size-3" /> resolved: {choice}
+                            <Check className="size-3" /> {RESOLUTION_LABEL[choice]}
                           </span>
                         )}
                         <Button
@@ -233,7 +241,17 @@ export function ConflictResolverDialog({
                                 setResolutions((prev) => ({ ...prev, [i]: "both-ours-first" }))
                               }
                             >
-                              Accept Both
+                              Accept Both (ours first)
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={choice === "both-theirs-first" ? "default" : "outline"}
+                              className="h-6 text-xs"
+                              onClick={() =>
+                                setResolutions((prev) => ({ ...prev, [i]: "both-theirs-first" }))
+                              }
+                            >
+                              Accept Both (theirs first)
                             </Button>
                           </div>
                         </>

@@ -94,11 +94,16 @@ export function CreateAccountDialog() {
     <Dialog
       open={open}
       onOpenChange={(o) => {
+        // Can't cancel the in-flight device-code login from here (it's a
+        // long-running Tauri command with no abort hook), so closing the
+        // dialog mid-flow would leave a stale device code behind while the
+        // real login keeps running in the background — block it instead.
+        if (!o && loggingIn) return;
         setOpen(o);
         if (!o) reset();
       }}
     >
-      <DialogContent>
+      <DialogContent showCloseButton={!loggingIn}>
         <DialogHeader>
           <DialogTitle>New GitHub identity</DialogTitle>
           <DialogDescription className="text-foreground/80">

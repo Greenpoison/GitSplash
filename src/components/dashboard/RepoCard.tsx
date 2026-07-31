@@ -80,7 +80,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
       onClick={() => setDetailOpen(true)}
       title="View repo details"
     >
-      <div className="flex flex-1 flex-col items-start gap-1 text-left">
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-1 text-left">
         <div className="flex items-center gap-2">
           <span className="font-medium">{repo.displayName}</span>
           {account && (
@@ -152,7 +152,12 @@ export function RepoCard({ repo }: { repo: Repo }) {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="More actions"
+            onClick={(e) => e.stopPropagation()}
+          >
             <MoreVertical className="size-4" />
           </Button>
         </DropdownMenuTrigger>

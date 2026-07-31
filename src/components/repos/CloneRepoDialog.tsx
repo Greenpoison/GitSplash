@@ -107,7 +107,13 @@ export function CloneRepoDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) reset();
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Clone a repository</DialogTitle>
@@ -167,11 +173,15 @@ export function CloneRepoDialog() {
           {accounts.length > 0 && (
             <div className="flex flex-col gap-2">
               <Label>Account (optional)</Label>
-              <Select value={accountId} onValueChange={setAccountId}>
+              <Select
+                value={accountId || "none"}
+                onValueChange={(v) => setAccountId(v === "none" ? "" : v)}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Assign after cloning…" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">Assign after cloning…</SelectItem>
                   {accounts.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.name}

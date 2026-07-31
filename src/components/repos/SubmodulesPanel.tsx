@@ -57,10 +57,15 @@ export function SubmodulesPanel({ repo }: { repo: Repo }) {
         <p className="text-sm text-muted-foreground">This repo has no submodules.</p>
       ) : (
         <>
+          <p className="text-xs text-muted-foreground">
+            Submodules are other git repos nested inside this one, pinned to a specific commit.
+            "Update" fetches and checks out that pinned commit — for one not yet initialized, it
+            also clones its content first.
+          </p>
           <div className="gradient-border flex flex-col gap-2 rounded-md bg-card p-3">
             {submodules.map((s) => (
               <div key={s.path} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs">
-                <span className="flex-1 truncate font-mono">{s.path}</span>
+                <span className="min-w-0 flex-1 truncate font-mono">{s.path}</span>
                 <span className={cn("font-mono text-muted-foreground")}>{s.sha.slice(0, 7)}</span>
                 <Badge variant={STATUS_VARIANT[s.status]}>{STATUS_LABEL[s.status]}</Badge>
                 <Button
@@ -68,6 +73,7 @@ export function SubmodulesPanel({ repo }: { repo: Repo }) {
                   variant="ghost"
                   className="size-6"
                   disabled={busy}
+                  title={s.status === "uninitialized" ? "Initialize & update" : "Update"}
                   onClick={() => update([s.path])}
                 >
                   <RefreshCw className="size-3.5" />

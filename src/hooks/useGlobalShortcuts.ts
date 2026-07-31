@@ -49,6 +49,9 @@ export function useGlobalShortcuts() {
         setView("dashboard");
       } else if (ctrl && key === "2") {
         e.preventDefault();
+        setView("secrets");
+      } else if (ctrl && key === "3") {
+        e.preventDefault();
         setView("settings");
       } else if (!ctrl && key === "?" && !isTypingTarget(e.target)) {
         e.preventDefault();

@@ -115,25 +115,37 @@ export function WorktreesPanel({ repo }: { repo: Repo }) {
 
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-xs text-muted-foreground">
+        A worktree is a second working directory checked out from this same repo, on its own
+        branch — useful for working on two branches side by side without stashing or switching.
+      </p>
       <div className="gradient-border flex flex-col gap-2 rounded-md bg-card p-3">
         {worktrees.length === 0 && (
           <p className="text-sm text-muted-foreground">No worktrees found.</p>
         )}
         {worktrees.map((w) => (
           <div key={w.path} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs">
-            <span className="flex-1 truncate font-mono">{w.path}</span>
+            <span className="min-w-0 flex-1 truncate font-mono">{w.path}</span>
             {w.branch ? (
               <Badge variant="outline">{w.branch}</Badge>
             ) : (
               <Badge variant="secondary">detached @ {w.headSha?.slice(0, 7) ?? "?"}</Badge>
             )}
             {w.isLocked && (
-              <Badge variant="outline" className="gap-1 text-amber-600 dark:text-amber-400">
+              <Badge
+                variant="outline"
+                className="gap-1 text-amber-600 dark:text-amber-400"
+                title="Locked worktrees resist accidental removal — force-remove to override"
+              >
                 <Lock className="size-3" /> locked
               </Badge>
             )}
             {w.isPrunable && (
-              <Badge variant="outline" className="text-muted-foreground">
+              <Badge
+                variant="outline"
+                className="text-muted-foreground"
+                title="Its directory is missing from disk — safe to prune"
+              >
                 prunable
               </Badge>
             )}
@@ -208,14 +220,15 @@ export function WorktreesPanel({ repo }: { repo: Repo }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove worktree at {removeTarget?.path}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This deletes the worktree's directory from disk. The branch itself and its history in
-              the main repo are unaffected.
+              This deletes the worktree's directory from disk, including any uncommitted changes
+              in it — that part can't be undone. The branch itself and its history in the main
+              repo are unaffected.
               {removeTarget?.isLocked && " This worktree is locked — removing it needs to be forced."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => remove(true)}>
+            <AlertDialogAction onClick={() => remove(!!removeTarget?.isLocked)}>
               {removeTarget?.isLocked ? "Force remove" : "Remove"}
             </AlertDialogAction>
           </AlertDialogFooter>

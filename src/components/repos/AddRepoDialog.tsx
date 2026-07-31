@@ -76,7 +76,13 @@ export function AddRepoDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) reset();
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a repository</DialogTitle>

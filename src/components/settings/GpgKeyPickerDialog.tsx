@@ -85,7 +85,7 @@ export function GpgKeyPickerDialog({
                 )}
               >
                 {selected === k.keyId && <Check className="size-3.5 text-primary" />}
-                <span className="flex-1 truncate">{k.uid}</span>
+                <span className="min-w-0 flex-1 truncate">{k.uid}</span>
                 <span className="shrink-0 font-mono text-muted-foreground">{k.keyId}</span>
               </button>
             ))}

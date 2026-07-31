@@ -126,8 +126,12 @@ export const getFileHistory = (repoId: string, path: string, limit: number) =>
 export const getBlame = (repoId: string, path: string) => invoke<BlameLine[]>("get_blame", { repoId, path });
 export const readFileText = (repoId: string, path: string) =>
   invoke<FileTextContent>("read_file_text", { repoId, path });
-export const writeFileText = (repoId: string, path: string, content: string) =>
-  invoke<void>("write_file_text", { repoId, path, content });
+export const writeFileText = (
+  repoId: string,
+  path: string,
+  content: string,
+  expectedModifiedAt: number | null,
+) => invoke<number | null>("write_file_text", { repoId, path, content, expectedModifiedAt });
 
 // Branches
 export const listBranches = (repoId: string) => invoke<BranchInfo[]>("list_branches", { repoId });

@@ -14,11 +14,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import * as api from "@/lib/api";
 import type { BranchInfo, PullRequestSummary, Repo } from "@/lib/types";
 
 export function PullRequestsPanel({ repo }: { repo: Repo }) {
   const [ghAvailable, setGhAvailable] = useState<boolean | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [prs, setPrs] = useState<PullRequestSummary[]>([]);
   const [branches, setBranches] = useState<BranchInfo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -27,9 +38,12 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
   const [body, setBody] = useState("");
   const [base, setBase] = useState("");
   const [draft, setDraft] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [mergeTarget, setMergeTarget] = useState<{ pr: PullRequestSummary; method: "merge" | "squash" | "rebase" } | null>(null);
 
   const load = async () => {
     setLoading(true);
+    setAuthError(null);
     try {
       const available = await api.isGhAvailable();
       setGhAvailable(available);
@@ -41,7 +55,11 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
       setPrs(prList);
       setBranches(branchList);
     } catch (e) {
-      toast.error(String(e));
+      // gh being installed doesn't mean this repo's account is actually
+      // authenticated — surface that distinctly so an empty list doesn't
+      // read as "no PRs" when it's really "auth is broken."
+      setAuthError(String(e));
+      setPrs([]);
     } finally {
       setLoading(false);
     }
@@ -57,6 +75,7 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
       toast.error("Title and base branch are required");
       return;
     }
+    setCreating(true);
     try {
       const url = await api.createPullRequest(repo.id, title.trim(), body, base, draft);
       toast.success("Pull request created", { description: url });
@@ -66,13 +85,18 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
       await load();
     } catch (e) {
       toast.error(String(e));
+    } finally {
+      setCreating(false);
     }
   };
 
-  const merge = async (number: number, method: "merge" | "squash" | "rebase") => {
+  const merge = async () => {
+    if (!mergeTarget) return;
+    const { pr, method } = mergeTarget;
+    setMergeTarget(null);
     try {
-      await api.mergePullRequest(repo.id, number, method);
-      toast.success(`PR #${number} merged (${method})`);
+      await api.mergePullRequest(repo.id, pr.number, method);
+      toast.success(`PR #${pr.number} merged (${method})`);
       await load();
     } catch (e) {
       toast.error(String(e));
@@ -84,6 +108,16 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
       <p className="text-sm text-muted-foreground">
         GitHub CLI (gh) isn't available. Install it and run `gh auth login` for this repo's
         account to manage pull requests here.
+      </p>
+    );
+  }
+
+  if (authError) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Couldn't reach GitHub for this repo's account — run `gh auth login` (or check you're
+        logged into the right account) and try again.
+        <span className="mt-1 block text-xs">{authError}</span>
       </p>
     );
   }
@@ -132,8 +166,8 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
               </Label>
             </div>
           </div>
-          <Button onClick={create} size="sm">
-            Create pull request
+          <Button onClick={create} size="sm" disabled={creating}>
+            {creating ? "Creating…" : "Create pull request"}
           </Button>
         </div>
       )}
@@ -141,8 +175,8 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
       <div className="flex flex-col gap-2">
         {prs.map((pr) => (
           <div key={pr.number} className="flex items-center gap-2 rounded-md border p-2 text-sm">
-            <GitPullRequest className="size-4 text-muted-foreground" />
-            <span className="flex-1 truncate">
+            <GitPullRequest className="size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate">
               #{pr.number} {pr.title}
             </span>
             {pr.isDraft && <Badge variant="outline">draft</Badge>}
@@ -154,7 +188,9 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
                 <ExternalLink className="size-3.5" />
               </a>
             </Button>
-            <Select onValueChange={(m) => merge(pr.number, m as "merge" | "squash" | "rebase")}>
+            <Select
+              onValueChange={(m) => setMergeTarget({ pr, method: m as "merge" | "squash" | "rebase" })}
+            >
               <SelectTrigger className="h-7 w-28 text-xs">
                 <SelectValue placeholder="Merge…" />
               </SelectTrigger>
@@ -170,6 +206,25 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
           <p className="text-sm text-muted-foreground">No open pull requests.</p>
         )}
       </div>
+
+      <AlertDialog open={!!mergeTarget} onOpenChange={(o) => !o && setMergeTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {mergeTarget?.method === "merge" ? "Merge" : mergeTarget?.method === "squash" ? "Squash and merge" : "Rebase and merge"}{" "}
+              PR #{mergeTarget?.pr.number}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              "{mergeTarget?.pr.title}" will be merged into {mergeTarget?.pr.baseRefName} on
+              GitHub right away — this can't be undone from here.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={merge}>Merge</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { Archive, FileWarning } from "lucide-react";
+import { Archive, FileWarning, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,7 @@ export function SecretsPanel({ repo }: { repo: Repo }) {
           ? "Encrypted bundle exported — you'll need the password on the other machine"
           : "Bundle exported (unencrypted)",
       );
+      setPassword("");
     } catch (e) {
       toast.error(String(e));
     } finally {
@@ -69,12 +70,21 @@ export function SecretsPanel({ repo }: { repo: Repo }) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-400">
         <FileWarning className="size-4 shrink-0" />
-        Only files already inside this repo's folder are scanned. Nothing leaves this machine
-        until you export a bundle.
+        This flags files by name/extension (.env, .pem, id_rsa, etc.) in the current working
+        tree — it doesn't scan file contents or git history, and isn't a substitute for a real
+        secret scanner. Nothing leaves this machine until you export a bundle.
+      </div>
+
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">
+          {loading ? "Scanning…" : `${files.length} file${files.length === 1 ? "" : "s"} flagged`}
+        </span>
+        <Button size="sm" variant="outline" onClick={scan} disabled={loading}>
+          <RefreshCw className="size-3.5" /> Rescan
+        </Button>
       </div>
 
       <div className="flex flex-col gap-1">
-        {loading && <p className="text-sm text-muted-foreground">Scanning…</p>}
         {!loading && files.length === 0 && (
           <p className="text-sm text-muted-foreground">No secret-like files found.</p>
         )}
@@ -91,7 +101,7 @@ export function SecretsPanel({ repo }: { repo: Repo }) {
                 });
               }}
             />
-            <span className="flex-1 truncate font-mono text-xs">{f.relativePath}</span>
+            <span className="min-w-0 flex-1 truncate font-mono text-xs">{f.relativePath}</span>
             <span className="text-xs text-muted-foreground">{formatSize(f.sizeBytes)}</span>
           </div>
         ))}

@@ -35,7 +35,7 @@ export function GeneralSettingsPanel() {
     try {
       await api.saveSettings({
         gitGuiPath: gitGuiPath.trim() || null,
-        batchConcurrency: Math.max(1, batchConcurrency),
+        batchConcurrency: Math.min(32, Math.max(1, batchConcurrency)),
       });
       await refreshSettings();
       toast.success("Settings saved");

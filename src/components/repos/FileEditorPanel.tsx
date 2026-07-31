@@ -19,7 +19,13 @@ import { cn } from "@/lib/utils";
 import * as api from "@/lib/api";
 import type { Repo } from "@/lib/types";
 
-export function FileEditorPanel({ repo }: { repo: Repo }) {
+export function FileEditorPanel({
+  repo,
+  onDirtyChange,
+}: {
+  repo: Repo;
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const [files, setFiles] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -29,6 +35,7 @@ export function FileEditorPanel({ repo }: { repo: Repo }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pendingFile, setPendingFile] = useState<string | null>(null);
+  const [modifiedAt, setModifiedAt] = useState<number | null>(null);
 
   useEffect(() => {
     api
@@ -38,6 +45,11 @@ export function FileEditorPanel({ repo }: { repo: Repo }) {
   }, [repo.id]);
 
   const dirty = original !== null && content !== original;
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return files;
@@ -53,6 +65,7 @@ export function FileEditorPanel({ repo }: { repo: Repo }) {
       setIsBinary(file.isBinary);
       setOriginal(file.isBinary ? null : file.content);
       setContent(file.isBinary ? "" : file.content);
+      setModifiedAt(file.modifiedAt);
     } catch (e) {
       toast.error(String(e));
       setSelected(null);
@@ -74,8 +87,9 @@ export function FileEditorPanel({ repo }: { repo: Repo }) {
     if (!selected) return;
     setSaving(true);
     try {
-      await api.writeFileText(repo.id, selected, content);
+      const newModifiedAt = await api.writeFileText(repo.id, selected, content, modifiedAt);
       setOriginal(content);
+      setModifiedAt(newModifiedAt);
       toast.success(`Saved ${selected}`);
     } catch (e) {
       toast.error(String(e));
@@ -131,7 +145,7 @@ export function FileEditorPanel({ repo }: { repo: Repo }) {
         ) : (
           <>
             <div className="flex items-center gap-2">
-              <span className="flex-1 truncate font-mono text-xs text-muted-foreground">{selected}</span>
+              <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{selected}</span>
               {dirty && <span className="text-xs text-muted-foreground">unsaved changes</span>}
               <Button size="sm" onClick={save} disabled={!dirty || saving}>
                 <Save className="size-3.5" /> {saving ? "Saving…" : "Save"}

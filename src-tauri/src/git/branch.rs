@@ -1,4 +1,5 @@
 use super::process::run_git;
+use super::rebase::{cherry_pick_state_file_path, rebase_state_file_path};
 use super::refs::get_head_sha;
 use super::status::get_conflicted_files;
 use serde::{Deserialize, Serialize};
@@ -60,6 +61,13 @@ pub struct MergeResult {
 /// behavior) and reports which files need resolving, since silently
 /// aborting would hide the merge attempt the user asked for.
 pub async fn merge_branch(repo_path: &Path, from_branch: &str) -> Result<MergeResult, String> {
+    if rebase_state_file_path(repo_path).exists() {
+        return Err("a rebase is in progress on this repo — finish or abort it before merging".to_string());
+    }
+    if cherry_pick_state_file_path(repo_path).exists() {
+        return Err("a cherry-pick is in progress on this repo — finish or abort it before merging".to_string());
+    }
+
     let previous_head_sha = get_head_sha(repo_path).await;
 
     let output = run_git(repo_path, &["merge", "--no-edit", from_branch])

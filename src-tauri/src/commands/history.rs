@@ -25,9 +25,12 @@ pub async fn write_file_text(
     repo_id: String,
     path: String,
     content: String,
-) -> AppResult<()> {
+    expected_modified_at: Option<i64>,
+) -> AppResult<Option<i64>> {
     let repo = repo_path(&state, &repo_id).await?;
-    git::files::write_file_text(&repo, &path, &content).await.map_err(AppError::Git)
+    git::files::write_file_text(&repo, &path, &content, expected_modified_at)
+        .await
+        .map_err(AppError::Git)
 }
 
 #[tauri::command]

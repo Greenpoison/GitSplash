@@ -1,9 +1,20 @@
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppStore } from "@/store/appStore";
 import type { Repo } from "@/lib/types";
@@ -16,6 +27,8 @@ import { SecretsPanel } from "./SecretsPanel";
 import { SubmodulesPanel } from "./SubmodulesPanel";
 import { WorktreesPanel } from "./WorktreesPanel";
 
+type PendingAction = { type: "tab"; tab: string } | { type: "close" };
+
 export function RepoDetailDialog({
   repo,
   open,
@@ -26,9 +39,36 @@ export function RepoDetailDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
+  const [activeTab, setActiveTab] = useState("changes");
+  const [editorDirty, setEditorDirty] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+
+  const requestTabChange = (tab: string) => {
+    if (editorDirty && activeTab === "editor" && tab !== activeTab) {
+      setPendingAction({ type: "tab", tab });
+      return;
+    }
+    setActiveTab(tab);
+  };
+
+  const requestOpenChange = (o: boolean) => {
+    if (!o && editorDirty) {
+      setPendingAction({ type: "close" });
+      return;
+    }
+    onOpenChange(o);
+  };
+
+  const confirmPending = () => {
+    if (!pendingAction) return;
+    setEditorDirty(false);
+    if (pendingAction.type === "tab") setActiveTab(pendingAction.tab);
+    else onOpenChange(false);
+    setPendingAction(null);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={requestOpenChange}>
       <DialogContent className="flex max-h-[85vh] sm:max-w-4xl flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>{repo.displayName}</DialogTitle>
@@ -37,7 +77,7 @@ export function RepoDetailDialog({
             scrolls, so a tall panel (e.g. Branches, with its buttons +
             gitflow panel + commit graph all stacked) never pushes the tab
             bar itself out of view. */}
-        <Tabs defaultValue="changes" className="flex min-h-0 flex-1 flex-col">
+        <Tabs value={activeTab} onValueChange={requestTabChange} className="flex min-h-0 flex-1 flex-col">
           <TabsList className="w-full shrink-0 justify-start overflow-x-auto">
             <TabsTrigger value="changes" className="shrink-0">Changes</TabsTrigger>
             <TabsTrigger value="branches" className="shrink-0">Branches</TabsTrigger>
@@ -65,7 +105,7 @@ export function RepoDetailDialog({
               <FileHistoryPanel repo={repo} />
             </TabsContent>
             <TabsContent value="editor">
-              <FileEditorPanel repo={repo} />
+              <FileEditorPanel repo={repo} onDirtyChange={setEditorDirty} />
             </TabsContent>
             <TabsContent value="prs">
               <PullRequestsPanel repo={repo} />
@@ -76,6 +116,23 @@ export function RepoDetailDialog({
           </div>
         </Tabs>
       </DialogContent>
+
+      <AlertDialog open={!!pendingAction} onOpenChange={(o) => !o && setPendingAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard unsaved editor changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingAction?.type === "close"
+                ? "Closing this dialog discards your edits — they were never saved to disk."
+                : "Switching tabs discards your edits — they were never saved to disk."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPending}>Discard & continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

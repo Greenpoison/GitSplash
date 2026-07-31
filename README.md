@@ -35,8 +35,6 @@ from source (see [Getting started](#getting-started) below).
 
 GitSplash is currently in **beta**, so expect occasional rough edges.
 
-I hate subscription software. You should be able to manage your repos with ease.
-
 ## Features
 
 #### 🔀 Branching & history

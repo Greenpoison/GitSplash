@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -9,6 +9,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 import { ShortcutsHelpDialog } from "@/components/ShortcutsHelpDialog";
 import { UndoConfirmDialog } from "@/components/UndoConfirmDialog";
 import { CreateAccountDialog } from "@/components/settings/CreateAccountDialog";
+import { TutorialOverlay } from "@/components/TutorialOverlay";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useAppStore } from "@/store/appStore";
 
@@ -17,12 +18,28 @@ function App() {
   const setView = useAppStore((s) => s.setView);
   const refreshAll = useAppStore((s) => s.refreshAll);
   const loaded = useAppStore((s) => s.loaded);
+  const settings = useAppStore((s) => s.settings);
+  const accounts = useAppStore((s) => s.accounts);
+  const repos = useAppStore((s) => s.repos);
+  const setTutorialActive = useAppStore((s) => s.setTutorialActive);
 
   useGlobalShortcuts();
 
   useEffect(() => {
     refreshAll();
   }, [refreshAll]);
+
+  // Auto-launch the first-run tutorial exactly once per load, only on a
+  // genuinely empty install (no accounts, no repos) — not e.g. every time
+  // someone removes their last repo.
+  const checkedTutorial = useRef(false);
+  useEffect(() => {
+    if (!loaded || checkedTutorial.current || !settings) return;
+    checkedTutorial.current = true;
+    if (!settings.tutorialCompleted && accounts.length === 0 && repos.length === 0) {
+      setTutorialActive(true);
+    }
+  }, [loaded, settings, accounts.length, repos.length, setTutorialActive]);
 
   return (
     <TooltipProvider>
@@ -46,6 +63,7 @@ function App() {
         <ShortcutsHelpDialog />
         <UndoConfirmDialog />
         <CreateAccountDialog />
+        <TutorialOverlay />
       </div>
     </TooltipProvider>
   );

@@ -36,6 +36,7 @@ export function GeneralSettingsPanel() {
       await api.saveSettings({
         gitGuiPath: gitGuiPath.trim() || null,
         batchConcurrency: Math.min(32, Math.max(1, batchConcurrency)),
+        tutorialCompleted: settings?.tutorialCompleted ?? false,
       });
       await refreshSettings();
       toast.success("Settings saved");
@@ -43,6 +44,17 @@ export function GeneralSettingsPanel() {
       toast.error(String(e));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const resetTutorial = async () => {
+    if (!settings) return;
+    try {
+      await api.saveSettings({ ...settings, tutorialCompleted: false });
+      await refreshSettings();
+      toast.success("Tutorial will show next time you launch GitSplash");
+    } catch (e) {
+      toast.error(String(e));
     }
   };
 
@@ -80,6 +92,25 @@ export function GeneralSettingsPanel() {
       <Button onClick={save} disabled={saving} className="w-fit">
         {saving ? "Saving…" : "Save settings"}
       </Button>
+
+      <div className="flex flex-col gap-1.5 border-t pt-4">
+        <Label>Tutorial</Label>
+        <p className="text-xs text-muted-foreground">
+          {settings?.tutorialCompleted
+            ? "You've already been through the first-run tutorial."
+            : "The first-run tutorial hasn't been completed yet — it auto-launches only when there are no accounts or repos."}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          onClick={resetTutorial}
+          disabled={!settings || !settings.tutorialCompleted}
+        >
+          Reset tutorial
+        </Button>
+      </div>
     </div>
   );
 }

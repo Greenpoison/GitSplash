@@ -65,6 +65,10 @@ pub struct RepoGitStatus {
 pub struct Settings {
     pub git_gui_path: Option<String>,
     pub batch_concurrency: u32,
+    /// Set once the first-run tutorial is finished or skipped, so it never
+    /// auto-launches again. Reset from the settings page to bring it back
+    /// on the next launch.
+    pub tutorial_completed: bool,
 }
 
 impl Default for Settings {
@@ -72,6 +76,7 @@ impl Default for Settings {
         Self {
             git_gui_path: None,
             batch_concurrency: 6,
+            tutorial_completed: false,
         }
     }
 }

@@ -37,12 +37,17 @@ export function Dashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Dashboard</h1>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => setGroupManagerOpen(true)}>
+          <Button
+            size="sm"
+            variant="outline"
+            data-tutorial="manage-groups"
+            onClick={() => setGroupManagerOpen(true)}
+          >
             Manage groups
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" data-tutorial="add-repo">
                 Add repo <ChevronDown className="size-3.5" />
               </Button>
             </DropdownMenuTrigger>

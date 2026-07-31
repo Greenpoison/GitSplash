@@ -206,7 +206,7 @@ export function AccountsPanel() {
           Each account gets its own SSH key pair and ~/.ssh/config host alias. Assigning an
           account to a repo rewrites its remote URL to use that alias.
         </p>
-        <Button size="sm" onClick={() => setCreateAccountDialogOpen(true)}>
+        <Button size="sm" data-tutorial="add-account" onClick={() => setCreateAccountDialogOpen(true)}>
           Add account
         </Button>
       </div>

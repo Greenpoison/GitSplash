@@ -26,6 +26,17 @@ pub fn get_settings(conn: &Connection) -> rusqlite::Result<Settings> {
         settings.batch_concurrency = v;
     }
 
+    let tutorial_completed: Option<String> = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'tutorial_completed'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if let Some(v) = tutorial_completed {
+        settings.tutorial_completed = v == "true";
+    }
+
     Ok(settings)
 }
 
@@ -42,6 +53,11 @@ pub fn save_settings(conn: &Connection, settings: &Settings) -> rusqlite::Result
         "INSERT INTO settings (key, value) VALUES ('batch_concurrency', ?1)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![settings.batch_concurrency.to_string()],
+    )?;
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES ('tutorial_completed', ?1)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![settings.tutorial_completed.to_string()],
     )?;
     Ok(())
 }

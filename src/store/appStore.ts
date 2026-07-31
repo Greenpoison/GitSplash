@@ -26,6 +26,8 @@ interface AppState {
   // repo added and no groups exist yet — prompts a quick "put it in a group?"
   // dialog. null means the prompt is closed.
   groupPromptRepoId: string | null;
+  // Drives the first-run tutorial overlay — see TutorialOverlay.tsx.
+  tutorialActive: boolean;
 
   setView: (view: View) => void;
   setCommandPaletteOpen: (open: boolean) => void;
@@ -35,6 +37,7 @@ interface AppState {
   setShortcutsHelpOpen: (open: boolean) => void;
   setCreateAccountDialogOpen: (open: boolean) => void;
   setGroupPromptRepoId: (repoId: string | null) => void;
+  setTutorialActive: (active: boolean) => void;
 
   refreshAll: () => Promise<void>;
   refreshRepos: () => Promise<void>;
@@ -61,6 +64,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   shortcutsHelpOpen: false,
   createAccountDialogOpen: false,
   groupPromptRepoId: null,
+  tutorialActive: false,
 
   setView: (view) => set({ view }),
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
@@ -70,6 +74,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setShortcutsHelpOpen: (open) => set({ shortcutsHelpOpen: open }),
   setCreateAccountDialogOpen: (open) => set({ createAccountDialogOpen: open }),
   setGroupPromptRepoId: (repoId) => set({ groupPromptRepoId: repoId }),
+  setTutorialActive: (active) => set({ tutorialActive: active }),
 
   refreshAll: async () => {
     await Promise.all([

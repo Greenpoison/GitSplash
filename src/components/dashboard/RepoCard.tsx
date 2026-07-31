@@ -79,6 +79,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
       className="flex cursor-pointer flex-row items-center gap-4 px-4 py-3"
       onClick={() => setDetailOpen(true)}
       title="View repo details"
+      data-tutorial="repo-card"
     >
       <div className="flex min-w-0 flex-1 flex-col items-start gap-1 text-left">
         <div className="flex items-center gap-2">
@@ -156,6 +157,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
             variant="ghost"
             size="icon"
             title="More actions"
+            data-tutorial="repo-menu"
             onClick={(e) => e.stopPropagation()}
           >
             <MoreVertical className="size-4" />

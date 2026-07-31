@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Bumps the patch version everywhere it's declared (package.json,
 // package-lock.json, src-tauri/tauri.conf.json, src-tauri/Cargo.toml),
-// tagged "-alpha", and prints the new version on its last stdout line. Run
-// by .githooks/pre-commit on every commit — see that file for why. Stays on
-// 0.x.y until told otherwise; nothing here ever bumps major/minor.
+// tagged "-beta", and prints the new version on its last stdout line. Run
+// by .githooks/pre-commit on every commit — see that file for why. Nothing
+// here ever bumps major/minor — that's a manual call (e.g. the 1.0.0 jump
+// for the first installer release).
 const fs = require("fs");
 const path = require("path");
 
@@ -14,7 +15,7 @@ function bumpPatch(version) {
   const parts = base.split(".").map((n) => parseInt(n, 10) || 0);
   while (parts.length < 3) parts.push(0);
   parts[2] += 1;
-  return `${parts.join(".")}-alpha`;
+  return `${parts.join(".")}-beta`;
 }
 
 const pkgPath = path.join(root, "package.json");

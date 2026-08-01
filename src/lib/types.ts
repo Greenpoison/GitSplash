@@ -52,6 +52,7 @@ export interface RepoGitStatus {
   behind: number;
   isDirty: boolean;
   hasUpstream: boolean;
+  upstream: string | null;
   error: string | null;
 }
 

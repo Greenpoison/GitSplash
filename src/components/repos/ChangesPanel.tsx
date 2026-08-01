@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,8 +25,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import * as api from "@/lib/api";
-import { cn } from "@/lib/utils";
-import type { FileChange, FileDiff, Repo } from "@/lib/types";
+import { cn, relativeTime } from "@/lib/utils";
+import type { CommitNode, FileChange, FileDiff, Repo } from "@/lib/types";
 import { useUndoStore } from "@/store/undoStore";
 import { GitCommandPreview } from "@/components/GitCommandPreview";
 import { GitCommandTooltip } from "@/components/GitCommandTooltip";
@@ -46,6 +47,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 function FileRow({
+  repoId,
   change,
   staged,
   selected,
@@ -54,6 +56,7 @@ function FileRow({
   onUnstage,
   onDiscard,
 }: {
+  repoId: string;
   change: FileChange;
   staged: boolean;
   selected: boolean;
@@ -63,6 +66,8 @@ function FileRow({
   onDiscard?: () => void;
 }) {
   const code = staged ? change.indexStatus : change.isUntracked ? "?" : change.worktreeStatus;
+  const [lastCommit, setLastCommit] = useState<CommitNode | null | undefined>(undefined);
+
   return (
     <button
       onClick={onSelect}
@@ -80,7 +85,34 @@ function FileRow({
       >
         {STATUS_LABEL[code] ?? code}
       </Badge>
-      <span className="min-w-0 flex-1 truncate font-mono">{change.path}</span>
+      <Tooltip
+        onOpenChange={(open) => {
+          if (open && lastCommit === undefined) {
+            api
+              .getFileHistory(repoId, change.path, 1)
+              .then((commits) => setLastCommit(commits[0] ?? null))
+              .catch(() => setLastCommit(null));
+          }
+        }}
+      >
+        <TooltipTrigger asChild>
+          <span className="min-w-0 flex-1 truncate font-mono">{change.path}</span>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="max-w-xs">
+          {lastCommit === undefined ? (
+            "Loading…"
+          ) : lastCommit === null ? (
+            "No history yet — this file has never been committed."
+          ) : (
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium">{lastCommit.subject}</span>
+              <span className="opacity-80">
+                {lastCommit.author} · {relativeTime(lastCommit.date)}
+              </span>
+            </div>
+          )}
+        </TooltipContent>
+      </Tooltip>
       <span className="flex shrink-0 gap-0.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto">
         {staged ? (
           <GitCommandTooltip label="Unstage" command={`git restore --staged -- ${change.path}`}>
@@ -374,6 +406,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
               {conflicted.map((f) => (
                 <FileRow
                   key={f.path}
+                  repoId={repo.id}
                   change={f}
                   staged={false}
                   selected={false}
@@ -397,6 +430,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
             {staged.map((f) => (
               <FileRow
                 key={f.path}
+                repoId={repo.id}
                 change={f}
                 staged
                 selected={selected?.path === f.path && selected.staged}
@@ -420,6 +454,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
             {unstaged.map((f) => (
               <FileRow
                 key={f.path}
+                repoId={repo.id}
                 change={f}
                 staged={false}
                 selected={selected?.path === f.path && !selected.staged}

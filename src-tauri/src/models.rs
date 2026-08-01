@@ -76,6 +76,10 @@ pub struct RepoGitStatus {
     pub behind: u32,
     pub is_dirty: bool,
     pub has_upstream: bool,
+    /// The upstream ref itself (e.g. "origin/main"), when it has one — lets
+    /// the caller compare or diff against it directly without a second
+    /// round-trip to resolve the name.
+    pub upstream: Option<String>,
     pub error: Option<String>,
 }
 

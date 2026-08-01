@@ -53,6 +53,7 @@ import { EditRepoGroupsDialog } from "@/components/repos/EditRepoGroupsDialog";
 import { RepoDetailDialog } from "@/components/repos/RepoDetailDialog";
 import { DivergedPullDialog } from "@/components/repos/DivergedPullDialog";
 import { RepoHealthDialog } from "@/components/repos/RepoHealthDialog";
+import { CompareBranchDialog } from "@/components/repos/CompareBranchDialog";
 import { DirtyPullDialog } from "@/components/repos/DirtyPullDialog";
 
 export function RepoCard({ repo }: { repo: Repo }) {
@@ -69,6 +70,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
   const [forcePushConfirm, setForcePushConfirm] = useState(false);
   const [diverged, setDiverged] = useState<{ branch: string; upstream: string } | null>(null);
   const [dirtyPull, setDirtyPull] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   const account = accounts.find((a) => a.id === repo.accountId);
 
@@ -170,17 +172,33 @@ export function RepoCard({ repo }: { repo: Repo }) {
         ) : status ? (
           <>
             <Badge variant="secondary">{status.branch ?? "detached"}</Badge>
-            {status.ahead > 0 && (
-              <Badge variant="outline" className="gap-1">
-                <ArrowUp className="size-3" />
-                {status.ahead}
-              </Badge>
-            )}
-            {status.behind > 0 && (
-              <Badge variant="outline" className="gap-1">
-                <ArrowDown className="size-3" />
-                {status.behind}
-              </Badge>
+            {(status.ahead > 0 || status.behind > 0) && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (status.branch && status.upstream) setCompareOpen(true);
+                }}
+                title={
+                  status.branch && status.upstream
+                    ? `Compare ${status.branch} against ${status.upstream}`
+                    : undefined
+                }
+                className="flex items-center gap-1"
+              >
+                {status.ahead > 0 && (
+                  <Badge variant="outline" className="gap-1">
+                    <ArrowUp className="size-3" />
+                    {status.ahead}
+                  </Badge>
+                )}
+                {status.behind > 0 && (
+                  <Badge variant="outline" className="gap-1">
+                    <ArrowDown className="size-3" />
+                    {status.behind}
+                  </Badge>
+                )}
+              </button>
             )}
             {status.isDirty ? (
               <Badge variant="outline" className="gap-1 text-amber-600 dark:text-amber-400">
@@ -329,6 +347,15 @@ export function RepoCard({ repo }: { repo: Repo }) {
         <EditRepoGroupsDialog repo={repo} open={editGroupsOpen} onOpenChange={setEditGroupsOpen} />
         <RepoHealthDialog repo={repo} open={healthCheckOpen} onOpenChange={setHealthCheckOpen} />
         <RepoDetailDialog repo={repo} open={detailOpen} onOpenChange={setDetailOpen} />
+        {status?.branch && status.upstream && (
+          <CompareBranchDialog
+            repo={repo}
+            base={status.branch}
+            branch={status.upstream}
+            open={compareOpen}
+            onOpenChange={setCompareOpen}
+          />
+        )}
         {diverged && (
           <DivergedPullDialog
             repo={repo}

@@ -88,6 +88,20 @@ pub async fn run_health_check(repo_id: &str, repo_path: &Path) -> Result<Vec<Hea
         });
     }
 
+    if !repo_path.join(".gitattributes").exists() {
+        issues.push(HealthIssue {
+            id: "no-gitattributes".to_string(),
+            severity: "info".to_string(),
+            title: "No .gitattributes file".to_string(),
+            detail: "Without one, line-ending handling depends on each collaborator's local \
+                     git config, which can make git status show a file as \"modified\" with an \
+                     empty diff — nothing is actually wrong, but it's confusing. A \
+                     `.gitattributes` with `* text=auto` makes line-ending behavior consistent \
+                     for everyone regardless of their own settings."
+                .to_string(),
+        });
+    }
+
     let output = run_git(repo_path, &["ls-tree", "-r", "-l", "HEAD"])
         .await
         .map_err(|e| format!("failed to run git ls-tree: {e}"))?;

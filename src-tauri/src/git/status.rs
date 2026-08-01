@@ -10,6 +10,7 @@ pub async fn get_status(repo_id: &str, repo_path: &Path) -> RepoGitStatus {
         behind: 0,
         is_dirty: false,
         has_upstream: false,
+        upstream: None,
         error: None,
     };
 
@@ -67,8 +68,9 @@ fn parse_status_v2(stdout: &str, mut status: RepoGitStatus) -> RepoGitStatus {
             if rest != "(detached)" {
                 status.branch = Some(rest.to_string());
             }
-        } else if line.starts_with("# branch.upstream ") {
+        } else if let Some(rest) = line.strip_prefix("# branch.upstream ") {
             status.has_upstream = true;
+            status.upstream = Some(rest.to_string());
         } else if let Some(rest) = line.strip_prefix("# branch.ab ") {
             // format: "+<ahead> -<behind>"
             let mut parts = rest.split_whitespace();

@@ -4,7 +4,6 @@ import { reportGitError } from "@/lib/gitErrors";
 import { GitBranch, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -17,34 +16,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import * as api from "@/lib/api";
-import type { BranchInfo, GitflowKind, Repo } from "@/lib/types";
+import type { BranchInfo, Repo } from "@/lib/types";
 import { GitCommandPreview } from "@/components/GitCommandPreview";
-
-const DEFAULT_BASE: Record<GitflowKind, string> = {
-  feature: "develop",
-  release: "develop",
-  hotfix: "main",
-};
-
-const DEFAULT_TARGETS: Record<GitflowKind, string[]> = {
-  feature: ["develop"],
-  release: ["main", "develop"],
-  hotfix: ["main", "develop"],
-};
-
-function parseGitflowBranch(name: string): { kind: GitflowKind; branchName: string } | null {
-  const match = /^(feature|release|hotfix)\/(.+)$/.exec(name);
-  if (!match) return null;
-  return { kind: match[1] as GitflowKind, branchName: match[2] };
-}
+import { GITFLOW_DEFAULT_TARGETS, parseGitflowBranch } from "@/lib/gitflow";
 
 export function GitflowPanel({
   repo,
@@ -55,26 +30,10 @@ export function GitflowPanel({
   branches: BranchInfo[];
   onChanged: () => void;
 }) {
-  const [kind, setKind] = useState<GitflowKind>("feature");
-  const [name, setName] = useState("");
-  const [baseBranch, setBaseBranch] = useState(DEFAULT_BASE.feature);
   const [busy, setBusy] = useState(false);
 
   const current = branches.find((b) => b.isCurrent);
   const finishing = current ? parseGitflowBranch(current.name) : null;
-
-  const branchExists = (n: string) => branches.some((b) => b.name === n);
-  const resolveBase = (k: GitflowKind) =>
-    branchExists(DEFAULT_BASE[k]) ? DEFAULT_BASE[k] : (current?.name ?? branches[0]?.name ?? "");
-
-  // Once the branch list actually loads (it's empty on first render), swap
-  // out a default that doesn't exist in this repo for one that does.
-  useEffect(() => {
-    if (branches.length > 0 && !branchExists(baseBranch)) {
-      setBaseBranch(resolveBase(kind));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branches]);
 
   const [targets, setTargets] = useState<Set<string>>(new Set());
   const [tag, setTag] = useState("");
@@ -83,29 +42,13 @@ export function GitflowPanel({
 
   useEffect(() => {
     if (finishing) {
-      setTargets(new Set(DEFAULT_TARGETS[finishing.kind]));
+      setTargets(new Set(GITFLOW_DEFAULT_TARGETS[finishing.kind]));
       setTag("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.name]);
 
-  const start = async () => {
-    if (!name.trim()) {
-      toast.error("Enter a name for the new branch");
-      return;
-    }
-    setBusy(true);
-    try {
-      await api.startGitflowBranch(repo.id, kind, name.trim(), baseBranch.trim() || DEFAULT_BASE[kind]);
-      toast.success(`Started ${kind}/${name.trim()}`);
-      setName("");
-      onChanged();
-    } catch (e) {
-      reportGitError(e);
-    } finally {
-      setBusy(false);
-    }
-  };
+  if (!finishing) return null;
 
   const finish = async () => {
     if (!finishing || targets.size === 0) return;
@@ -145,9 +88,10 @@ export function GitflowPanel({
   };
 
   return (
-    <div className="gradient-border flex flex-col gap-3 rounded-md bg-card p-3">
-      <Label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-        <GitBranch className="size-3.5" /> Gitflow
+    <div className="gradient-border flex flex-col gap-2 rounded-md border border-primary/30 bg-primary/5 p-2">
+      <p className="flex items-center gap-1.5 text-xs">
+        <GitBranch className="size-3.5" /> Current branch is{" "}
+        <span className="font-mono">{current!.name}</span> — finish it into:
         <Tooltip>
           <TooltipTrigger asChild>
             <Info className="size-3.5 cursor-help" />
@@ -169,137 +113,70 @@ export function GitflowPanel({
             </dl>
           </TooltipContent>
         </Tooltip>
-      </Label>
+      </p>
+      <div className="flex flex-wrap gap-3">
+        {GITFLOW_DEFAULT_TARGETS[finishing.kind].map((t) => (
+          <label key={t} className="flex items-center gap-1.5 text-xs">
+            <Checkbox
+              checked={targets.has(t)}
+              onCheckedChange={(c) =>
+                setTargets((prev) => {
+                  const next = new Set(prev);
+                  if (c) next.add(t);
+                  else next.delete(t);
+                  return next;
+                })
+              }
+            />
+            {t}
+          </label>
+        ))}
+      </div>
+      {finishing.kind !== "feature" && (
+        <Input
+          value={tag}
+          onChange={(e) => setTag(e.target.value)}
+          placeholder={`Tag (optional), e.g. v${finishing.branchName}`}
+          className="h-7 text-xs"
+        />
+      )}
+      <label className="flex items-center gap-1.5 text-xs">
+        <Checkbox checked={deleteBranch} onCheckedChange={(c) => setDeleteBranch(!!c)} />
+        Delete {current!.name} after merging
+      </label>
+      <Button size="sm" onClick={finish} disabled={busy || targets.size === 0} className="self-start">
+        Finish {current!.name}
+      </Button>
 
-      {finishing && (
-        <div className="flex flex-col gap-2 rounded-md border border-primary/30 bg-primary/5 p-2">
-          <p className="text-xs">
-            Current branch is <span className="font-mono">{current!.name}</span> — finish it into:
-          </p>
-          <div className="flex flex-wrap gap-3">
-            {DEFAULT_TARGETS[finishing.kind].map((t) => (
-              <label key={t} className="flex items-center gap-1.5 text-xs">
-                <Checkbox
-                  checked={targets.has(t)}
-                  onCheckedChange={(c) =>
-                    setTargets((prev) => {
-                      const next = new Set(prev);
-                      if (c) next.add(t);
-                      else next.delete(t);
-                      return next;
-                    })
-                  }
-                />
-                {t}
-              </label>
-            ))}
-          </div>
-          {finishing.kind !== "feature" && (
-            <Input
-              value={tag}
-              onChange={(e) => setTag(e.target.value)}
-              placeholder={`Tag (optional), e.g. v${finishing.branchName}`}
-              className="h-7 text-xs"
+      <AlertDialog open={confirmFinishOpen} onOpenChange={setConfirmFinishOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {current?.name} after merging?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This finishes the gitflow branch by merging it into{" "}
+              {Array.from(targets).join(", ")}, then permanently deletes{" "}
+              <span className="font-mono">{current?.name}</span>. Uncheck "Delete after
+              merging" first if you'd rather keep the branch around.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {current && (
+            <GitCommandPreview
+              command={[
+                ...Array.from(targets).flatMap((t) => [
+                  `git switch ${t}`,
+                  `git merge --no-ff --no-edit ${current.name}`,
+                ]),
+                ...(finishing.kind !== "feature" && tag.trim() ? [`git tag ${tag.trim()}`] : []),
+                `git branch -d ${current.name}`,
+              ]}
             />
           )}
-          <label className="flex items-center gap-1.5 text-xs">
-            <Checkbox checked={deleteBranch} onCheckedChange={(c) => setDeleteBranch(!!c)} />
-            Delete {current!.name} after merging
-          </label>
-          <Button size="sm" onClick={finish} disabled={busy || targets.size === 0} className="self-start">
-            Finish {current!.name}
-          </Button>
-
-          <AlertDialog open={confirmFinishOpen} onOpenChange={setConfirmFinishOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete {current?.name} after merging?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This finishes the gitflow branch by merging it into{" "}
-                  {Array.from(targets).join(", ")}, then permanently deletes{" "}
-                  <span className="font-mono">{current?.name}</span>. Uncheck "Delete after
-                  merging" first if you'd rather keep the branch around.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              {current && (
-                <GitCommandPreview
-                  command={[
-                    ...Array.from(targets).flatMap((t) => [
-                      `git switch ${t}`,
-                      `git merge --no-ff --no-edit ${current.name}`,
-                    ]),
-                    ...(finishing.kind !== "feature" && tag.trim() ? [`git tag ${tag.trim()}`] : []),
-                    `git branch -d ${current.name}`,
-                  ]}
-                />
-              )}
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={doFinish}>Finish and delete</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs">Type</Label>
-          <Select
-            value={kind}
-            onValueChange={(v) => {
-              const k = v as GitflowKind;
-              setKind(k);
-              setBaseBranch(resolveBase(k));
-            }}
-          >
-            <SelectTrigger className="h-8 w-28 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="feature">feature</SelectItem>
-              <SelectItem value="release">release</SelectItem>
-              <SelectItem value="hotfix">hotfix</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs">Name</Label>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="my-feature"
-            className="h-8 w-40 text-xs"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs">Base branch</Label>
-          <Select value={baseBranch} onValueChange={setBaseBranch}>
-            <SelectTrigger className="h-8 w-32 text-xs">
-              <SelectValue placeholder="Select a branch" />
-            </SelectTrigger>
-            <SelectContent>
-              {branches.map((b) => (
-                <SelectItem key={b.name} value={b.name}>
-                  {b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button size="sm" onClick={start} disabled={busy || !name.trim()}>
-              {name.trim() ? `Start ${kind}/${name.trim()}` : `Start ${kind}`}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {name.trim()
-              ? `Creates ${kind}/${name.trim()} off ${baseBranch.trim() || DEFAULT_BASE[kind]} and checks it out`
-              : `Enter a name above to start a new ${kind} branch`}
-          </TooltipContent>
-        </Tooltip>
-      </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doFinish}>Finish and delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -11,10 +11,12 @@ import {
   GitCommitHorizontal,
   GitCompareArrows,
   GitMerge,
+  Info,
   Plus,
   Search,
   Trash2,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,7 +53,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import * as api from "@/lib/api";
-import type { BranchInfo, CommitNode, Repo } from "@/lib/types";
+import type { BranchInfo, CommitNode, GitflowKind, Repo } from "@/lib/types";
+import { GITFLOW_DEFAULT_BASE } from "@/lib/gitflow";
 import { cn } from "@/lib/utils";
 import { useUndoStore } from "@/store/undoStore";
 import { CherryPickDialog } from "./CherryPickDialog";
@@ -111,6 +114,8 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const [newBranchOpen, setNewBranchOpen] = useState(false);
   const [newBranchName, setNewBranchName] = useState("");
   const [newBranchBase, setNewBranchBase] = useState("");
+  const [newBranchAdvancedOpen, setNewBranchAdvancedOpen] = useState(false);
+  const [newBranchKind, setNewBranchKind] = useState<GitflowKind | "none">("none");
   const [compareBranch, setCompareBranch] = useState<string | null>(null);
   const [branchQuery, setBranchQuery] = useState("");
   const [multiCompareOpen, setMultiCompareOpen] = useState(false);
@@ -201,11 +206,19 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
     if (!name) return;
     setBusy(true);
     try {
-      await api.createBranch(repo.id, name, newBranchBase || undefined);
-      toast.success(`Created and switched to ${name}`);
+      if (newBranchKind === "none") {
+        await api.createBranch(repo.id, name, newBranchBase || undefined);
+        toast.success(`Created and switched to ${name}`);
+      } else {
+        const base = newBranchBase.trim() || GITFLOW_DEFAULT_BASE[newBranchKind];
+        await api.startGitflowBranch(repo.id, newBranchKind, name, base);
+        toast.success(`Started ${newBranchKind}/${name}`);
+      }
       setNewBranchOpen(false);
       setNewBranchName("");
       setNewBranchBase("");
+      setNewBranchKind("none");
+      setNewBranchAdvancedOpen(false);
       await load();
       onChanged();
     } catch (e) {
@@ -466,25 +479,41 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         }}
       />
 
-      <Dialog open={newBranchOpen} onOpenChange={setNewBranchOpen}>
+      <Dialog
+        open={newBranchOpen}
+        onOpenChange={(open) => {
+          setNewBranchOpen(open);
+          if (!open) {
+            setNewBranchKind("none");
+            setNewBranchAdvancedOpen(false);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New branch</DialogTitle>
             <DialogDescription>
-              Any name — not tied to Gitflow's feature/release/hotfix convention.
+              {newBranchKind === "none"
+                ? "Any name — branches off the base below."
+                : `Will create ${newBranchKind}/${newBranchName.trim() || "…"} and check it out.`}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="new-branch-name">Name</Label>
-              <Input
-                id="new-branch-name"
-                autoFocus
-                value={newBranchName}
-                onChange={(e) => setNewBranchName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && createBranch()}
-                placeholder="my-branch"
-              />
+              <div className="flex items-center gap-1.5">
+                {newBranchKind !== "none" && (
+                  <span className="font-mono text-xs text-muted-foreground">{newBranchKind}/</span>
+                )}
+                <Input
+                  id="new-branch-name"
+                  autoFocus
+                  value={newBranchName}
+                  onChange={(e) => setNewBranchName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && createBranch()}
+                  placeholder={newBranchKind === "none" ? "my-branch" : "my-feature"}
+                />
+              </div>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Base branch</Label>
@@ -507,6 +536,52 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
                 </SelectContent>
               </Select>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setNewBranchAdvancedOpen((v) => !v)}
+              className="flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground"
+            >
+              <ChevronDown className={cn("size-3.5 transition-transform", newBranchAdvancedOpen && "rotate-180")} />
+              Advanced
+            </button>
+            {newBranchAdvancedOpen && (
+              <div className="flex flex-col gap-1.5 rounded-md border p-2">
+                <Label className="flex items-center gap-1.5 text-xs">
+                  Gitflow type
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="size-3.5 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-72">
+                      Names the branch <span className="font-mono">type/name</span> and picks a
+                      sensible base — feature/release off develop, hotfix off main. GitSplash will
+                      later offer to "finish" it (merge into its targets, optionally tag, delete).
+                    </TooltipContent>
+                  </Tooltip>
+                </Label>
+                <Select
+                  value={newBranchKind}
+                  onValueChange={(v) => {
+                    const k = v as GitflowKind | "none";
+                    setNewBranchKind(k);
+                    if (k !== "none" && branches.some((b) => b.name === GITFLOW_DEFAULT_BASE[k])) {
+                      setNewBranchBase(GITFLOW_DEFAULT_BASE[k]);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-40 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Plain branch</SelectItem>
+                    <SelectItem value="feature">feature</SelectItem>
+                    <SelectItem value="release">release</SelectItem>
+                    <SelectItem value="hotfix">hotfix</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button onClick={createBranch} disabled={busy || !newBranchName.trim()}>

@@ -53,6 +53,7 @@ export function GitignoreAssistant({
   const [trackedPaths, setTrackedPaths] = useState<string[]>([]);
   const [ignored, setIgnored] = useState<Set<string>>(new Set());
   const [confirmTarget, setConfirmTarget] = useState<GitignoreSuggestion | null>(null);
+  const [skipTarget, setSkipTarget] = useState<GitignoreSuggestion | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -79,6 +80,27 @@ export function GitignoreAssistant({
           : `Added ${s.pattern} to .gitignore`,
       );
       setConfirmTarget(null);
+      setIgnored((prev) => new Set(prev).add(s.pattern));
+      onChanged();
+    } catch (e) {
+      reportGitError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const skipWorktree = async (s: GitignoreSuggestion) => {
+    setBusy(true);
+    try {
+      await api.skipWorktree(repo.id, s.trackedPaths);
+      toast.success(
+        `Git will stop showing changes to ${s.trackedPaths.length} file${s.trackedPaths.length === 1 ? "" : "s"} as modified`,
+        {
+          description:
+            "This only applies here on this machine — a fresh clone or a collaborator won't get it automatically.",
+        },
+      );
+      setSkipTarget(null);
       setIgnored((prev) => new Set(prev).add(s.pattern));
       onChanged();
     } catch (e) {
@@ -121,6 +143,18 @@ export function GitignoreAssistant({
           >
             {s.trackedPaths.length > 0 ? "Add to .gitignore & untrack" : "Add to .gitignore"}
           </Button>
+          {s.trackedPaths.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 shrink-0 text-xs"
+              disabled={busy}
+              onClick={() => setSkipTarget(s)}
+              title="Keep them committed, but stop showing their changes as modified — doesn't touch .gitignore"
+            >
+              Stop tracking changes…
+            </Button>
+          )}
           <Button
             size="icon"
             variant="ghost"
@@ -157,6 +191,34 @@ export function GitignoreAssistant({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => confirmTarget && apply(confirmTarget)}>
               Untrack
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!skipTarget} onOpenChange={(o) => !o && setSkipTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop tracking changes to {skipTarget?.pattern}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Marks {skipTarget?.trackedPaths.length} file
+              {skipTarget && skipTarget.trackedPaths.length === 1 ? "" : "s"} as "skip-worktree" —
+              git stops showing changes to them as modified, without removing them from the repo
+              or touching .gitignore. This is local to this clone only: a fresh clone or a
+              collaborator won't inherit it. If you ever need to actually commit a real change to
+              one of these files again, you'll need to run{" "}
+              <code className="font-mono">git update-index --no-skip-worktree</code> on it first.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {skipTarget && (
+            <GitCommandPreview
+              command={`git update-index --skip-worktree -- ${skipTarget.trackedPaths.length > 3 ? skipTarget.pattern : skipTarget.trackedPaths.join(" ")}`}
+            />
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => skipTarget && skipWorktree(skipTarget)}>
+              Stop tracking changes
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

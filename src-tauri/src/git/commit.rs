@@ -66,6 +66,25 @@ pub async fn untrack_paths(repo_path: &Path, rel_paths: &[String]) -> Result<(),
     Ok(())
 }
 
+/// Tells git to stop reporting changes to already-tracked files as
+/// "modified" — without removing them from the index, deleting them, or
+/// touching .gitignore (which has no effect on already-tracked files at
+/// all). The fix for regenerated build output that's already committed and
+/// you don't want to untrack outright. Purely local to this index — never
+/// committed, never shared with a collaborator or a fresh clone.
+pub async fn skip_worktree(repo_path: &Path, rel_paths: &[String]) -> Result<(), String> {
+    if rel_paths.is_empty() {
+        return Ok(());
+    }
+    let mut args = vec!["update-index", "--skip-worktree", "--"];
+    args.extend(rel_paths.iter().map(|p| p.as_str()));
+    let output = run_git(repo_path, &args).await.map_err(|e| e.to_string())?;
+    if !output.success {
+        return Err(git_err("could not mark as skip-worktree", &output.stderr));
+    }
+    Ok(())
+}
+
 /// Destructive: discards unstaged changes to a tracked file, or deletes an
 /// untracked file outright (there's nothing in git history to restore it
 /// from either way — the caller is expected to have confirmed with the user).

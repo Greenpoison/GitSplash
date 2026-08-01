@@ -94,6 +94,7 @@ pub fn run() {
             commands::changes::unstage_file,
             commands::changes::discard_file,
             commands::changes::untrack_paths,
+            commands::changes::skip_worktree,
             commands::changes::stage_all,
             commands::changes::unstage_all,
             commands::changes::stage_hunk,

@@ -142,6 +142,8 @@ export const discardFile = (repoId: string, path: string, isUntracked: boolean) 
   invoke<void>("discard_file", { repoId, path, isUntracked });
 export const untrackPaths = (repoId: string, paths: string[]) =>
   invoke<void>("untrack_paths", { repoId, paths });
+export const skipWorktree = (repoId: string, paths: string[]) =>
+  invoke<void>("skip_worktree", { repoId, paths });
 export const stageAll = (repoId: string) => invoke<void>("stage_all", { repoId });
 export const unstageAll = (repoId: string) => invoke<void>("unstage_all", { repoId });
 export const stageHunk = (repoId: string, path: string, hunkRaw: string) =>

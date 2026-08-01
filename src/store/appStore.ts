@@ -30,6 +30,10 @@ interface AppState {
   groupPromptRepoId: string | null;
   // Drives the first-run tutorial overlay — see TutorialOverlay.tsx.
   tutorialActive: boolean;
+  // Set to jump straight into a repo's detail dialog from anywhere (e.g. the
+  // Command Palette) instead of only being able to open it by clicking its
+  // card on the dashboard. null means no dialog should be forced open.
+  openRepoDetailId: string | null;
 
   setView: (view: View) => void;
   setCommandPaletteOpen: (open: boolean) => void;
@@ -42,6 +46,7 @@ interface AppState {
   setCreateAccountDialogOpen: (open: boolean) => void;
   setGroupPromptRepoId: (repoId: string | null) => void;
   setTutorialActive: (active: boolean) => void;
+  setOpenRepoDetailId: (repoId: string | null) => void;
 
   refreshAll: () => Promise<void>;
   refreshRepos: () => Promise<void>;
@@ -71,6 +76,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   createAccountDialogOpen: false,
   groupPromptRepoId: null,
   tutorialActive: false,
+  openRepoDetailId: null,
 
   setView: (view) => set({ view }),
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
@@ -83,6 +89,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCreateAccountDialogOpen: (open) => set({ createAccountDialogOpen: open }),
   setGroupPromptRepoId: (repoId) => set({ groupPromptRepoId: repoId }),
   setTutorialActive: (active) => set({ tutorialActive: active }),
+  setOpenRepoDetailId: (repoId) => set({ openRepoDetailId: repoId }),
 
   refreshAll: async () => {
     await Promise.all([

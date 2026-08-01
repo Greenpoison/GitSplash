@@ -6,6 +6,7 @@ import {
   Contrast,
   Download,
   ExternalLink,
+  FolderGit2,
   FolderPlus,
   GitPullRequestArrow,
   Keyboard,
@@ -38,6 +39,7 @@ export function CommandPalette() {
   const setGroupManagerOpen = useAppStore((s) => s.setGroupManagerOpen);
   const setShortcutsHelpOpen = useAppStore((s) => s.setShortcutsHelpOpen);
   const setGlossaryOpen = useAppStore((s) => s.setGlossaryOpen);
+  const setOpenRepoDetailId = useAppStore((s) => s.setOpenRepoDetailId);
   const repos = useAppStore((s) => s.repos);
   const groups = useAppStore((s) => s.groups);
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
@@ -128,12 +130,23 @@ export function CommandPalette() {
             <CommandSeparator />
             <CommandGroup heading="Repos">
               {repos.map((r) => (
-                <CommandItem
-                  key={r.id}
-                  onSelect={() => run(() => api.openRepoExternal(r.id).catch((e) => reportGitError(e)))}
-                >
-                  <ExternalLink /> Open {r.displayName} externally
-                </CommandItem>
+                <div key={r.id} className="contents">
+                  <CommandItem
+                    onSelect={() =>
+                      run(() => {
+                        setView("dashboard");
+                        setOpenRepoDetailId(r.id);
+                      })
+                    }
+                  >
+                    <FolderGit2 /> Open {r.displayName} in GitSplash
+                  </CommandItem>
+                  <CommandItem
+                    onSelect={() => run(() => api.openRepoExternal(r.id).catch((e) => reportGitError(e)))}
+                  >
+                    <ExternalLink /> Open {r.displayName} externally
+                  </CommandItem>
+                </div>
               ))}
             </CommandGroup>
           </>

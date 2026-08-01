@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { colorForBranchName, computeBranchSegments } from "@/lib/branchSegments";
+import { CopyButton } from "@/components/CopyButton";
 
 const ROW_HEIGHT = 30;
 const WRAPPED_ROW_HEIGHT = 54;
@@ -240,6 +241,7 @@ export function CommitGraph({
               <span className="shrink-0 whitespace-nowrap font-mono text-muted-foreground">
                 {node.hash.slice(0, 7)}
               </span>
+              <CopyButton value={node.hash} label="Copy full commit hash" />
             </div>
           ))}
         </div>

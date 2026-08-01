@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { reportGitError } from "@/lib/gitErrors";
 import { FileWarning } from "lucide-react";
+import { CopyButton } from "@/components/CopyButton";
 import {
   Dialog,
   DialogContent,
@@ -65,9 +66,10 @@ export function CommitDetailDialog({
       <DialogContent className="flex h-[92vh] max-h-[92vh] w-[95vw] sm:max-w-[95vw] flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle className="leading-snug whitespace-normal break-words">{commit.subject}</DialogTitle>
-          <DialogDescription>
-            <span className="font-mono">{commit.hash.slice(0, 7)}</span> · {commit.author} ·{" "}
-            {new Date(commit.date).toLocaleString()}
+          <DialogDescription className="flex items-center gap-1">
+            <span className="font-mono">{commit.hash.slice(0, 7)}</span>
+            <CopyButton value={commit.hash} label="Copy full commit hash" />
+            <span>· {commit.author} · {new Date(commit.date).toLocaleString()}</span>
           </DialogDescription>
         </DialogHeader>
 

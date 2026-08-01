@@ -2,7 +2,7 @@ import { useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
 import { reportGitError } from "@/lib/gitErrors";
-import { CheckCircle2, ChevronDown, ChevronRight, Download, GitPullRequestArrow, Loader2, MinusCircle, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, Download, GitPullRequestArrow, Loader2, MinusCircle, Upload, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
@@ -31,7 +31,7 @@ export function GroupSection({ group, repos }: { group: Group; repos: Repo[] }) 
   const refreshRepos = useAppStore((s) => s.refreshRepos);
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
 
-  const runBatch = async (pull: boolean) => {
+  const runBatch = async (mode: "fetch" | "fetchPull" | "push") => {
     if (repos.length === 0) return;
     setRunning(true);
     setLog({});
@@ -67,16 +67,21 @@ export function GroupSection({ group, repos }: { group: Group; repos: Repo[] }) 
         }, SUCCESS_LINGER_MS);
       }
     });
+    const label = mode === "push" ? "Push" : mode === "fetchPull" ? "Fetch & pull" : "Fetch";
     try {
-      await api.batchUpdateGroup(group.id, pull);
+      if (mode === "push") {
+        await api.batchPushGroup(group.id);
+      } else {
+        await api.batchUpdateGroup(group.id, mode === "fetchPull");
+      }
       await refreshRepos();
       await refreshStatuses(Array.from(repoIds));
       if (failures > 0) {
-        toast.warning(`${failures} repo${failures === 1 ? "" : "s"} failed to ${pull ? "fetch & pull" : "fetch"}`, {
+        toast.warning(`${failures} repo${failures === 1 ? "" : "s"} failed to ${label.toLowerCase()}`, {
           description: `${group.name} — see the log above for details.`,
         });
       } else {
-        toast.success(`${pull ? "Fetch & pull" : "Fetch"} finished for ${group.name}`);
+        toast.success(`${label} finished for ${group.name}`);
       }
     } catch (e) {
       reportGitError(e);
@@ -108,18 +113,27 @@ export function GroupSection({ group, repos }: { group: Group; repos: Repo[] }) 
             size="sm"
             variant="outline"
             disabled={running || repos.length === 0}
-            onClick={() => runBatch(false)}
+            onClick={() => runBatch("fetch")}
           >
             {running ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
             Fetch
           </Button>
-          <Button size="sm" disabled={running || repos.length === 0} onClick={() => runBatch(true)}>
+          <Button size="sm" disabled={running || repos.length === 0} onClick={() => runBatch("fetchPull")}>
             {running ? (
               <Loader2 className="size-3.5 animate-spin" />
             ) : (
               <GitPullRequestArrow className="size-3.5" />
             )}
             Fetch &amp; pull
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={running || repos.length === 0}
+            onClick={() => runBatch("push")}
+          >
+            {running ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+            Push
           </Button>
         </div>
       </div>

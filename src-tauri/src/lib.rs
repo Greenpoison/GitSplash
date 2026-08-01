@@ -60,6 +60,7 @@ pub fn run() {
             commands::git_ops::batch_update_group,
             commands::git_ops::fetch_repo,
             commands::git_ops::push_repo,
+            commands::git_ops::batch_push_group,
             commands::branches::list_branches,
             commands::branches::get_commit_graph,
             commands::branches::checkout_branch,

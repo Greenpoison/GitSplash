@@ -112,6 +112,7 @@ export const getGpgPublicKey = (keyId: string) => invoke<string>("get_gpg_public
 // Batch git ops
 export const batchUpdateGroup = (groupId: string, pull: boolean) =>
   invoke<string>("batch_update_group", { groupId, pull });
+export const batchPushGroup = (groupId: string) => invoke<string>("batch_push_group", { groupId });
 export const fetchRepo = (repoId: string, pull: boolean) =>
   invoke<FetchOutcome>("fetch_repo", { repoId, pull });
 export const pushRepo = (repoId: string, force: boolean) =>

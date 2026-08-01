@@ -63,7 +63,12 @@ export function RepoCard({ repo }: { repo: Repo }) {
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
   const [editGroupsOpen, setEditGroupsOpen] = useState(false);
   const [healthCheckOpen, setHealthCheckOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
+  // Lifted to the global store (rather than local state) so the Command
+  // Palette can jump straight into a specific repo's detail dialog from
+  // anywhere, not just by clicking its card here.
+  const detailOpen = useAppStore((s) => s.openRepoDetailId === repo.id);
+  const setOpenRepoDetailId = useAppStore((s) => s.setOpenRepoDetailId);
+  const setDetailOpen = (open: boolean) => setOpenRepoDetailId(open ? repo.id : null);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [pushing, setPushing] = useState(false);

@@ -14,6 +14,7 @@ const FINISHED_LINGER_MS = 5000;
 interface BackgroundOpsState {
   ops: BackgroundOp[];
   start: (label: string) => string;
+  progress: (id: string, detail: string) => void;
   finish: (id: string, status: "success" | "error", detail?: string) => void;
 }
 
@@ -29,6 +30,15 @@ export const useBackgroundOpsStore = create<BackgroundOpsState>((set) => ({
     const id = crypto.randomUUID();
     set((s) => ({ ops: [...s.ops, { id, label, status: "running" }] }));
     return id;
+  },
+
+  // Updates a still-running op's detail text (e.g. download progress)
+  // without touching its status — a no-op once it's already finished, so
+  // a stray late progress event can't resurrect a cleared entry.
+  progress: (id, detail) => {
+    set((s) => ({
+      ops: s.ops.map((o) => (o.id === id && o.status === "running" ? { ...o, detail } : o)),
+    }));
   },
 
   finish: (id, status, detail) => {

@@ -39,11 +39,11 @@ export function UpdateNotifier() {
       action: {
         label: "Update now",
         onClick: () => {
-          toast.promise(install(), {
-            loading: "Downloading update…",
-            success: "Installed — restarting GitSplash…",
-            error: (e) => `Update failed: ${String(e)}`,
-          });
+          // install() tracks its own progress in the status bar (it can
+          // take a while on a slow connection), so this toast is just a
+          // quick launch — no need to keep it pinned to the promise.
+          toast.info("Downloading update — see the status bar for progress");
+          install().catch((e) => toast.error(`Update failed: ${String(e)}`));
         },
       },
     });

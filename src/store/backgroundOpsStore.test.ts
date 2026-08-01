@@ -34,6 +34,21 @@ describe("useBackgroundOpsStore", () => {
     expect(useBackgroundOpsStore.getState().ops).toHaveLength(0);
   });
 
+  it("updates a running op's detail via progress", () => {
+    const id = useBackgroundOpsStore.getState().start("Downloading foo…");
+    useBackgroundOpsStore.getState().progress(id, "3.2/10 MB");
+    const op = useBackgroundOpsStore.getState().ops.find((o) => o.id === id);
+    expect(op).toMatchObject({ status: "running", detail: "3.2/10 MB" });
+  });
+
+  it("ignores a late progress update after the op has finished", () => {
+    const id = useBackgroundOpsStore.getState().start("Downloading foo…");
+    useBackgroundOpsStore.getState().finish(id, "success", "Done");
+    useBackgroundOpsStore.getState().progress(id, "10/10 MB");
+    const op = useBackgroundOpsStore.getState().ops.find((o) => o.id === id);
+    expect(op).toMatchObject({ status: "success", detail: "Done" });
+  });
+
   it("keeps independent ops separate", () => {
     const a = useBackgroundOpsStore.getState().start("Cloning a…");
     const b = useBackgroundOpsStore.getState().start("Cloning b…");

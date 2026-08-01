@@ -22,6 +22,7 @@ interface AppState {
   createRepoDialogOpen: boolean;
   groupManagerOpen: boolean;
   shortcutsHelpOpen: boolean;
+  glossaryOpen: boolean;
   createAccountDialogOpen: boolean;
   // Set to a repo id right after that repo is added, when it was the first
   // repo added and no groups exist yet — prompts a quick "put it in a group?"
@@ -37,6 +38,7 @@ interface AppState {
   setCreateRepoDialogOpen: (open: boolean) => void;
   setGroupManagerOpen: (open: boolean) => void;
   setShortcutsHelpOpen: (open: boolean) => void;
+  setGlossaryOpen: (open: boolean) => void;
   setCreateAccountDialogOpen: (open: boolean) => void;
   setGroupPromptRepoId: (repoId: string | null) => void;
   setTutorialActive: (active: boolean) => void;
@@ -65,6 +67,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   createRepoDialogOpen: false,
   groupManagerOpen: false,
   shortcutsHelpOpen: false,
+  glossaryOpen: false,
   createAccountDialogOpen: false,
   groupPromptRepoId: null,
   tutorialActive: false,
@@ -76,6 +79,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCreateRepoDialogOpen: (open) => set({ createRepoDialogOpen: open }),
   setGroupManagerOpen: (open) => set({ groupManagerOpen: open }),
   setShortcutsHelpOpen: (open) => set({ shortcutsHelpOpen: open }),
+  setGlossaryOpen: (open) => set({ glossaryOpen: open }),
   setCreateAccountDialogOpen: (open) => set({ createAccountDialogOpen: open }),
   setGroupPromptRepoId: (repoId) => set({ groupPromptRepoId: repoId }),
   setTutorialActive: (active) => set({ tutorialActive: active }),

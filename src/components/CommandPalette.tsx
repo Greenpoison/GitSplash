@@ -2,6 +2,7 @@ import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { reportGitError } from "@/lib/gitErrors";
 import {
+  BookOpen,
   Contrast,
   Download,
   ExternalLink,
@@ -36,6 +37,7 @@ export function CommandPalette() {
   const setAddRepoDialogOpen = useAppStore((s) => s.setAddRepoDialogOpen);
   const setGroupManagerOpen = useAppStore((s) => s.setGroupManagerOpen);
   const setShortcutsHelpOpen = useAppStore((s) => s.setShortcutsHelpOpen);
+  const setGlossaryOpen = useAppStore((s) => s.setGlossaryOpen);
   const repos = useAppStore((s) => s.repos);
   const groups = useAppStore((s) => s.groups);
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
@@ -97,6 +99,9 @@ export function CommandPalette() {
           </CommandItem>
           <CommandItem onSelect={() => run(() => setShortcutsHelpOpen(true))}>
             <Keyboard /> Show keyboard shortcuts
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => setGlossaryOpen(true))}>
+            <BookOpen /> Show git glossary
           </CommandItem>
         </CommandGroup>
 

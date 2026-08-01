@@ -1,4 +1,4 @@
-import { HelpCircle, LayoutDashboard, Lock, Merge, Search, Settings } from "lucide-react";
+import { BookOpen, HelpCircle, LayoutDashboard, Lock, Merge, Search, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UndoRedoControls } from "@/components/UndoRedoControls";
@@ -15,6 +15,7 @@ const NAV_ITEMS: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
 export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) => void }) {
   const setCommandPaletteOpen = useAppStore((s) => s.setCommandPaletteOpen);
   const setShortcutsHelpOpen = useAppStore((s) => s.setShortcutsHelpOpen);
+  const setGlossaryOpen = useAppStore((s) => s.setGlossaryOpen);
 
   return (
     <aside className="gradient-border-r flex h-full w-56 flex-col bg-sidebar text-sidebar-foreground">
@@ -71,6 +72,19 @@ export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) =>
               </Button>
             </TooltipTrigger>
             <TooltipContent>Keyboard shortcuts (?)</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Show git glossary"
+                onClick={() => setGlossaryOpen(true)}
+              >
+                <BookOpen className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Git glossary</TooltipContent>
           </Tooltip>
         </div>
         <div className="flex items-center justify-between">

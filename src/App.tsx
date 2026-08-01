@@ -7,6 +7,7 @@ import { SecretsPage } from "@/components/secrets/SecretsPage";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import { CommandPalette } from "@/components/CommandPalette";
 import { ShortcutsHelpDialog } from "@/components/ShortcutsHelpDialog";
+import { GlossaryDialog } from "@/components/GlossaryDialog";
 import { UndoConfirmDialog } from "@/components/UndoConfirmDialog";
 import { CreateAccountDialog } from "@/components/settings/CreateAccountDialog";
 import { TutorialOverlay } from "@/components/TutorialOverlay";
@@ -72,6 +73,7 @@ function App() {
         <Toaster />
         <CommandPalette />
         <ShortcutsHelpDialog />
+        <GlossaryDialog />
         <UndoConfirmDialog />
         <CreateAccountDialog />
         <TutorialOverlay />

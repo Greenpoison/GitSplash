@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { reportGitError } from "@/lib/gitErrors";
 import { Check, FileWarning, Pencil } from "lucide-react";
@@ -45,6 +45,7 @@ export function ConflictResolverDialog({
   const [customText, setCustomText] = useState<Record<number, string>>({});
   const [editing, setEditing] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const blockRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   useEffect(() => {
     if (!open) return;
@@ -60,6 +61,29 @@ export function ConflictResolverDialog({
   const conflictIndexes =
     file?.segments.map((s, i) => (s.kind === "conflict" ? i : -1)).filter((i) => i >= 0) ?? [];
   const allResolved = conflictIndexes.every((i) => resolutions[i] !== undefined);
+  const unresolvedCount = conflictIndexes.filter((i) => resolutions[i] === undefined).length;
+
+  const scrollToNextUnresolved = (afterIndex: number) => {
+    const next = conflictIndexes.find((i) => i > afterIndex && resolutions[i] === undefined);
+    if (next !== undefined) {
+      blockRefs.current[next]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  const resolveAndAdvance = (index: number, choice: Resolution) => {
+    setResolutions((prev) => ({ ...prev, [index]: choice }));
+    scrollToNextUnresolved(index);
+  };
+
+  const resolveAllRemaining = (side: "ours" | "theirs") => {
+    setResolutions((prev) => {
+      const next = { ...prev };
+      for (const i of conflictIndexes) {
+        if (next[i] === undefined) next[i] = side;
+      }
+      return next;
+    });
+  };
 
   const resolvedContent = (index: number): string => {
     const seg = file!.segments[index];
@@ -155,7 +179,13 @@ export function ConflictResolverDialog({
                   const choice = resolutions[i];
                   const isEditing = editing === i;
                   return (
-                    <div key={i} className="overflow-hidden rounded-md border">
+                    <div
+                      key={i}
+                      ref={(el) => {
+                        blockRefs.current[i] = el;
+                      }}
+                      className="overflow-hidden rounded-md border"
+                    >
                       <div className="flex items-center gap-2 bg-muted/50 px-2 py-1">
                         <Badge variant="outline" className="text-[10px]">
                           Conflict
@@ -222,7 +252,7 @@ export function ConflictResolverDialog({
                               size="sm"
                               variant={choice === "ours" ? "default" : "outline"}
                               className="h-6 text-xs"
-                              onClick={() => setResolutions((prev) => ({ ...prev, [i]: "ours" }))}
+                              onClick={() => resolveAndAdvance(i, "ours")}
                             >
                               Accept Ours
                             </Button>
@@ -230,7 +260,7 @@ export function ConflictResolverDialog({
                               size="sm"
                               variant={choice === "theirs" ? "default" : "outline"}
                               className="h-6 text-xs"
-                              onClick={() => setResolutions((prev) => ({ ...prev, [i]: "theirs" }))}
+                              onClick={() => resolveAndAdvance(i, "theirs")}
                             >
                               Accept Theirs
                             </Button>
@@ -238,9 +268,7 @@ export function ConflictResolverDialog({
                               size="sm"
                               variant={choice === "both-ours-first" ? "default" : "outline"}
                               className="h-6 text-xs"
-                              onClick={() =>
-                                setResolutions((prev) => ({ ...prev, [i]: "both-ours-first" }))
-                              }
+                              onClick={() => resolveAndAdvance(i, "both-ours-first")}
                             >
                               Accept Both (ours first)
                             </Button>
@@ -248,9 +276,7 @@ export function ConflictResolverDialog({
                               size="sm"
                               variant={choice === "both-theirs-first" ? "default" : "outline"}
                               className="h-6 text-xs"
-                              onClick={() =>
-                                setResolutions((prev) => ({ ...prev, [i]: "both-theirs-first" }))
-                              }
+                              onClick={() => resolveAndAdvance(i, "both-theirs-first")}
                             >
                               Accept Both (theirs first)
                             </Button>
@@ -267,6 +293,28 @@ export function ConflictResolverDialog({
                 {conflictIndexes.filter((i) => resolutions[i] !== undefined).length}/{conflictIndexes.length}{" "}
                 blocks resolved
               </span>
+              {unresolvedCount > 1 && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() => resolveAllRemaining("ours")}
+                    disabled={saving}
+                  >
+                    Accept all remaining: Ours
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() => resolveAllRemaining("theirs")}
+                    disabled={saving}
+                  >
+                    Accept all remaining: Theirs
+                  </Button>
+                </>
+              )}
               <Button onClick={save} disabled={!allResolved || saving}>
                 {saving ? "Saving…" : "Save & mark resolved"}
               </Button>

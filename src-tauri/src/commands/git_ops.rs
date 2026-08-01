@@ -2,6 +2,7 @@ use crate::db;
 use crate::error::{AppError, AppResult};
 use crate::git;
 use crate::git::fetch::FetchOutcome;
+use crate::git::push::PushOutcome;
 use crate::models::{BatchEvent, BatchPhase};
 use crate::state::AppState;
 use crate::util::{new_id, now_iso};
@@ -27,6 +28,19 @@ pub async fn fetch_repo(state: State<'_, AppState>, repo_id: String, pull: bool)
         db::touch_last_fetched(&conn, &repo_id, &now_iso()).ok();
     }
     Ok(outcome)
+}
+
+/// Pushes the current branch to its remote, publishing it with `-u` the
+/// first time it has no upstream yet.
+#[tauri::command]
+pub async fn push_repo(state: State<'_, AppState>, repo_id: String, force: bool) -> AppResult<PushOutcome> {
+    let repo_path = {
+        let conn = state.db.lock().unwrap();
+        db::get_repo(&conn, &repo_id)?
+            .ok_or_else(|| AppError::NotFound(format!("repo {repo_id} not found")))?
+            .path
+    };
+    Ok(git::push::push(&repo_id, &PathBuf::from(repo_path), force).await)
 }
 
 /// Runs fetch (and optionally pull) across every repo in a group, in

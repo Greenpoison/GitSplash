@@ -163,6 +163,108 @@ pub async fn get_file_history(repo_path: &Path, rel_path: &str, limit: u32) -> R
     Ok(parse_log_records(&output.stdout))
 }
 
+/// Searches commit history across all local branches by message/author text,
+/// or — when `search_content` is set — by content added/removed in a commit's
+/// diff (`git log -S`, aka "pickaxe"), which is how you find "who
+/// added/removed this line of code" without knowing which commit to look at.
+/// Message and author matches are run as separate queries and merged, since
+/// git ANDs `--grep`/`--author` together rather than OR-ing them.
+pub async fn search_commits(
+    repo_path: &Path,
+    query: &str,
+    search_content: bool,
+    limit: u32,
+) -> Result<Vec<CommitNode>, String> {
+    let limit_arg = format!("-n{limit}");
+    let format_arg = format!("--pretty=format:{}", log_format());
+
+    if search_content {
+        let output = run_git(
+            repo_path,
+            &[
+                "log",
+                "--all",
+                "--date=iso-strict",
+                &format_arg,
+                &limit_arg,
+                "--pickaxe-regex",
+                "-S",
+                query,
+            ],
+        )
+        .await
+        .map_err(|e| format!("failed to run git log: {e}"))?;
+        if !output.success {
+            return Err(if output.stderr.trim().is_empty() {
+                "git log failed".to_string()
+            } else {
+                output.stderr.trim().to_string()
+            });
+        }
+        return Ok(parse_log_records(&output.stdout));
+    }
+
+    let by_message = run_git(
+        repo_path,
+        &[
+            "log",
+            "--all",
+            "--date=iso-strict",
+            "--regexp-ignore-case",
+            &format_arg,
+            &limit_arg,
+            "--grep",
+            query,
+        ],
+    )
+    .await
+    .map_err(|e| format!("failed to run git log: {e}"))?;
+    if !by_message.success {
+        return Err(if by_message.stderr.trim().is_empty() {
+            "git log failed".to_string()
+        } else {
+            by_message.stderr.trim().to_string()
+        });
+    }
+
+    let by_author = run_git(
+        repo_path,
+        &[
+            "log",
+            "--all",
+            "--date=iso-strict",
+            "--regexp-ignore-case",
+            &format_arg,
+            &limit_arg,
+            "--author",
+            query,
+        ],
+    )
+    .await
+    .map_err(|e| format!("failed to run git log: {e}"))?;
+    if !by_author.success {
+        return Err(if by_author.stderr.trim().is_empty() {
+            "git log failed".to_string()
+        } else {
+            by_author.stderr.trim().to_string()
+        });
+    }
+
+    let mut seen = std::collections::HashSet::new();
+    let mut merged = Vec::new();
+    for node in parse_log_records(&by_message.stdout)
+        .into_iter()
+        .chain(parse_log_records(&by_author.stdout))
+    {
+        if seen.insert(node.hash.clone()) {
+            merged.push(node);
+        }
+    }
+    merged.sort_by(|a, b| b.date.cmp(&a.date));
+    merged.truncate(limit as usize);
+    Ok(merged)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BranchInfo {

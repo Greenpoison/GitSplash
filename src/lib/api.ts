@@ -10,6 +10,7 @@ import type {
   CompareFile,
   ConflictFile,
   FetchOutcome,
+  PushOutcome,
   FileChange,
   FileDiff,
   FileTextContent,
@@ -111,6 +112,8 @@ export const batchUpdateGroup = (groupId: string, pull: boolean) =>
   invoke<string>("batch_update_group", { groupId, pull });
 export const fetchRepo = (repoId: string, pull: boolean) =>
   invoke<FetchOutcome>("fetch_repo", { repoId, pull });
+export const pushRepo = (repoId: string, force: boolean) =>
+  invoke<PushOutcome>("push_repo", { repoId, force });
 
 // Branch comparison
 export const compareBranches = (repoId: string, base: string, branch: string) =>
@@ -175,6 +178,8 @@ export const listTrackedFiles = (repoId: string) => invoke<string[]>("list_track
 export const getFileHistory = (repoId: string, path: string, limit: number) =>
   invoke<CommitNode[]>("get_file_history", { repoId, path, limit });
 export const getBlame = (repoId: string, path: string) => invoke<BlameLine[]>("get_blame", { repoId, path });
+export const searchCommits = (repoId: string, query: string, searchContent: boolean, limit: number) =>
+  invoke<CommitNode[]>("search_commits", { repoId, query, searchContent, limit });
 export const readFileText = (repoId: string, path: string) =>
   invoke<FileTextContent>("read_file_text", { repoId, path });
 export const writeFileText = (

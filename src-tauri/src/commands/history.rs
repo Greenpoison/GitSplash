@@ -49,3 +49,17 @@ pub async fn get_blame(state: State<'_, AppState>, repo_id: String, path: String
     let repo = repo_path(&state, &repo_id).await?;
     git::blame::get_blame(&repo, &path).await.map_err(AppError::Git)
 }
+
+#[tauri::command]
+pub async fn search_commits(
+    state: State<'_, AppState>,
+    repo_id: String,
+    query: String,
+    search_content: bool,
+    limit: u32,
+) -> AppResult<Vec<CommitNode>> {
+    let repo = repo_path(&state, &repo_id).await?;
+    git::log::search_commits(&repo, &query, search_content, limit)
+        .await
+        .map_err(AppError::Git)
+}

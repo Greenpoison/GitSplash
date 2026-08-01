@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import type { FileChange, FileDiff, Repo } from "@/lib/types";
 import { useUndoStore } from "@/store/undoStore";
 import { GitCommandPreview } from "@/components/GitCommandPreview";
+import { GitCommandTooltip } from "@/components/GitCommandTooltip";
 import { ConflictResolverDialog } from "./ConflictResolverDialog";
 import { GitignoreAssistant } from "./GitignoreAssistant";
 import { StashPanel } from "./StashPanel";
@@ -82,38 +83,44 @@ function FileRow({
       <span className="min-w-0 flex-1 truncate font-mono">{change.path}</span>
       <span className="flex shrink-0 gap-0.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto">
         {staged ? (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-5"
-            title="Unstage"
-            aria-label="Unstage"
-            onClick={(e) => { e.stopPropagation(); onUnstage?.(); }}
-          >
-            <ArrowLeft className="size-3" />
-          </Button>
+          <GitCommandTooltip label="Unstage" command={`git restore --staged -- ${change.path}`}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-5"
+              aria-label="Unstage"
+              onClick={(e) => { e.stopPropagation(); onUnstage?.(); }}
+            >
+              <ArrowLeft className="size-3" />
+            </Button>
+          </GitCommandTooltip>
         ) : (
           <>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-5"
-              title="Discard"
-              aria-label="Discard"
-              onClick={(e) => { e.stopPropagation(); onDiscard?.(); }}
+            <GitCommandTooltip
+              label="Discard"
+              command={change.isUntracked ? `rm ${change.path}` : `git restore -- ${change.path}`}
             >
-              <Trash2 className="size-3" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-5"
-              title="Stage"
-              aria-label="Stage"
-              onClick={(e) => { e.stopPropagation(); onStage?.(); }}
-            >
-              <ArrowRight className="size-3" />
-            </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-5"
+                aria-label="Discard"
+                onClick={(e) => { e.stopPropagation(); onDiscard?.(); }}
+              >
+                <Trash2 className="size-3" />
+              </Button>
+            </GitCommandTooltip>
+            <GitCommandTooltip label="Stage" command={`git add -- ${change.path}`}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-5"
+                aria-label="Stage"
+                onClick={(e) => { e.stopPropagation(); onStage?.(); }}
+              >
+                <ArrowRight className="size-3" />
+              </Button>
+            </GitCommandTooltip>
           </>
         )}
       </span>

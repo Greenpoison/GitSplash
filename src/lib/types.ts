@@ -116,6 +116,13 @@ export interface StashEntry {
   message: string;
 }
 
+export interface PushOutcome {
+  pushed: boolean;
+  setUpstream: boolean;
+  rejected: boolean;
+  message: string | null;
+}
+
 export interface FetchOutcome {
   fetched: boolean;
   pulled: boolean;

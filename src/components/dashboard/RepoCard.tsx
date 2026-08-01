@@ -13,11 +13,14 @@ import {
   GitPullRequestArrow,
   Loader2,
   MoreVertical,
+  Upload,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { GitCommandTooltip } from "@/components/GitCommandTooltip";
+import { GitCommandPreview } from "@/components/GitCommandPreview";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,6 +61,8 @@ export function RepoCard({ repo }: { repo: Repo }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [fetching, setFetching] = useState(false);
+  const [pushing, setPushing] = useState(false);
+  const [forcePushConfirm, setForcePushConfirm] = useState(false);
   const [diverged, setDiverged] = useState<{ branch: string; upstream: string } | null>(null);
 
   const account = accounts.find((a) => a.id === repo.accountId);
@@ -80,6 +85,30 @@ export function RepoCard({ repo }: { repo: Repo }) {
       reportGitError(e);
     } finally {
       setFetching(false);
+    }
+  };
+
+  const doPush = async (force: boolean) => {
+    setPushing(true);
+    try {
+      const outcome = await api.pushRepo(repo.id, force);
+      if (!outcome.pushed) {
+        if (outcome.rejected) {
+          toast.error("Push rejected — the remote has commits you don't have yet", {
+            description: "Fetch & pull first, then push again.",
+          });
+        } else {
+          toast.error(outcome.message ?? "Push failed");
+        }
+      } else {
+        toast.success(outcome.setUpstream ? `Published ${repo.displayName} to origin` : `Pushed ${repo.displayName}`);
+      }
+      await refreshStatuses([repo.id]);
+    } catch (e) {
+      reportGitError(e);
+    } finally {
+      setPushing(false);
+      setForcePushConfirm(false);
     }
   };
 
@@ -168,31 +197,50 @@ export function RepoCard({ repo }: { repo: Repo }) {
         </Tooltip>
       </div>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        disabled={fetching}
-        onClick={(e) => {
-          e.stopPropagation();
-          doFetch(false);
-        }}
-        title="Fetch"
-      >
-        {fetching ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-      </Button>
+      <GitCommandTooltip label="Fetch" command="git fetch --prune">
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={fetching}
+          onClick={(e) => {
+            e.stopPropagation();
+            doFetch(false);
+          }}
+        >
+          {fetching ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+        </Button>
+      </GitCommandTooltip>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        disabled={fetching}
-        onClick={(e) => {
-          e.stopPropagation();
-          doFetch(true);
-        }}
-        title="Fetch & pull"
+      <GitCommandTooltip label="Fetch & pull" command={["git fetch --prune", "git merge --ff-only @{upstream}"]}>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={fetching}
+          onClick={(e) => {
+            e.stopPropagation();
+            doFetch(true);
+          }}
+        >
+          {fetching ? <Loader2 className="size-4 animate-spin" /> : <GitPullRequestArrow className="size-4" />}
+        </Button>
+      </GitCommandTooltip>
+
+      <GitCommandTooltip
+        label={status?.hasUpstream ? "Push" : "Publish branch"}
+        command={status?.hasUpstream ? "git push" : `git push -u origin ${status?.branch ?? "<branch>"}`}
       >
-        {fetching ? <Loader2 className="size-4 animate-spin" /> : <GitPullRequestArrow className="size-4" />}
-      </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={pushing || !status || !status.branch}
+          onClick={(e) => {
+            e.stopPropagation();
+            doPush(false);
+          }}
+        >
+          {pushing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+        </Button>
+      </GitCommandTooltip>
 
       <Button
         variant="ghost"
@@ -247,6 +295,13 @@ export function RepoCard({ repo }: { repo: Repo }) {
           <DropdownMenuLabel className="cursor-default text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
             Danger zone
           </DropdownMenuLabel>
+          <DropdownMenuItem
+            variant="destructive"
+            disabled={!status?.hasUpstream}
+            onClick={() => setForcePushConfirm(true)}
+          >
+            Force push…
+          </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onClick={() => setRemoveOpen(true)}>
             Remove from GitSplash
           </DropdownMenuItem>
@@ -284,6 +339,25 @@ export function RepoCard({ repo }: { repo: Repo }) {
               <AlertDialogAction onClick={remove}>
                 <Check className="size-4" /> Remove
               </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={forcePushConfirm} onOpenChange={setForcePushConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Force push {status?.branch}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Overwrites the remote branch's history with your local branch. Uses
+                "--force-with-lease" so it still fails safely if someone else pushed since your
+                last fetch — but anything they pushed that you haven't fetched will still be lost
+                once you re-run it after fetching.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <GitCommandPreview command="git push --force-with-lease" />
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => doPush(true)}>Force push</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

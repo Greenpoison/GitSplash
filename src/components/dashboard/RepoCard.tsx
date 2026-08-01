@@ -51,6 +51,7 @@ import type { Repo } from "@/lib/types";
 import { EditRepoGroupsDialog } from "@/components/repos/EditRepoGroupsDialog";
 import { RepoDetailDialog } from "@/components/repos/RepoDetailDialog";
 import { DivergedPullDialog } from "@/components/repos/DivergedPullDialog";
+import { DirtyPullDialog } from "@/components/repos/DirtyPullDialog";
 
 export function RepoCard({ repo }: { repo: Repo }) {
   const status = useAppStore((s) => s.statuses[repo.id]);
@@ -64,6 +65,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
   const [pushing, setPushing] = useState(false);
   const [forcePushConfirm, setForcePushConfirm] = useState(false);
   const [diverged, setDiverged] = useState<{ branch: string; upstream: string } | null>(null);
+  const [dirtyPull, setDirtyPull] = useState(false);
 
   const account = accounts.find((a) => a.id === repo.accountId);
 
@@ -75,6 +77,12 @@ export function RepoCard({ repo }: { repo: Repo }) {
         toast.error(outcome.message ?? "Fetch failed");
       } else if (outcome.diverged && outcome.upstream && status?.branch) {
         setDiverged({ branch: status.branch, upstream: outcome.upstream });
+      } else if (pull && outcome.dirty) {
+        setDirtyPull(true);
+      } else if (pull && !outcome.pulled && outcome.message?.includes("no upstream")) {
+        toast.warning("This branch isn't published yet, so there's nothing to pull from.", {
+          description: "Use the Push button to publish it to the remote first.",
+        });
       } else if (pull && !outcome.pulled) {
         toast.warning(outcome.message ?? "Fetched, but didn't pull", { description: repo.displayName });
       } else {
@@ -324,6 +332,13 @@ export function RepoCard({ repo }: { repo: Repo }) {
             onChanged={() => refreshStatuses([repo.id])}
           />
         )}
+        <DirtyPullDialog
+          repo={repo}
+          open={dirtyPull}
+          onOpenChange={setDirtyPull}
+          onChanged={() => refreshStatuses([repo.id])}
+          onViewChanges={() => setDetailOpen(true)}
+        />
 
         <AlertDialog open={removeOpen} onOpenChange={setRemoveOpen}>
           <AlertDialogContent>

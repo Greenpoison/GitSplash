@@ -129,6 +129,7 @@ export interface FetchOutcome {
   skippedPull: boolean;
   diverged: boolean;
   upstream: string | null;
+  dirty: boolean;
   message: string | null;
 }
 

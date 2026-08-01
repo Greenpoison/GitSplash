@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import * as api from "@/lib/api";
 import type { BlameLine, CommitNode, Repo } from "@/lib/types";
+import { colorForAge } from "@/lib/blameHeatmap";
 import { CommitDetailDialog } from "./CommitDetailDialog";
 import { FileTree } from "./FileTree";
 
@@ -84,6 +85,7 @@ function HistoryList({ repo, path }: { repo: Repo; path: string }) {
 
 function BlameView({ repoId, path }: { repoId: string; path: string }) {
   const [lines, setLines] = useState<BlameLine[] | null>(null);
+  const [heatmap, setHeatmap] = useState(true);
 
   useEffect(() => {
     setLines(null);
@@ -96,18 +98,31 @@ function BlameView({ repoId, path }: { repoId: string; path: string }) {
   if (!lines) return <p className="p-2 text-sm text-muted-foreground">Loading…</p>;
 
   return (
-    <div className="font-mono text-xs">
-      {lines.map((l) => (
-        <div key={l.lineNumber} className="flex gap-2 px-2 hover:bg-accent/50" title={l.summary}>
-          <span
-            className="w-2 shrink-0 rounded-sm"
-            style={{ backgroundColor: colorForHash(l.commitHash) }}
-          />
-          <span className="w-16 shrink-0 truncate text-muted-foreground">{l.author}</span>
-          <span className="w-8 shrink-0 text-right text-muted-foreground">{l.lineNumber}</span>
-          <span className="whitespace-pre">{l.content}</span>
-        </div>
-      ))}
+    <div className="flex flex-col">
+      <div className="flex items-center justify-end gap-1.5 border-b px-2 py-1.5">
+        <Checkbox
+          id="blame-heatmap"
+          checked={heatmap}
+          onCheckedChange={(c) => setHeatmap(!!c)}
+          className="size-3.5"
+        />
+        <Label htmlFor="blame-heatmap" className="text-xs font-normal text-muted-foreground">
+          Color by age (newest = warmest)
+        </Label>
+      </div>
+      <div className="font-mono text-xs">
+        {lines.map((l) => (
+          <div key={l.lineNumber} className="flex gap-2 px-2 hover:bg-accent/50" title={l.summary}>
+            <span
+              className="w-2 shrink-0 rounded-sm"
+              style={{ backgroundColor: heatmap ? colorForAge(l.authorTime) : colorForHash(l.commitHash) }}
+            />
+            <span className="w-16 shrink-0 truncate text-muted-foreground">{l.author}</span>
+            <span className="w-8 shrink-0 text-right text-muted-foreground">{l.lineNumber}</span>
+            <span className="whitespace-pre">{l.content}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

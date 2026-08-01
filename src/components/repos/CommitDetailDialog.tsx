@@ -11,10 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
 import * as api from "@/lib/api";
 import type { CommitNode, CompareFile, FileDiff, Repo } from "@/lib/types";
-import { COMPARE_STATUS_DOT, COMPARE_STATUS_LABEL } from "@/lib/compareFileStatus";
+import { DiffStatBadge } from "./DiffStatBadge";
 import { FileTree } from "./FileTree";
 import { DiffHunkView } from "./DiffHunkView";
 
@@ -89,13 +88,7 @@ export function CommitDetailDialog({
                 onSelect={selectFile}
                 renderBadge={(path) => {
                   const f = statusMap.get(path);
-                  if (!f) return null;
-                  return (
-                    <span
-                      className={cn("ml-auto size-1.5 shrink-0 rounded-full", COMPARE_STATUS_DOT[f.status])}
-                      title={COMPARE_STATUS_LABEL[f.status]}
-                    />
-                  );
+                  return f ? <DiffStatBadge file={f} /> : null;
                 }}
               />
             )}

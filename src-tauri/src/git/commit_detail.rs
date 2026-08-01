@@ -1,4 +1,4 @@
-use super::compare::CompareFile;
+use super::compare::{apply_numstat, parse_numstat, CompareFile};
 use super::diff::{parse_diff, FileDiff};
 use super::process::run_git;
 use std::path::Path;
@@ -42,12 +42,27 @@ pub async fn get_commit_files(repo_path: &Path, hash: &str) -> Result<Vec<Compar
         if status == "renamed" || status == "copied" {
             let orig = parts.next().unwrap_or("").to_string();
             let new_path = parts.next().unwrap_or("").to_string();
-            files.push(CompareFile { path: new_path, orig_path: Some(orig), status: status.to_string() });
+            files.push(CompareFile {
+                path: new_path,
+                orig_path: Some(orig),
+                status: status.to_string(),
+                insertions: None,
+                deletions: None,
+            });
         } else {
             let path = parts.next().unwrap_or("").to_string();
-            files.push(CompareFile { path, orig_path: None, status: status.to_string() });
+            files.push(CompareFile { path, orig_path: None, status: status.to_string(), insertions: None, deletions: None });
         }
     }
+
+    if let Ok(numstat_output) =
+        run_git(repo_path, &["diff-tree", "--no-commit-id", "--numstat", "-r", "-M", "--root", hash]).await
+    {
+        if numstat_output.success {
+            apply_numstat(&mut files, &parse_numstat(&numstat_output.stdout));
+        }
+    }
+
     Ok(files)
 }
 

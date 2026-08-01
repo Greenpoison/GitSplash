@@ -264,6 +264,8 @@ export interface CompareFile {
   path: string;
   origPath: string | null;
   status: CompareFileStatus;
+  insertions: number | null;
+  deletions: number | null;
 }
 
 export type ConflictSegment =

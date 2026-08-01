@@ -11,10 +11,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
 import * as api from "@/lib/api";
 import type { CompareFile, FileDiff, Repo } from "@/lib/types";
-import { COMPARE_STATUS_DOT, COMPARE_STATUS_LABEL } from "@/lib/compareFileStatus";
+import { DiffStatBadge } from "./DiffStatBadge";
 import { FileTree } from "./FileTree";
 import { DiffHunkView } from "./DiffHunkView";
 
@@ -122,13 +121,7 @@ export function CompareBranchDialog({
               onSelect={selectFile}
               renderBadge={(path) => {
                 const c = statusMap.get(path);
-                if (!c) return null;
-                return (
-                  <span
-                    className={cn("ml-auto size-1.5 shrink-0 rounded-full", COMPARE_STATUS_DOT[c.status])}
-                    title={COMPARE_STATUS_LABEL[c.status]}
-                  />
-                );
+                return c ? <DiffStatBadge file={c} /> : null;
               }}
             />
           </div>

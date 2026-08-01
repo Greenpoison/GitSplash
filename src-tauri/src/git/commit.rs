@@ -95,3 +95,19 @@ pub async fn commit(repo_path: &Path, message: &str) -> Result<Option<String>, S
     }
     Ok(previous_head_sha)
 }
+
+/// Replaces HEAD's commit with one that includes whatever's currently
+/// staged (or none, if nothing new is staged) and the given message —
+/// `git commit --amend` rewrites the commit object, so its old sha is
+/// still returned for the caller to build an undo entry from (the old
+/// commit isn't deleted, just no longer pointed to by anything).
+pub async fn amend_commit(repo_path: &Path, message: &str) -> Result<Option<String>, String> {
+    let previous_head_sha = get_head_sha(repo_path).await;
+    let output = run_git(repo_path, &["commit", "--amend", "-m", message])
+        .await
+        .map_err(|e| e.to_string())?;
+    if !output.success {
+        return Err(git_err("amend failed", &output.stderr));
+    }
+    Ok(previous_head_sha)
+}

@@ -27,6 +27,7 @@ import type {
   RepoGitStatus,
   SecretFile,
   Settings,
+  StashEntry,
   SubmoduleInfo,
   TagInfo,
   WorktreeInfo,
@@ -49,6 +50,18 @@ export const cloneRepo = (
     folderName,
     displayName: displayName ?? null,
     accountId: accountId ?? null,
+  });
+export const initRepo = (
+  parentDir: string,
+  folderName: string,
+  displayName: string | undefined,
+  initialBranch: string,
+) =>
+  invoke<Repo>("init_repo", {
+    parentDir,
+    folderName,
+    displayName: displayName ?? null,
+    initialBranch,
   });
 export const removeRepo = (id: string) => invoke<void>("remove_repo", { id });
 export const renameRepo = (id: string, displayName: string) =>
@@ -133,6 +146,16 @@ export const discardHunk = (repoId: string, path: string, hunkRaw: string) =>
   invoke<void>("discard_hunk", { repoId, path, hunkRaw });
 export const commitChanges = (repoId: string, message: string) =>
   invoke<string | null>("commit_changes", { repoId, message });
+export const amendCommit = (repoId: string, message: string) =>
+  invoke<string | null>("amend_commit", { repoId, message });
+
+// Stash
+export const stashPush = (repoId: string, message: string | undefined, includeUntracked: boolean) =>
+  invoke<void>("stash_push", { repoId, message: message ?? null, includeUntracked });
+export const listStashes = (repoId: string) => invoke<StashEntry[]>("list_stashes", { repoId });
+export const stashPop = (repoId: string, index: number) => invoke<void>("stash_pop", { repoId, index });
+export const stashApply = (repoId: string, index: number) => invoke<void>("stash_apply", { repoId, index });
+export const stashDrop = (repoId: string, index: number) => invoke<void>("stash_drop", { repoId, index });
 
 // Undo/redo primitives
 export const resetTo = (repoId: string, sha: string, mode: "soft" | "mixed" | "hard") =>

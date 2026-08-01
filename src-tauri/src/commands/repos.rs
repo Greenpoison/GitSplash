@@ -114,6 +114,45 @@ pub async fn clone_repo(
 }
 
 #[tauri::command]
+pub async fn init_repo(
+    state: State<'_, AppState>,
+    parent_dir: String,
+    folder_name: String,
+    display_name: Option<String>,
+    initial_branch: String,
+) -> AppResult<Repo> {
+    let dest = Path::new(&parent_dir).join(&folder_name);
+    git::init::init_repo(&dest, &initial_branch).await.map_err(AppError::Git)?;
+
+    let canonical = dest
+        .canonicalize()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| dest.to_string_lossy().to_string());
+
+    {
+        let conn = state.db.lock().unwrap();
+        if db::path_in_use(&conn, &canonical)? {
+            return Err(AppError::InvalidInput("this repo is already tracked".to_string()));
+        }
+    }
+
+    let name = display_name.unwrap_or_else(|| folder_name.clone());
+    let repo = Repo {
+        id: new_id(),
+        path: canonical,
+        display_name: name,
+        account_id: None,
+        last_fetched_at: None,
+        created_at: now_iso(),
+        group_ids: Vec::new(),
+    };
+
+    let conn = state.db.lock().unwrap();
+    db::insert_repo(&conn, &repo)?;
+    Ok(repo)
+}
+
+#[tauri::command]
 pub fn remove_repo(state: State<'_, AppState>, id: String) -> AppResult<()> {
     let conn = state.db.lock().unwrap();
     db::delete_repo(&conn, &id)?;

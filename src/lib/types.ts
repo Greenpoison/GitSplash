@@ -111,6 +111,11 @@ export interface MergeResult {
   newHeadSha: string | null;
 }
 
+export interface StashEntry {
+  index: number;
+  message: string;
+}
+
 export interface FetchOutcome {
   fetched: boolean;
   pulled: boolean;

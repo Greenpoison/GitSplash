@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { ChevronDown, FolderGit2, FolderOpen } from "lucide-react";
+import { ChevronDown, FolderGit2, FolderOpen, FolderPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,6 +10,7 @@ import {
 import { useAppStore } from "@/store/appStore";
 import { AddRepoDialog } from "@/components/repos/AddRepoDialog";
 import { CloneRepoDialog } from "@/components/repos/CloneRepoDialog";
+import { CreateRepoDialog } from "@/components/repos/CreateRepoDialog";
 import { GroupManagerDialog } from "@/components/groups/GroupManagerDialog";
 import { GroupPromptDialog } from "@/components/groups/GroupPromptDialog";
 import { GroupSection } from "./GroupSection";
@@ -22,6 +23,7 @@ export function Dashboard() {
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
   const setAddRepoDialogOpen = useAppStore((s) => s.setAddRepoDialogOpen);
   const setCloneRepoDialogOpen = useAppStore((s) => s.setCloneRepoDialogOpen);
+  const setCreateRepoDialogOpen = useAppStore((s) => s.setCreateRepoDialogOpen);
   const setGroupManagerOpen = useAppStore((s) => s.setGroupManagerOpen);
   const setCreateAccountDialogOpen = useAppStore((s) => s.setCreateAccountDialogOpen);
 
@@ -58,11 +60,15 @@ export function Dashboard() {
               <DropdownMenuItem onClick={() => setCloneRepoDialogOpen(true)}>
                 <FolderGit2 className="size-4" /> Clone from URL
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setCreateRepoDialogOpen(true)}>
+                <FolderPlus className="size-4" /> Create new repository
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <GroupManagerDialog />
           <AddRepoDialog />
           <CloneRepoDialog />
+          <CreateRepoDialog />
           <GroupPromptDialog />
         </div>
       </div>

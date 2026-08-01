@@ -19,6 +19,7 @@ interface AppState {
   commandPaletteOpen: boolean;
   addRepoDialogOpen: boolean;
   cloneRepoDialogOpen: boolean;
+  createRepoDialogOpen: boolean;
   groupManagerOpen: boolean;
   shortcutsHelpOpen: boolean;
   createAccountDialogOpen: boolean;
@@ -33,6 +34,7 @@ interface AppState {
   setCommandPaletteOpen: (open: boolean) => void;
   setAddRepoDialogOpen: (open: boolean) => void;
   setCloneRepoDialogOpen: (open: boolean) => void;
+  setCreateRepoDialogOpen: (open: boolean) => void;
   setGroupManagerOpen: (open: boolean) => void;
   setShortcutsHelpOpen: (open: boolean) => void;
   setCreateAccountDialogOpen: (open: boolean) => void;
@@ -60,6 +62,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   commandPaletteOpen: false,
   addRepoDialogOpen: false,
   cloneRepoDialogOpen: false,
+  createRepoDialogOpen: false,
   groupManagerOpen: false,
   shortcutsHelpOpen: false,
   createAccountDialogOpen: false,
@@ -70,6 +73,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
   setAddRepoDialogOpen: (open) => set({ addRepoDialogOpen: open }),
   setCloneRepoDialogOpen: (open) => set({ cloneRepoDialogOpen: open }),
+  setCreateRepoDialogOpen: (open) => set({ createRepoDialogOpen: open }),
   setGroupManagerOpen: (open) => set({ groupManagerOpen: open }),
   setShortcutsHelpOpen: (open) => set({ shortcutsHelpOpen: open }),
   setCreateAccountDialogOpen: (open) => set({ createAccountDialogOpen: open }),

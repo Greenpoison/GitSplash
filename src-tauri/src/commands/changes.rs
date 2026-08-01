@@ -96,3 +96,13 @@ pub async fn commit_changes(
     let repo = repo_path(&state, &repo_id).await?;
     git::commit::commit(&repo, &message).await.map_err(AppError::Git)
 }
+
+#[tauri::command]
+pub async fn amend_commit(
+    state: State<'_, AppState>,
+    repo_id: String,
+    message: String,
+) -> AppResult<Option<String>> {
+    let repo = repo_path(&state, &repo_id).await?;
+    git::commit::amend_commit(&repo, &message).await.map_err(AppError::Git)
+}

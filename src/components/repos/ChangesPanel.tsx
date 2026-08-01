@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -29,6 +30,7 @@ import { useUndoStore } from "@/store/undoStore";
 import { GitCommandPreview } from "@/components/GitCommandPreview";
 import { ConflictResolverDialog } from "./ConflictResolverDialog";
 import { GitignoreAssistant } from "./GitignoreAssistant";
+import { StashPanel } from "./StashPanel";
 import { lintCommitMessage } from "@/lib/commitMessageLint";
 import { DiffHunkView } from "./DiffHunkView";
 
@@ -125,6 +127,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   const [diff, setDiff] = useState<FileDiff | null>(null);
   const [message, setMessage] = useState("");
   const [committing, setCommitting] = useState(false);
+  const [amend, setAmend] = useState(false);
   const [discardTarget, setDiscardTarget] = useState<FileChange | null>(null);
   const [discardHunkRaw, setDiscardHunkRaw] = useState<string | null>(null);
   const [resolvingPath, setResolvingPath] = useState<string | null>(null);
@@ -309,7 +312,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
       toast.error("Write a commit message first");
       return;
     }
-    if (staged.length === 0) {
+    if (!amend && staged.length === 0) {
       toast.error("Nothing staged to commit");
       return;
     }
@@ -319,19 +322,22 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
     }
     setCommitting(true);
     try {
-      const previousHeadSha = await api.commitChanges(repo.id, message.trim());
+      const previousHeadSha = amend
+        ? await api.amendCommit(repo.id, message.trim())
+        : await api.commitChanges(repo.id, message.trim());
       setMessage("");
+      setAmend(false);
       setSelected(null);
       setDiff(null);
       await refreshAfterAction();
-      toast.success("Committed");
+      toast.success(amend ? "Amended" : "Committed");
       if (previousHeadSha) {
         const newHeadSha = await api.getHeadSha(repo.id);
         if (newHeadSha) {
           pushUndo({
             id: crypto.randomUUID(),
             repoId: repo.id,
-            label: "Commit",
+            label: amend ? "Amend commit" : "Commit",
             // Soft reset: safe — it only moves HEAD, never touches the
             // working tree or index, so nothing uncommitted is at risk.
             undo: () => api.resetTo(repo.id, previousHeadSha, "soft").then(refreshAfterAction),
@@ -349,6 +355,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   return (
     <div className="flex flex-col gap-2">
       <GitignoreAssistant repo={repo} changedFiles={files} onChanged={refreshAfterAction} />
+      <StashPanel repo={repo} hasChanges={files.length > 0} onChanged={refreshAfterAction} />
       <div className="flex h-[480px] gap-4">
       <div className="flex w-64 shrink-0 flex-col gap-3">
         <ScrollArea className="gradient-border flex-1 rounded-md bg-card p-2">
@@ -438,19 +445,42 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
               ))}
             </ul>
           )}
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Checkbox
+              checked={amend}
+              onCheckedChange={async (c) => {
+                setAmend(!!c);
+                if (c && !message.trim()) {
+                  const last = await api.getCommit(repo.id, "HEAD").catch(() => null);
+                  if (last) setMessage(last.body ? `${last.subject}\n\n${last.body}` : last.subject);
+                }
+              }}
+            />
+            Amend previous commit
+          </label>
+          {amend && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400">
+              This replaces your last commit. If it's already been pushed, you'll need to
+              force-push afterward to update the remote.
+            </p>
+          )}
           <Button
             onClick={commit}
-            disabled={committing || staged.length === 0 || conflicted.length > 0 || !message.trim()}
+            disabled={committing || (!amend && staged.length === 0) || conflicted.length > 0 || !message.trim()}
           >
             {committing
-              ? "Committing…"
+              ? amend
+                ? "Amending…"
+                : "Committing…"
               : conflicted.length > 0
                 ? "Resolve conflicts first"
-                : staged.length === 0
+                : !amend && staged.length === 0
                   ? "Stage files to commit"
                   : !message.trim()
                     ? "Write a commit message"
-                    : `Commit ${staged.length} file${staged.length === 1 ? "" : "s"}`}
+                    : amend
+                      ? "Amend previous commit"
+                      : `Commit ${staged.length} file${staged.length === 1 ? "" : "s"}`}
           </Button>
         </div>
       </div>

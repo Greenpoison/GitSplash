@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { StatusBar } from "@/components/StatusBar";
 import { Dashboard } from "@/components/dashboard/Dashboard";
 import { SecretsPage } from "@/components/secrets/SecretsPage";
 import { SettingsPage } from "@/components/settings/SettingsPage";
@@ -55,21 +56,24 @@ function App() {
 
   return (
     <TooltipProvider>
-      <div className="flex h-screen bg-background text-foreground">
-        <Sidebar view={view} onChange={setView} />
-        <main className="flex-1 overflow-y-auto">
-          {!loaded ? (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              Loading…
-            </div>
-          ) : view === "dashboard" ? (
-            <Dashboard />
-          ) : view === "secrets" ? (
-            <SecretsPage />
-          ) : (
-            <SettingsPage />
-          )}
-        </main>
+      <div className="flex h-screen flex-col bg-background text-foreground">
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar view={view} onChange={setView} />
+          <main className="flex-1 overflow-y-auto">
+            {!loaded ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Loading…
+              </div>
+            ) : view === "dashboard" ? (
+              <Dashboard />
+            ) : view === "secrets" ? (
+              <SecretsPage />
+            ) : (
+              <SettingsPage />
+            )}
+          </main>
+        </div>
+        <StatusBar />
         <Toaster />
         <CommandPalette />
         <ShortcutsHelpDialog />

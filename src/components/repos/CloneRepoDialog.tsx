@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
+import { useBackgroundOpsStore } from "@/store/backgroundOpsStore";
 
 function deriveFolderName(url: string): string {
   const trimmed = url.trim().replace(/\.git$/, "").replace(/\/+$/, "");
@@ -43,13 +44,14 @@ export function CloneRepoDialog() {
   const [displayName, setDisplayName] = useState("");
   const [accountId, setAccountId] = useState<string>("");
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
-  const [submitting, setSubmitting] = useState(false);
   const groups = useAppStore((s) => s.groups);
   const accounts = useAppStore((s) => s.accounts);
   const repos = useAppStore((s) => s.repos);
   const refreshRepos = useAppStore((s) => s.refreshRepos);
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
   const setGroupPromptRepoId = useAppStore((s) => s.setGroupPromptRepoId);
+  const startOp = useBackgroundOpsStore((s) => s.start);
+  const finishOp = useBackgroundOpsStore((s) => s.finish);
 
   const pickParentDir = async () => {
     const selected = await openFolderDialog({ directory: true, multiple: false });
@@ -66,7 +68,12 @@ export function CloneRepoDialog() {
     setSelectedGroups(new Set());
   };
 
-  const submit = async () => {
+  // A slow connection can make a clone take a long time — rather than
+  // block this dialog (and effectively the user) on it, close right away
+  // and track it as a background operation: a toast that updates from
+  // "cloning" to done/failed, plus an entry in the status bar, so the rest
+  // of the app stays fully usable while it runs.
+  const submit = () => {
     if (!url.trim()) {
       toast.error("Enter a git URL first");
       return;
@@ -79,32 +86,39 @@ export function CloneRepoDialog() {
       toast.error("Enter a folder name");
       return;
     }
+
     const isFirstRepo = repos.length === 0;
-    setSubmitting(true);
-    try {
-      const repo = await api.cloneRepo(
-        url.trim(),
-        parentDir.trim(),
-        folderName.trim(),
-        displayName.trim() || undefined,
-        accountId || undefined,
-      );
-      if (selectedGroups.size > 0) {
-        await api.setRepoGroups(repo.id, Array.from(selectedGroups));
+    const cloneUrl = url.trim();
+    const cloneParentDir = parentDir.trim();
+    const cloneFolderName = folderName.trim();
+    const cloneDisplayName = displayName.trim() || undefined;
+    const cloneAccountId = accountId || undefined;
+    const cloneGroups = new Set(selectedGroups);
+    const label = `Cloning ${cloneFolderName}…`;
+    const opId = startOp(label);
+
+    setOpen(false);
+    reset();
+
+    const run = async () => {
+      try {
+        const repo = await api.cloneRepo(cloneUrl, cloneParentDir, cloneFolderName, cloneDisplayName, cloneAccountId);
+        if (cloneGroups.size > 0) {
+          await api.setRepoGroups(repo.id, Array.from(cloneGroups));
+        }
+        await refreshRepos();
+        await refreshStatuses([repo.id]);
+        finishOp(opId, "success", `Cloned ${repo.displayName}`);
+        toast.success(`Cloned ${repo.displayName}`);
+        if (isFirstRepo && cloneGroups.size === 0 && groups.length === 0) {
+          setGroupPromptRepoId(repo.id);
+        }
+      } catch (e) {
+        finishOp(opId, "error", `Failed to clone ${cloneFolderName}`);
+        reportGitError(e);
       }
-      await refreshRepos();
-      await refreshStatuses([repo.id]);
-      toast.success(`Cloned ${repo.displayName}`);
-      setOpen(false);
-      reset();
-      if (isFirstRepo && selectedGroups.size === 0 && groups.length === 0) {
-        setGroupPromptRepoId(repo.id);
-      }
-    } catch (e) {
-      reportGitError(e);
-    } finally {
-      setSubmitting(false);
-    }
+    };
+    run();
   };
 
   return (
@@ -220,9 +234,7 @@ export function CloneRepoDialog() {
           )}
         </div>
         <DialogFooter>
-          <Button onClick={submit} disabled={submitting}>
-            {submitting ? "Cloning…" : "Clone"}
-          </Button>
+          <Button onClick={submit}>Clone</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

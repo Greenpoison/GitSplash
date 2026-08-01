@@ -13,9 +13,13 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"))
 const version = pkg.version;
 
 const bundleDir = path.join(root, "src-tauri", "target", "release", "bundle", "nsis");
-const setupFile = fs.readdirSync(bundleDir).find((f) => f.endsWith("-setup.exe"));
+const setupFile = fs
+  .readdirSync(bundleDir)
+  .find((f) => f.endsWith("-setup.exe") && f.includes(version));
 if (!setupFile) {
-  console.error(`no *-setup.exe found in ${bundleDir} — run "npm run tauri build" first`);
+  console.error(
+    `no *-setup.exe for version ${version} found in ${bundleDir} — run "npm run tauri build" first`,
+  );
   process.exit(1);
 }
 const sigPath = path.join(bundleDir, `${setupFile}.sig`);

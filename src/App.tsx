@@ -18,6 +18,7 @@ function App() {
   const view = useAppStore((s) => s.view);
   const setView = useAppStore((s) => s.setView);
   const refreshAll = useAppStore((s) => s.refreshAll);
+  const refreshStatuses = useAppStore((s) => s.refreshStatuses);
   const loaded = useAppStore((s) => s.loaded);
   const settings = useAppStore((s) => s.settings);
   const accounts = useAppStore((s) => s.accounts);
@@ -29,6 +30,15 @@ function App() {
   useEffect(() => {
     refreshAll();
   }, [refreshAll]);
+
+  // A second pass shortly after boot, on top of the one refreshAll() just
+  // did — catches a status read that raced some other process touching a
+  // repo's files right around launch (e.g. a build tool, or another git
+  // client), which a single check right at mount could still miss.
+  useEffect(() => {
+    const timeout = setTimeout(() => refreshStatuses(), 5_000);
+    return () => clearTimeout(timeout);
+  }, [refreshStatuses]);
 
   // Auto-launch the first-run tutorial exactly once per load, only on a
   // genuinely empty install (no accounts, no repos) — not e.g. every time

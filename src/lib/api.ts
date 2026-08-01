@@ -201,8 +201,8 @@ export const deleteBranch = (repoId: string, name: string, force: boolean) =>
   invoke<void>("delete_branch", { repoId, name, force });
 export const checkoutPreviousBranch = (repoId: string) =>
   invoke<string>("checkout_previous_branch", { repoId });
-export const mergeBranch = (repoId: string, fromBranch: string) =>
-  invoke<MergeResult>("merge_branch", { repoId, fromBranch });
+export const mergeBranch = (repoId: string, fromBranch: string, noFf: boolean) =>
+  invoke<MergeResult>("merge_branch", { repoId, fromBranch, noFf });
 export const getCommit = (repoId: string, rev: string) => invoke<CommitNode | null>("get_commit", { repoId, rev });
 
 // Tags

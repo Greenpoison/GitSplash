@@ -91,7 +91,7 @@ pub struct MergeResult {
 /// automatically — leaves the tree in the conflicted state (git's normal
 /// behavior) and reports which files need resolving, since silently
 /// aborting would hide the merge attempt the user asked for.
-pub async fn merge_branch(repo_path: &Path, from_branch: &str) -> Result<MergeResult, String> {
+pub async fn merge_branch(repo_path: &Path, from_branch: &str, no_ff: bool) -> Result<MergeResult, String> {
     if rebase_state_file_path(repo_path).exists() {
         return Err("a rebase is in progress on this repo — finish or abort it before merging".to_string());
     }
@@ -101,7 +101,12 @@ pub async fn merge_branch(repo_path: &Path, from_branch: &str) -> Result<MergeRe
 
     let previous_head_sha = get_head_sha(repo_path).await;
 
-    let output = run_git(repo_path, &["merge", "--no-edit", from_branch])
+    let mut args = vec!["merge", "--no-edit"];
+    if no_ff {
+        args.push("--no-ff");
+    }
+    args.push(from_branch);
+    let output = run_git(repo_path, &args)
         .await
         .map_err(|e| format!("failed to run git merge: {e}"))?;
 

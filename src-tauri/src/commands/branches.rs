@@ -61,7 +61,8 @@ pub async fn merge_branch(
     state: State<'_, AppState>,
     repo_id: String,
     from_branch: String,
+    no_ff: bool,
 ) -> AppResult<MergeResult> {
     let path = repo_path(&state, &repo_id).await?;
-    git::branch::merge_branch(&path, &from_branch).await.map_err(AppError::Git)
+    git::branch::merge_branch(&path, &from_branch, no_ff).await.map_err(AppError::Git)
 }

@@ -81,7 +81,7 @@ pub async fn finish_gitflow_branch(
             return Err(git_err(&format!("could not switch to {target}"), &checkout_out.stderr));
         }
 
-        let merge_result = merge_branch(repo_path, &branch).await?;
+        let merge_result = merge_branch(repo_path, &branch, true).await?;
         if !merge_result.success {
             return Ok(GitflowFinishResult {
                 success: false,

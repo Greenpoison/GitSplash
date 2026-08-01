@@ -33,8 +33,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -48,6 +50,7 @@ import { cn } from "@/lib/utils";
 import { useUndoStore } from "@/store/undoStore";
 import { CherryPickDialog } from "./CherryPickDialog";
 import { GitCommandPreview } from "@/components/GitCommandPreview";
+import { GitCommandTooltip } from "@/components/GitCommandTooltip";
 import { CommitDetailDialog } from "./CommitDetailDialog";
 import { CommitGraph } from "./CommitGraph";
 import { CompareBranchDialog } from "./CompareBranchDialog";
@@ -91,6 +94,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const [branches, setBranches] = useState<BranchInfo[]>([]);
   const [commits, setCommits] = useState<CommitNode[]>([]);
   const [mergeTarget, setMergeTarget] = useState<string>("");
+  const [noFf, setNoFf] = useState(true);
   const [hiddenBranches, setHiddenBranches] = useState<Set<string>>(new Set());
   const [soloedBranch, setSoloedBranch] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -188,7 +192,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
     if (!mergeTarget) return;
     setBusy(true);
     try {
-      const result = await api.mergeBranch(repo.id, mergeTarget);
+      const result = await api.mergeBranch(repo.id, mergeTarget, noFf);
       if (result.success) {
         toast.success(`Merged ${mergeTarget}`);
         if (result.previousHeadSha && result.newHeadSha) {
@@ -359,15 +363,33 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
               ))}
           </SelectContent>
         </Select>
-        <Button
-          size="sm"
-          onClick={merge}
-          disabled={busy || !mergeTarget || blockedByOp}
-          title={blockedByOp ? blockedTitle : undefined}
+        <GitCommandTooltip
+          label={mergeTarget ? `Merge ${mergeTarget} into ${current?.name ?? "current"}` : "Merge"}
+          command={`git merge${noFf ? " --no-ff" : ""} --no-edit ${mergeTarget || "<branch>"}`}
         >
-          <GitMerge className="size-3.5" />
-          Merge into {current?.name ?? "current"}
-        </Button>
+          <Button
+            size="sm"
+            onClick={merge}
+            disabled={busy || !mergeTarget || blockedByOp}
+            title={blockedByOp ? blockedTitle : undefined}
+          >
+            <GitMerge className="size-3.5" />
+            Merge into {current?.name ?? "current"}
+          </Button>
+        </GitCommandTooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Checkbox checked={noFf} onCheckedChange={(c) => setNoFf(!!c)} className="size-3.5" />
+              Always create a merge commit
+            </label>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            When off, git fast-forwards silently if it can — no merge commit, and the branch's
+            history folds flat into a single line with nothing left to show it ever branched.
+            Leave this on to keep that history visible in the graph.
+          </TooltipContent>
+        </Tooltip>
         <Button
           size="sm"
           variant="outline"

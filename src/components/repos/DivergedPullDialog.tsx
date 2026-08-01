@@ -44,7 +44,7 @@ export function DivergedPullDialog({
   const merge = async () => {
     setMerging(true);
     try {
-      const result = await api.mergeBranch(repo.id, upstream);
+      const result = await api.mergeBranch(repo.id, upstream, false);
       if (result.success) {
         toast.success(`Merged ${upstream} into ${branch}`);
         if (result.previousHeadSha && result.newHeadSha) {

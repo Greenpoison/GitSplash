@@ -226,7 +226,7 @@ export function GitflowPanel({
                   command={[
                     ...Array.from(targets).flatMap((t) => [
                       `git switch ${t}`,
-                      `git merge --no-edit ${current.name}`,
+                      `git merge --no-ff --no-edit ${current.name}`,
                     ]),
                     ...(finishing.kind !== "feature" && tag.trim() ? [`git tag ${tag.trim()}`] : []),
                     `git branch -d ${current.name}`,

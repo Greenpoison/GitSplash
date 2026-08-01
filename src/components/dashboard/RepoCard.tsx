@@ -13,6 +13,7 @@ import {
   GitPullRequestArrow,
   Loader2,
   MoreVertical,
+  Stethoscope,
   Upload,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -51,6 +52,7 @@ import type { Repo } from "@/lib/types";
 import { EditRepoGroupsDialog } from "@/components/repos/EditRepoGroupsDialog";
 import { RepoDetailDialog } from "@/components/repos/RepoDetailDialog";
 import { DivergedPullDialog } from "@/components/repos/DivergedPullDialog";
+import { RepoHealthDialog } from "@/components/repos/RepoHealthDialog";
 import { DirtyPullDialog } from "@/components/repos/DirtyPullDialog";
 
 export function RepoCard({ repo }: { repo: Repo }) {
@@ -59,6 +61,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
   const refreshRepos = useAppStore((s) => s.refreshRepos);
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
   const [editGroupsOpen, setEditGroupsOpen] = useState(false);
+  const [healthCheckOpen, setHealthCheckOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [fetching, setFetching] = useState(false);
@@ -283,6 +286,9 @@ export function RepoCard({ repo }: { repo: Repo }) {
             <ExternalLink className="size-4" /> Open externally
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setEditGroupsOpen(true)}>Edit groups</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setHealthCheckOpen(true)}>
+            <Stethoscope className="size-4" /> Check repo health
+          </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>Assign account</DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
@@ -321,6 +327,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
           are still React descendants of the clickable card. */}
       <div onClick={(e) => e.stopPropagation()}>
         <EditRepoGroupsDialog repo={repo} open={editGroupsOpen} onOpenChange={setEditGroupsOpen} />
+        <RepoHealthDialog repo={repo} open={healthCheckOpen} onOpenChange={setHealthCheckOpen} />
         <RepoDetailDialog repo={repo} open={detailOpen} onOpenChange={setDetailOpen} />
         {diverged && (
           <DivergedPullDialog

@@ -4,6 +4,7 @@ use crate::git;
 use crate::git::blame::BlameLine;
 use crate::git::files::FileTextContent;
 use crate::git::log::CommitNode;
+use crate::git::reflog::ReflogEntry;
 use crate::state::AppState;
 use tauri::State;
 
@@ -48,6 +49,12 @@ pub async fn get_file_history(
 pub async fn get_blame(state: State<'_, AppState>, repo_id: String, path: String) -> AppResult<Vec<BlameLine>> {
     let repo = repo_path(&state, &repo_id).await?;
     git::blame::get_blame(&repo, &path).await.map_err(AppError::Git)
+}
+
+#[tauri::command]
+pub async fn get_reflog(state: State<'_, AppState>, repo_id: String, limit: u32) -> AppResult<Vec<ReflogEntry>> {
+    let repo = repo_path(&state, &repo_id).await?;
+    git::reflog::get_reflog(&repo, limit).await.map_err(AppError::Git)
 }
 
 #[tauri::command]

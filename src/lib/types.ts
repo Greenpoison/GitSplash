@@ -111,6 +111,20 @@ export interface MergeResult {
   newHeadSha: string | null;
 }
 
+export interface HealthIssue {
+  id: string;
+  severity: "warning" | "info";
+  title: string;
+  detail: string;
+}
+
+export interface ReflogEntry {
+  hash: string;
+  selector: string;
+  action: string;
+  date: string;
+}
+
 export interface StashEntry {
   index: number;
   message: string;

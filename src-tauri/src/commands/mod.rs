@@ -5,6 +5,7 @@ pub mod cherry_pick;
 pub mod commit_detail;
 pub mod compare;
 pub mod conflicts;
+pub mod doctor;
 pub mod git_ops;
 pub mod gitflow;
 pub mod gpg;

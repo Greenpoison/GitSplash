@@ -118,6 +118,8 @@ pub fn run() {
             commands::history::get_file_history,
             commands::history::get_blame,
             commands::history::search_commits,
+            commands::history::get_reflog,
+            commands::doctor::run_health_check,
             commands::history::read_file_text,
             commands::history::write_file_text,
             commands::settings::get_settings,

@@ -24,6 +24,7 @@ import { FileEditorPanel } from "./FileEditorPanel";
 import { FileHistoryPanel } from "./FileHistoryPanel";
 import { HistorySearchPanel } from "./HistorySearchPanel";
 import { PullRequestsPanel } from "./PullRequestsPanel";
+import { ReflogPanel } from "./ReflogPanel";
 import { SecretsPanel } from "./SecretsPanel";
 import { SubmodulesPanel } from "./SubmodulesPanel";
 import { TagsPanel } from "./TagsPanel";
@@ -87,6 +88,7 @@ export function RepoDetailDialog({
             <TabsTrigger value="prs" className="shrink-0">Pull Requests</TabsTrigger>
             <TabsTrigger value="filehistory" className="shrink-0">File History</TabsTrigger>
             <TabsTrigger value="search" className="shrink-0">Search History</TabsTrigger>
+            <TabsTrigger value="recover" className="shrink-0">Recover</TabsTrigger>
             <TabsTrigger value="editor" className="shrink-0">Editor</TabsTrigger>
             <TabsTrigger value="worktrees" className="shrink-0">Worktrees</TabsTrigger>
             <TabsTrigger value="submodules" className="shrink-0">Submodules</TabsTrigger>
@@ -110,6 +112,9 @@ export function RepoDetailDialog({
             </TabsContent>
             <TabsContent value="search">
               <HistorySearchPanel repo={repo} />
+            </TabsContent>
+            <TabsContent value="recover">
+              <ReflogPanel repo={repo} onChanged={() => refreshStatuses([repo.id])} />
             </TabsContent>
             <TabsContent value="editor">
               <FileEditorPanel repo={repo} onDirtyChange={setEditorDirty} />

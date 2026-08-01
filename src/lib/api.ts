@@ -11,6 +11,8 @@ import type {
   ConflictFile,
   FetchOutcome,
   PushOutcome,
+  HealthIssue,
+  ReflogEntry,
   FileChange,
   FileDiff,
   FileTextContent,
@@ -180,6 +182,9 @@ export const getFileHistory = (repoId: string, path: string, limit: number) =>
 export const getBlame = (repoId: string, path: string) => invoke<BlameLine[]>("get_blame", { repoId, path });
 export const searchCommits = (repoId: string, query: string, searchContent: boolean, limit: number) =>
   invoke<CommitNode[]>("search_commits", { repoId, query, searchContent, limit });
+export const getReflog = (repoId: string, limit: number) =>
+  invoke<ReflogEntry[]>("get_reflog", { repoId, limit });
+export const runHealthCheck = (repoId: string) => invoke<HealthIssue[]>("run_health_check", { repoId });
 export const readFileText = (repoId: string, path: string) =>
   invoke<FileTextContent>("read_file_text", { repoId, path });
 export const writeFileText = (

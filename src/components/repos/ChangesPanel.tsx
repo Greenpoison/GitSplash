@@ -503,7 +503,15 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
               <FileWarning className="size-4" /> Binary file — no text diff available.
             </div>
           )}
-          {selected && diff && !diff.isBinary && (
+          {selected && diff && !diff.isBinary && diff.hunks.length === 0 && (
+            <p className="p-2 text-sm text-muted-foreground">
+              No visible differences for this file. Git still lists it as changed — this usually
+              means only line endings or file mode changed, or the index just needs a refresh.
+              Re-open the repo or run <code className="font-mono">git status</code> again in a
+              moment; it often clears on its own.
+            </p>
+          )}
+          {selected && diff && !diff.isBinary && diff.hunks.length > 0 && (
             <div className="flex flex-col gap-2">
               {diff.hunks.map((hunk, i) => (
                 <DiffHunkView

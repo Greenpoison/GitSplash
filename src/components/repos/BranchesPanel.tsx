@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { reportGitError } from "@/lib/gitErrors";
 import {
   ArrowLeft,
+  ChevronDown,
   Crosshair,
   Eye,
   EyeOff,
@@ -13,6 +14,12 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,10 +40,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -50,10 +55,10 @@ import { cn } from "@/lib/utils";
 import { useUndoStore } from "@/store/undoStore";
 import { CherryPickDialog } from "./CherryPickDialog";
 import { GitCommandPreview } from "@/components/GitCommandPreview";
-import { GitCommandTooltip } from "@/components/GitCommandTooltip";
 import { CommitDetailDialog } from "./CommitDetailDialog";
 import { CommitGraph } from "./CommitGraph";
 import { CompareBranchDialog } from "./CompareBranchDialog";
+import { MergeBranchDialog } from "./MergeBranchDialog";
 import { MultiBranchCompareDialog } from "./MultiBranchCompareDialog";
 import { GitflowPanel } from "./GitflowPanel";
 import { RebaseDialog } from "./RebaseDialog";
@@ -94,8 +99,7 @@ function filterCommitsByBranches(commits: CommitNode[], visibleBranches: Set<str
 export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () => void }) {
   const [branches, setBranches] = useState<BranchInfo[]>([]);
   const [commits, setCommits] = useState<CommitNode[]>([]);
-  const [mergeTarget, setMergeTarget] = useState<string>("");
-  const [noFf, setNoFf] = useState(true);
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [hiddenBranches, setHiddenBranches] = useState<Set<string>>(new Set());
   const [soloedBranch, setSoloedBranch] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -180,41 +184,6 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
             redo: () => api.checkoutBranch(repo.id, toBranch).then(() => { load(); onChanged(); }),
           });
         }
-      }
-      await load();
-      onChanged();
-    } catch (e) {
-      reportGitError(e);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const merge = async () => {
-    if (!mergeTarget) return;
-    setBusy(true);
-    try {
-      const result = await api.mergeBranch(repo.id, mergeTarget, noFf);
-      if (result.success) {
-        toast.success(`Merged ${mergeTarget}`);
-        if (result.previousHeadSha && result.newHeadSha) {
-          pushUndo({
-            id: crypto.randomUUID(),
-            repoId: repo.id,
-            label: `Merge ${mergeTarget}`,
-            destructive: true,
-            undoCommand: `git reset --hard ${result.previousHeadSha!.slice(0, 7)}`,
-            redoCommand: `git reset --hard ${result.newHeadSha!.slice(0, 7)}`,
-            undo: () =>
-              api.resetTo(repo.id, result.previousHeadSha!, "hard").then(() => { load(); onChanged(); }),
-            redo: () =>
-              api.resetTo(repo.id, result.newHeadSha!, "hard").then(() => { load(); onChanged(); }),
-          });
-        }
-      } else {
-        toast.warning(result.message ?? "Merge stopped with conflicts", {
-          description: result.conflictedFiles.join(", "),
-        });
       }
       await load();
       onChanged();
@@ -342,6 +311,9 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
             )}
           </div>
         ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
           variant="outline"
@@ -351,47 +323,15 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         >
           <ArrowLeft className="size-3.5" /> Checkout previous branch
         </Button>
-        <Select value={mergeTarget} onValueChange={setMergeTarget} disabled={blockedByOp}>
-          <SelectTrigger className="h-8 w-48">
-            <SelectValue placeholder="Merge branch…" />
-          </SelectTrigger>
-          <SelectContent>
-            {branches
-              .filter((b) => !b.isCurrent)
-              .map((b) => (
-                <SelectItem key={b.name} value={b.name}>
-                  {b.name}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
-        <GitCommandTooltip
-          label={mergeTarget ? `Merge ${mergeTarget} into ${current?.name ?? "current"}` : "Merge"}
-          command={`git merge${noFf ? " --no-ff" : ""} --no-edit ${mergeTarget || "<branch>"}`}
+        <Button
+          size="sm"
+          onClick={() => setMergeDialogOpen(true)}
+          disabled={busy || branches.length < 2 || blockedByOp}
+          title={blockedByOp ? blockedTitle : undefined}
         >
-          <Button
-            size="sm"
-            onClick={merge}
-            disabled={busy || !mergeTarget || blockedByOp}
-            title={blockedByOp ? blockedTitle : undefined}
-          >
-            <GitMerge className="size-3.5" />
-            Merge into {current?.name ?? "current"}
-          </Button>
-        </GitCommandTooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Checkbox checked={noFf} onCheckedChange={(c) => setNoFf(!!c)} className="size-3.5" />
-              Always create a merge commit
-            </label>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-xs">
-            When off, git fast-forwards silently if it can — no merge commit, and the branch's
-            history folds flat into a single line with nothing left to show it ever branched.
-            Leave this on to keep that history visible in the graph.
-          </TooltipContent>
-        </Tooltip>
+          <GitMerge className="size-3.5" />
+          Merge…
+        </Button>
         <Button
           size="sm"
           variant="outline"
@@ -402,33 +342,40 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
           <Plus className="size-3.5" />
           New branch…
         </Button>
-        <Button
-          size="sm"
-          variant={rebaseInProgress ? "destructive" : "outline"}
-          onClick={() => setRebaseOpen(true)}
-          disabled={busy}
-        >
-          <GitBranchPlus className="size-3.5" />
-          {rebaseInProgress ? "Resume rebase" : "Rebase…"}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setMultiCompareOpen(true)}
-          disabled={busy || branches.length < 2}
-        >
-          <GitCompareArrows className="size-3.5" />
-          Compare branches…
-        </Button>
-        <Button
-          size="sm"
-          variant={cherryPickInProgress ? "destructive" : "outline"}
-          onClick={() => setCherryPickOpen(true)}
-          disabled={busy}
-        >
-          <GitCommitHorizontal className="size-3.5" />
-          {cherryPickInProgress ? "Resume cherry-pick" : "Cherry-pick…"}
-        </Button>
+        {rebaseInProgress && (
+          <Button size="sm" variant="destructive" onClick={() => setRebaseOpen(true)} disabled={busy}>
+            <GitBranchPlus className="size-3.5" />
+            Resume rebase
+          </Button>
+        )}
+        {cherryPickInProgress && (
+          <Button size="sm" variant="destructive" onClick={() => setCherryPickOpen(true)} disabled={busy}>
+            <GitCommitHorizontal className="size-3.5" />
+            Resume cherry-pick
+          </Button>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" disabled={busy}>
+              More
+              <ChevronDown className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => setRebaseOpen(true)} disabled={rebaseInProgress}>
+              <GitBranchPlus className="size-3.5" /> Rebase…
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setCherryPickOpen(true)} disabled={cherryPickInProgress}>
+              <GitCommitHorizontal className="size-3.5" /> Cherry-pick…
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setMultiCompareOpen(true)}
+              disabled={branches.length < 2}
+            >
+              <GitCompareArrows className="size-3.5" /> Compare branches…
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <GitflowPanel repo={repo} branches={branches} onChanged={() => { load(); onChanged(); }} />
@@ -553,6 +500,18 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         branches={branches}
         open={multiCompareOpen}
         onOpenChange={setMultiCompareOpen}
+      />
+
+      <MergeBranchDialog
+        repo={repo}
+        branches={branches}
+        current={current}
+        open={mergeDialogOpen}
+        onOpenChange={setMergeDialogOpen}
+        onChanged={() => {
+          load();
+          onChanged();
+        }}
       />
 
       <CommitDetailDialog

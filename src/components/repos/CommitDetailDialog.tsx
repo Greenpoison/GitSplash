@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import * as api from "@/lib/api";
 import type { CommitNode, CompareFile, FileDiff, Repo } from "@/lib/types";
@@ -32,6 +33,7 @@ export function CommitDetailDialog({
   const [selected, setSelected] = useState<string | null>(null);
   const [diff, setDiff] = useState<FileDiff | null>(null);
   const [loadingFile, setLoadingFile] = useState(false);
+  const [wrapDiff, setWrapDiff] = useState(false);
 
   useEffect(() => {
     if (!open || !commit) return;
@@ -117,8 +119,12 @@ export function CommitDetailDialog({
             ) : diff ? (
               <ScrollArea className="h-full">
                 <div className="flex flex-col gap-2 p-1">
+                  <label className="flex items-center gap-1.5 self-end text-xs text-muted-foreground">
+                    <Checkbox checked={wrapDiff} onCheckedChange={(c) => setWrapDiff(!!c)} className="size-3.5" />
+                    Wrap long lines
+                  </label>
                   {diff.hunks.map((h, i) => (
-                    <DiffHunkView key={i} hunk={h} staged={false} patchable={false} />
+                    <DiffHunkView key={i} hunk={h} staged={false} patchable={false} wrap={wrapDiff} />
                   ))}
                 </div>
               </ScrollArea>

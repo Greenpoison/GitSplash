@@ -12,6 +12,7 @@ import {
   GitCompareArrows,
   GitMerge,
   Plus,
+  Search,
   Trash2,
 } from "lucide-react";
 import {
@@ -111,6 +112,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const [newBranchName, setNewBranchName] = useState("");
   const [newBranchBase, setNewBranchBase] = useState("");
   const [compareBranch, setCompareBranch] = useState<string | null>(null);
+  const [branchQuery, setBranchQuery] = useState("");
   const [multiCompareOpen, setMultiCompareOpen] = useState(false);
   const [selectedCommit, setSelectedCommit] = useState<CommitNode | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -251,6 +253,11 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
 
   const current = branches.find((b) => b.isCurrent);
 
+  const filteredBranches = useMemo(() => {
+    const q = branchQuery.trim().toLowerCase();
+    return q ? branches.filter((b) => b.name.toLowerCase().includes(q)) : branches;
+  }, [branches, branchQuery]);
+
   const visibleBranches = useMemo(() => {
     if (soloedBranch) return new Set([soloedBranch]);
     return new Set(branches.filter((b) => !hiddenBranches.has(b.name)).map((b) => b.name));
@@ -284,8 +291,19 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
 
   return (
     <div className="flex flex-col gap-4">
+      {branches.length > 5 && (
+        <div className="relative w-64">
+          <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={branchQuery}
+            onChange={(e) => setBranchQuery(e.target.value)}
+            placeholder="Filter branches…"
+            className="h-8 pl-7 text-xs"
+          />
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
-        {branches.map((b) => (
+        {filteredBranches.map((b) => (
           <div key={b.name} className="flex items-center gap-0.5">
             <Button
               size="sm"

@@ -212,6 +212,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   const [amend, setAmend] = useState(false);
   const [discardTarget, setDiscardTarget] = useState<FileChange | null>(null);
   const [discardHunkRaw, setDiscardHunkRaw] = useState<string | null>(null);
+  const [wrapDiff, setWrapDiff] = useState(false);
   const [resolvingPath, setResolvingPath] = useState<string | null>(null);
   const pushUndo = useUndoStore((s) => s.push);
 
@@ -610,12 +611,17 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
           )}
           {selected && diff && !diff.isBinary && diff.hunks.length > 0 && (
             <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-1.5 self-end text-xs text-muted-foreground">
+                <Checkbox checked={wrapDiff} onCheckedChange={(c) => setWrapDiff(!!c)} className="size-3.5" />
+                Wrap long lines
+              </label>
               {diff.hunks.map((hunk, i) => (
                 <DiffHunkView
                   key={i}
                   hunk={hunk}
                   staged={selected.staged}
                   patchable={hunk.raw.length > 0}
+                  wrap={wrapDiff}
                   onStage={() => stageHunk(hunk.raw)}
                   onUnstage={() => unstageHunk(hunk.raw)}
                   onDiscard={() => setDiscardHunkRaw(hunk.raw)}

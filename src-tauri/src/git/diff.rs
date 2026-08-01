@@ -199,3 +199,48 @@ pub async fn discard_hunk(repo_path: &Path, rel_path: &str, hunk_raw: &str) -> R
     let patch = build_patch_for_hunk(repo_path, rel_path, hunk_raw, false).await?;
     apply_patch(repo_path, &patch, true, false).await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classifies_add_del_and_context_lines() {
+        assert_eq!(classify("+added").kind, "add");
+        assert_eq!(classify("+added").content, "added");
+        assert_eq!(classify("-removed").kind, "del");
+        assert_eq!(classify("-removed").content, "removed");
+        assert_eq!(classify(" context").kind, "context");
+        assert_eq!(classify(" context").content, "context");
+    }
+
+    #[test]
+    fn parses_a_single_hunk_diff() {
+        let raw = "diff --git a/foo.txt b/foo.txt\nindex 111..222 100644\n--- a/foo.txt\n+++ b/foo.txt\n@@ -1,2 +1,2 @@\n-old line\n+new line\n context line\n";
+        let (header, hunks) = parse_diff(raw);
+        assert!(header.starts_with("diff --git"));
+        assert_eq!(hunks.len(), 1);
+        assert_eq!(hunks[0].header, "@@ -1,2 +1,2 @@");
+        assert_eq!(hunks[0].lines.len(), 3);
+        assert_eq!(hunks[0].lines[0].kind, "del");
+        assert_eq!(hunks[0].lines[1].kind, "add");
+        assert_eq!(hunks[0].lines[2].kind, "context");
+    }
+
+    #[test]
+    fn parses_multiple_hunks() {
+        let raw = "diff --git a/foo.txt b/foo.txt\n@@ -1,1 +1,1 @@\n-a\n+b\n@@ -10,1 +10,1 @@\n-c\n+d\n";
+        let (_, hunks) = parse_diff(raw);
+        assert_eq!(hunks.len(), 2);
+        assert_eq!(hunks[0].header, "@@ -1,1 +1,1 @@");
+        assert_eq!(hunks[1].header, "@@ -10,1 +10,1 @@");
+    }
+
+    #[test]
+    fn handles_a_diff_with_no_hunks() {
+        let raw = "diff --git a/foo.bin b/foo.bin\nBinary files a/foo.bin and b/foo.bin differ\n";
+        let (header, hunks) = parse_diff(raw);
+        assert!(header.contains("Binary files"));
+        assert!(hunks.is_empty());
+    }
+}

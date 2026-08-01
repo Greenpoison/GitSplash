@@ -159,3 +159,70 @@ pub async fn keep_ours(repo_path: &Path, rel_path: &str) -> Result<(), String> {
 pub async fn keep_theirs(repo_path: &Path, rel_path: &str) -> Result<(), String> {
     restore_side(repo_path, rel_path, "--theirs").await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_a_single_conflict_with_surrounding_plain_text() {
+        let content = "before\n<<<<<<< HEAD\nours line\n=======\ntheirs line\n>>>>>>> feature\nafter";
+        let file = parse_conflicts(content);
+        assert!(!file.is_binary);
+        assert_eq!(file.segments.len(), 3);
+        match &file.segments[0] {
+            ConflictSegment::Plain { text } => assert_eq!(text, "before"),
+            _ => panic!("expected plain segment"),
+        }
+        match &file.segments[1] {
+            ConflictSegment::Conflict { ours_label, theirs_label, ours, theirs, base } => {
+                assert_eq!(ours_label, "HEAD");
+                assert_eq!(theirs_label, "feature");
+                assert_eq!(ours, "ours line");
+                assert_eq!(theirs, "theirs line");
+                assert!(base.is_none());
+            }
+            _ => panic!("expected conflict segment"),
+        }
+        match &file.segments[2] {
+            ConflictSegment::Plain { text } => assert_eq!(text, "after"),
+            _ => panic!("expected plain segment"),
+        }
+    }
+
+    #[test]
+    fn parses_a_conflict_with_a_base_section() {
+        let content = "<<<<<<< HEAD\nours\n||||||| base\noriginal\n=======\ntheirs\n>>>>>>> feature";
+        let file = parse_conflicts(content);
+        assert_eq!(file.segments.len(), 1);
+        match &file.segments[0] {
+            ConflictSegment::Conflict { base, .. } => {
+                assert_eq!(base.as_deref(), Some("original"));
+            }
+            _ => panic!("expected conflict segment"),
+        }
+    }
+
+    #[test]
+    fn parses_multiple_conflicts_in_one_file() {
+        let content = "<<<<<<< HEAD\na\n=======\nb\n>>>>>>> feature\nmiddle\n<<<<<<< HEAD\nc\n=======\nd\n>>>>>>> feature\n";
+        let file = parse_conflicts(content);
+        let conflict_count = file
+            .segments
+            .iter()
+            .filter(|s| matches!(s, ConflictSegment::Conflict { .. }))
+            .count();
+        assert_eq!(conflict_count, 2);
+    }
+
+    #[test]
+    fn treats_content_with_no_markers_as_all_plain() {
+        let content = "just some\nordinary file content";
+        let file = parse_conflicts(content);
+        assert_eq!(file.segments.len(), 1);
+        match &file.segments[0] {
+            ConflictSegment::Plain { text } => assert_eq!(text, "just some\nordinary file content"),
+            _ => panic!("expected plain segment"),
+        }
+    }
+}

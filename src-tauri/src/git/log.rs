@@ -312,3 +312,59 @@ pub async fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>, String> 
     }
     Ok(branches)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn record(hash: &str, parents: &str, refs: &str, subject: &str, author: &str, date: &str, body: &str) -> String {
+        format!("{hash}{FIELD_SEP}{parents}{FIELD_SEP}{refs}{FIELD_SEP}{subject}{FIELD_SEP}{author}{FIELD_SEP}{date}{FIELD_SEP}{body}{RECORD_SEP}")
+    }
+
+    #[test]
+    fn parses_a_single_commit_record() {
+        let stdout = record("abc123", "def456", "HEAD -> main, origin/main", "Fix the bug", "Alice", "2026-01-01T00:00:00+00:00", "Extra detail.");
+        let nodes = parse_log_records(&stdout);
+        assert_eq!(nodes.len(), 1);
+        let n = &nodes[0];
+        assert_eq!(n.hash, "abc123");
+        assert_eq!(n.parents, vec!["def456"]);
+        assert_eq!(n.refs, vec!["HEAD -> main", "origin/main"]);
+        assert_eq!(n.subject, "Fix the bug");
+        assert_eq!(n.author, "Alice");
+        assert_eq!(n.body, "Extra detail.");
+    }
+
+    #[test]
+    fn parses_a_merge_commit_with_two_parents() {
+        let stdout = record("m1", "p1 p2", "", "Merge branch 'feature'", "Bob", "2026-01-02T00:00:00+00:00", "");
+        let nodes = parse_log_records(&stdout);
+        assert_eq!(nodes[0].parents, vec!["p1", "p2"]);
+    }
+
+    #[test]
+    fn parses_a_root_commit_with_no_parents() {
+        let stdout = record("root", "", "", "Initial commit", "Carol", "2026-01-03T00:00:00+00:00", "");
+        let nodes = parse_log_records(&stdout);
+        assert!(nodes[0].parents.is_empty());
+    }
+
+    #[test]
+    fn skips_incomplete_or_empty_records() {
+        let stdout = format!("  {RECORD_SEP}too{FIELD_SEP}few{FIELD_SEP}fields{RECORD_SEP}");
+        assert!(parse_log_records(&stdout).is_empty());
+    }
+
+    #[test]
+    fn parses_multiple_records_in_order() {
+        let stdout = format!(
+            "{}{}",
+            record("a", "", "", "First", "Alice", "2026-01-01T00:00:00+00:00", ""),
+            record("b", "a", "", "Second", "Alice", "2026-01-02T00:00:00+00:00", ""),
+        );
+        let nodes = parse_log_records(&stdout);
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].hash, "a");
+        assert_eq!(nodes[1].hash, "b");
+    }
+}

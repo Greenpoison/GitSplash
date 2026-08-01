@@ -456,7 +456,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         </div>
       )}
 
-      <CommitGraph commits={filteredCommits} onSelectCommit={setSelectedCommit} />
+      <CommitGraph commits={filteredCommits} branches={branches} onSelectCommit={setSelectedCommit} />
 
       <RebaseDialog
         repo={repo}

@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import type { CommitNode } from "@/lib/types";
+import type { BranchInfo, CommitNode } from "@/lib/types";
 import { cn, relativeTime } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { colorForBranchName, computeBranchSegments } from "@/lib/branchSegments";
 
 const ROW_HEIGHT = 30;
 const WRAPPED_ROW_HEIGHT = 54;
@@ -89,9 +90,11 @@ function x(col: number) {
 
 export function CommitGraph({
   commits,
+  branches,
   onSelectCommit,
 }: {
   commits: CommitNode[];
+  branches?: BranchInfo[];
   onSelectCommit?: (node: CommitNode) => void;
 }) {
   const [wrapText, setWrapText] = useState(false);
@@ -108,6 +111,21 @@ export function CommitGraph({
   const { laid, edges, columns } = useMemo(() => layout(commits), [commits]);
   const width = MARGIN * 2 + Math.max(columns, 1) * COL_WIDTH;
   const height = commits.length * rowHeight;
+
+  // Even without a merge commit, a still-existing branch ref marks exactly
+  // where that branch's commits end — enough to color-code a fast-forwarded
+  // branch's stretch of the graph after the fact. Branches deleted post-merge
+  // can't be recovered this way; there's no git-level record left of them.
+  const branchNames = useMemo(
+    () => branches?.filter((b) => !b.isCurrent).map((b) => b.name) ?? [],
+    [branches],
+  );
+  const segments = useMemo(() => computeBranchSegments(commits, branchNames), [commits, branchNames]);
+  const hashByRow = useMemo(() => commits.map((c) => c.hash), [commits]);
+  const colorForRow = (row: number) => {
+    const label = segments.get(hashByRow[row]);
+    return label ? colorForBranchName(label) : undefined;
+  };
 
   if (commits.length === 0) {
     return <p className="text-sm text-muted-foreground">No commits found.</p>;
@@ -132,7 +150,7 @@ export function CommitGraph({
       <div className="gradient-border flex max-h-[420px] overflow-auto rounded-md bg-card">
         <svg width={width} height={height} className="shrink-0">
           {edges.map((e, i) => {
-            const color = LANE_COLORS[e.fromCol % LANE_COLORS.length];
+            const color = colorForRow(e.fromRow) ?? LANE_COLORS[e.fromCol % LANE_COLORS.length];
             const x1 = x(e.fromCol);
             const y1 = y(e.fromRow);
             const x2 = x(e.toCol);
@@ -155,7 +173,7 @@ export function CommitGraph({
               cx={x(col)}
               cy={y(row)}
               r={4}
-              fill={LANE_COLORS[col % LANE_COLORS.length]}
+              fill={colorForRow(row) ?? LANE_COLORS[col % LANE_COLORS.length]}
             />
           ))}
         </svg>
@@ -195,14 +213,21 @@ export function CommitGraph({
               </Tooltip>
               {node.refs
                 .filter((r) => !r.startsWith("HEAD"))
-                .map((ref) => (
-                  <span
-                    key={ref}
-                    className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                  >
-                    {ref}
-                  </span>
-                ))}
+                .map((ref) => {
+                  const branchColor = branchNames.includes(ref) ? colorForBranchName(ref) : undefined;
+                  return (
+                    <span
+                      key={ref}
+                      className={cn(
+                        "shrink-0 rounded-full px-1.5 py-0.5 text-[10px]",
+                        branchColor ? "text-background" : "bg-muted text-muted-foreground",
+                      )}
+                      style={branchColor ? { backgroundColor: branchColor } : undefined}
+                    >
+                      {ref}
+                    </span>
+                  );
+                })}
               <span className="ml-auto shrink-0 whitespace-nowrap text-muted-foreground">
                 {node.author}
               </span>

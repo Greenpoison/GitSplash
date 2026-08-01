@@ -40,6 +40,17 @@ pub async fn create_branch(
 }
 
 #[tauri::command]
+pub async fn create_branch_at(
+    state: State<'_, AppState>,
+    repo_id: String,
+    name: String,
+    sha: String,
+) -> AppResult<()> {
+    let path = repo_path(&state, &repo_id).await?;
+    git::branch::create_branch_at(&path, &name, &sha).await.map_err(AppError::Git)
+}
+
+#[tauri::command]
 pub async fn delete_branch(
     state: State<'_, AppState>,
     repo_id: String,

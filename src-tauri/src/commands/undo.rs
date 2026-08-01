@@ -19,3 +19,9 @@ pub async fn get_head_sha(state: State<'_, AppState>, repo_id: String) -> AppRes
     let repo = repo_path(&state, &repo_id).await?;
     Ok(git::refs::get_head_sha(&repo).await)
 }
+
+#[tauri::command]
+pub async fn resolve_ref(state: State<'_, AppState>, repo_id: String, rev: String) -> AppResult<String> {
+    let repo = repo_path(&state, &repo_id).await?;
+    git::refs::resolve_ref(&repo, &rev).await.map_err(AppError::Git)
+}

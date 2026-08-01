@@ -167,6 +167,7 @@ export const stashDrop = (repoId: string, index: number) => invoke<void>("stash_
 export const resetTo = (repoId: string, sha: string, mode: "soft" | "mixed" | "hard") =>
   invoke<void>("reset_to", { repoId, sha, mode });
 export const getHeadSha = (repoId: string) => invoke<string | null>("get_head_sha", { repoId });
+export const resolveRef = (repoId: string, rev: string) => invoke<string>("resolve_ref", { repoId, rev });
 
 // Merge conflict resolution
 export const getConflictSections = (repoId: string, path: string) =>
@@ -203,6 +204,8 @@ export const checkoutBranch = (repoId: string, branch: string) =>
   invoke<void>("checkout_branch", { repoId, branch });
 export const createBranch = (repoId: string, name: string, base?: string) =>
   invoke<void>("create_branch", { repoId, name, base });
+export const createBranchAt = (repoId: string, name: string, sha: string) =>
+  invoke<void>("create_branch_at", { repoId, name, sha });
 export const deleteBranch = (repoId: string, name: string, force: boolean) =>
   invoke<void>("delete_branch", { repoId, name, force });
 export const checkoutPreviousBranch = (repoId: string) =>

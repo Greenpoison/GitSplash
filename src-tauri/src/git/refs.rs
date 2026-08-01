@@ -17,6 +17,24 @@ pub async fn get_head_sha(repo_path: &Path) -> Option<String> {
     }
 }
 
+/// Resolves any commit-ish (branch, tag, short hash, `HEAD~2`, ...) to its
+/// full commit sha — used to capture "where a ref pointed" right before a
+/// destructive operation (e.g. deleting a branch), so undo can recreate it
+/// exactly rather than relying on the ref still existing somewhere.
+pub async fn resolve_ref(repo_path: &Path, rev: &str) -> Result<String, String> {
+    let output = run_git(repo_path, &["rev-parse", rev])
+        .await
+        .map_err(|e| format!("failed to run git rev-parse: {e}"))?;
+    if !output.success {
+        return Err(if output.stderr.trim().is_empty() {
+            format!("could not resolve {rev}")
+        } else {
+            output.stderr.trim().to_string()
+        });
+    }
+    Ok(output.stdout.trim().to_string())
+}
+
 pub async fn reset_to(repo_path: &Path, sha: &str, mode: &str) -> Result<(), String> {
     let mode_flag = match mode {
         "hard" => "--hard",

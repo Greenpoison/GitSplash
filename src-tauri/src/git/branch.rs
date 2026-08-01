@@ -40,6 +40,19 @@ pub async fn create_branch(repo_path: &Path, name: &str, base: Option<&str>) -> 
     Ok(())
 }
 
+/// Creates a branch pointing at `sha` without checking it out — used to
+/// undo a branch deletion by recreating it exactly where it was, without
+/// disrupting whatever branch the user is currently on.
+pub async fn create_branch_at(repo_path: &Path, name: &str, sha: &str) -> Result<(), String> {
+    let output = run_git(repo_path, &["branch", name, sha])
+        .await
+        .map_err(|e| format!("failed to run git branch: {e}"))?;
+    if !output.success {
+        return Err(git_err("could not recreate branch", &output.stderr));
+    }
+    Ok(())
+}
+
 /// Deletes a local branch. Safe (`-d`) by default, which git itself refuses
 /// if the branch has commits not reachable from elsewhere — `force` uses
 /// `-D` to delete it anyway. Never touches the branch's remote counterpart.

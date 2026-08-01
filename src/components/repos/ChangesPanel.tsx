@@ -1,5 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import {
+  DndContext,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { reportGitError } from "@/lib/gitErrors";
 import {
   AlertTriangle,
@@ -160,6 +170,39 @@ function FileRow({
   );
 }
 
+/// Wraps a FileRow so it can be dragged into the other zone (staged <->
+/// unstaged) as a quicker alternative to the per-row stage/unstage buttons —
+/// both stay available since drag targets can be fiddly with a trackpad.
+function DraggableFileRow({ path, staged, children }: { path: string; staged: boolean; children: ReactNode }) {
+  // A partially-staged file (some hunks staged, some not) appears in both
+  // the staged and unstaged lists with the same path — the zone prefix
+  // keeps the two draggable ids from colliding in that case.
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `${staged ? "staged" : "unstaged"}:${path}`,
+    data: { staged, path },
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform) }}
+      {...listeners}
+      {...attributes}
+      className={cn("touch-none", isDragging && "opacity-40")}
+    >
+      {children}
+    </div>
+  );
+}
+
+function DroppableZone({ id, children }: { id: string; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={cn("flex flex-col gap-1 rounded-md", isOver && "bg-accent/40")}>
+      {children}
+    </div>
+  );
+}
+
 export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () => void }) {
   const [files, setFiles] = useState<FileChange[]>([]);
   const [selected, setSelected] = useState<{ path: string; staged: boolean } | null>(null);
@@ -254,6 +297,17 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
       reportGitError(e);
     }
   };
+
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    const data = active.data.current as { staged?: boolean; path?: string } | undefined;
+    if (!data?.path) return;
+    if (over.id === "staged-zone" && !data.staged) stage(data.path);
+    else if (over.id === "unstaged-zone" && data.staged) unstage(data.path);
+  };
+
   const discard = async () => {
     if (!discardTarget) return;
     try {
@@ -398,75 +452,83 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
       <div className="flex h-[480px] gap-4">
       <div className="flex w-64 shrink-0 flex-col gap-3">
         <ScrollArea className="gradient-border flex-1 rounded-md bg-card p-2">
-          {conflicted.length > 0 && (
-            <div className="mb-2 flex flex-col gap-1">
-              <div className="flex items-center gap-1 px-1 text-xs font-semibold text-destructive">
-                <AlertTriangle className="size-3.5" /> Conflicted
+          <DndContext sensors={dndSensors} onDragEnd={onDragEnd}>
+            {conflicted.length > 0 && (
+              <div className="mb-2 flex flex-col gap-1">
+                <div className="flex items-center gap-1 px-1 text-xs font-semibold text-destructive">
+                  <AlertTriangle className="size-3.5" /> Conflicted
+                </div>
+                {conflicted.map((f) => (
+                  <FileRow
+                    key={f.path}
+                    repoId={repo.id}
+                    change={f}
+                    staged={false}
+                    selected={false}
+                    onSelect={() => setResolvingPath(f.path)}
+                  />
+                ))}
               </div>
-              {conflicted.map((f) => (
-                <FileRow
-                  key={f.path}
-                  repoId={repo.id}
-                  change={f}
-                  staged={false}
-                  selected={false}
-                  onSelect={() => setResolvingPath(f.path)}
-                />
-              ))}
-            </div>
-          )}
-
-          <div className="mb-2 flex flex-col gap-1">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-semibold text-muted-foreground">
-                Staged ({staged.length})
-              </span>
-              {staged.length > 0 && (
-                <button onClick={unstageAll} className="text-xs text-muted-foreground underline">
-                  Unstage all
-                </button>
-              )}
-            </div>
-            {staged.map((f) => (
-              <FileRow
-                key={f.path}
-                repoId={repo.id}
-                change={f}
-                staged
-                selected={selected?.path === f.path && selected.staged}
-                onSelect={() => setSelected({ path: f.path, staged: true })}
-                onUnstage={() => unstage(f.path)}
-              />
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-semibold text-muted-foreground">
-                Changes ({unstaged.length})
-              </span>
-              {unstaged.length > 0 && (
-                <button onClick={stageAll} className="text-xs text-muted-foreground underline">
-                  Stage all
-                </button>
-              )}
-            </div>
-            {unstaged.map((f) => (
-              <FileRow
-                key={f.path}
-                repoId={repo.id}
-                change={f}
-                staged={false}
-                selected={selected?.path === f.path && !selected.staged}
-                onSelect={() => setSelected({ path: f.path, staged: false })}
-                onStage={() => stage(f.path)}
-                onDiscard={() => setDiscardTarget(f)}
-              />
-            ))}
-            {files.length === 0 && (
-              <p className="px-1 text-xs text-muted-foreground">Working tree clean.</p>
             )}
-          </div>
+
+            <div className="mb-2 flex flex-col gap-1">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-semibold text-muted-foreground">
+                  Staged ({staged.length})
+                </span>
+                {staged.length > 0 && (
+                  <button onClick={unstageAll} className="text-xs text-muted-foreground underline">
+                    Unstage all
+                  </button>
+                )}
+              </div>
+              <DroppableZone id="staged-zone">
+                {staged.map((f) => (
+                  <DraggableFileRow key={f.path} path={f.path} staged>
+                    <FileRow
+                      repoId={repo.id}
+                      change={f}
+                      staged
+                      selected={selected?.path === f.path && selected.staged}
+                      onSelect={() => setSelected({ path: f.path, staged: true })}
+                      onUnstage={() => unstage(f.path)}
+                    />
+                  </DraggableFileRow>
+                ))}
+              </DroppableZone>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-semibold text-muted-foreground">
+                  Changes ({unstaged.length})
+                </span>
+                {unstaged.length > 0 && (
+                  <button onClick={stageAll} className="text-xs text-muted-foreground underline">
+                    Stage all
+                  </button>
+                )}
+              </div>
+              <DroppableZone id="unstaged-zone">
+                {unstaged.map((f) => (
+                  <DraggableFileRow key={f.path} path={f.path} staged={false}>
+                    <FileRow
+                      repoId={repo.id}
+                      change={f}
+                      staged={false}
+                      selected={selected?.path === f.path && !selected.staged}
+                      onSelect={() => setSelected({ path: f.path, staged: false })}
+                      onStage={() => stage(f.path)}
+                      onDiscard={() => setDiscardTarget(f)}
+                    />
+                  </DraggableFileRow>
+                ))}
+                {files.length === 0 && (
+                  <p className="px-1 text-xs text-muted-foreground">Working tree clean.</p>
+                )}
+              </DroppableZone>
+            </div>
+          </DndContext>
         </ScrollArea>
 
         <div className="flex flex-col gap-2">

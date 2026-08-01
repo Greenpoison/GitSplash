@@ -216,10 +216,23 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const deleteBranch = async (name: string, force: boolean) => {
     setBusy(true);
     try {
+      const sha = await api.resolveRef(repo.id, name).catch(() => null);
       await api.deleteBranch(repo.id, name, force);
       toast.success(`Deleted ${name}`);
       setDeleteTarget(null);
       setForceDeleteTarget(null);
+      if (sha) {
+        pushUndo({
+          id: crypto.randomUUID(),
+          repoId: repo.id,
+          label: `Delete ${name}`,
+          destructive: true,
+          undoCommand: `git branch ${name} ${sha.slice(0, 7)}`,
+          redoCommand: `git branch ${force ? "-D" : "-d"} ${name}`,
+          undo: () => api.createBranchAt(repo.id, name, sha).then(() => { load(); onChanged(); }),
+          redo: () => api.deleteBranch(repo.id, name, force).then(() => { load(); onChanged(); }),
+        });
+      }
       await load();
       onChanged();
     } catch (e) {

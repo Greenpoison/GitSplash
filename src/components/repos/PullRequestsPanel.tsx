@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { reportGitError } from "@/lib/gitErrors";
-import { ExternalLink, GitPullRequest, Plus } from "lucide-react";
+import { ExternalLink, GitPullRequest, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ import {
 import * as api from "@/lib/api";
 import type { BranchInfo, PullRequestSummary, Repo } from "@/lib/types";
 import { GitCommandPreview } from "@/components/GitCommandPreview";
+import { GitCommandTooltip } from "@/components/GitCommandTooltip";
 
 export function PullRequestsPanel({ repo }: { repo: Repo }) {
   const [ghAvailable, setGhAvailable] = useState<boolean | null>(null);
@@ -41,6 +42,7 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
   const [base, setBase] = useState("");
   const [draft, setDraft] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [pushing, setPushing] = useState(false);
   const [mergeTarget, setMergeTarget] = useState<{ pr: PullRequestSummary; method: "merge" | "squash" | "rebase" } | null>(null);
 
   const load = async () => {
@@ -71,6 +73,36 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repo.id]);
+
+  const current = branches.find((b) => b.isCurrent);
+  const needsPush = !!current && !current.upstream;
+
+  const pushAndOpenCreate = async () => {
+    if (!current) return;
+    setPushing(true);
+    try {
+      const outcome = await api.pushRepo(repo.id, false);
+      if (!outcome.pushed) {
+        if (outcome.rejected) {
+          toast.error("Push rejected — the remote has commits you don't have yet", {
+            description: "Fetch & pull first, then try again.",
+          });
+        } else {
+          toast.error(outcome.message ?? "Push failed");
+        }
+        return;
+      }
+      toast.success("Branch published");
+      const defaultBase = branches.find((b) => !b.isCurrent && (b.name === "main" || b.name === "master"));
+      if (defaultBase && !base) setBase(defaultBase.name);
+      setShowCreate(true);
+      await load();
+    } catch (e) {
+      reportGitError(e);
+    } finally {
+      setPushing(false);
+    }
+  };
 
   const create = async () => {
     if (!title.trim() || !base) {
@@ -130,9 +162,20 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
         <span className="text-sm text-muted-foreground">
           {loading ? "Loading…" : `${prs.length} open pull request${prs.length === 1 ? "" : "s"}`}
         </span>
-        <Button size="sm" onClick={() => setShowCreate((v) => !v)}>
-          <Plus className="size-3.5" /> New PR
-        </Button>
+        {needsPush ? (
+          <GitCommandTooltip
+            label="Push, then open the New PR form"
+            command={`git push -u origin ${current?.name}`}
+          >
+            <Button size="sm" onClick={pushAndOpenCreate} disabled={pushing}>
+              <Upload className="size-3.5" /> {pushing ? "Pushing…" : "Push & New PR"}
+            </Button>
+          </GitCommandTooltip>
+        ) : (
+          <Button size="sm" onClick={() => setShowCreate((v) => !v)}>
+            <Plus className="size-3.5" /> New PR
+          </Button>
+        )}
       </div>
 
       {showCreate && (

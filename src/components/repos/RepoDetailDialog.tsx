@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/appStore";
 import type { Repo } from "@/lib/types";
 import { BranchesPanel } from "./BranchesPanel";
@@ -31,6 +39,22 @@ import { TagsPanel } from "./TagsPanel";
 import { WorktreesPanel } from "./WorktreesPanel";
 
 type PendingAction = { type: "tab"; tab: string } | { type: "close" };
+
+/// Changes, Branches, and Pull Requests cover the entire push-a-branch,
+/// open-a-PR, merge-on-GitHub workflow — everything else here is a more
+/// advanced git concept a beginner following just that flow never needs to
+/// see by default. Tucked behind "More" instead of removed: still one click
+/// away, just not competing for attention in the tab bar.
+const SECONDARY_TABS = [
+  { value: "tags", label: "Tags" },
+  { value: "filehistory", label: "File History" },
+  { value: "search", label: "Search History" },
+  { value: "recover", label: "Recover" },
+  { value: "editor", label: "Editor" },
+  { value: "worktrees", label: "Worktrees" },
+  { value: "submodules", label: "Submodules" },
+  { value: "secrets", label: "Secrets" },
+];
 
 export function RepoDetailDialog({
   repo,
@@ -84,15 +108,29 @@ export function RepoDetailDialog({
           <TabsList className="w-full shrink-0 justify-start overflow-x-auto overflow-y-hidden">
             <TabsTrigger value="changes" className="shrink-0">Changes</TabsTrigger>
             <TabsTrigger value="branches" className="shrink-0">Branches</TabsTrigger>
-            <TabsTrigger value="tags" className="shrink-0">Tags</TabsTrigger>
             <TabsTrigger value="prs" className="shrink-0">Pull Requests</TabsTrigger>
-            <TabsTrigger value="filehistory" className="shrink-0">File History</TabsTrigger>
-            <TabsTrigger value="search" className="shrink-0">Search History</TabsTrigger>
-            <TabsTrigger value="recover" className="shrink-0">Recover</TabsTrigger>
-            <TabsTrigger value="editor" className="shrink-0">Editor</TabsTrigger>
-            <TabsTrigger value="worktrees" className="shrink-0">Worktrees</TabsTrigger>
-            <TabsTrigger value="submodules" className="shrink-0">Submodules</TabsTrigger>
-            <TabsTrigger value="secrets" className="shrink-0">Secrets</TabsTrigger>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                    SECONDARY_TABS.some((t) => t.value === activeTab)
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  More <ChevronDown className="size-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {SECONDARY_TABS.map((t) => (
+                  <DropdownMenuItem key={t.value} onClick={() => requestTabChange(t.value)}>
+                    {t.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </TabsList>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <TabsContent value="changes">

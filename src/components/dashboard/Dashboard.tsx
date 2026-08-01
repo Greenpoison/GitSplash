@@ -1,6 +1,7 @@
-import { useEffect } from "react";
-import { ChevronDown, FolderGit2, FolderOpen, FolderPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronDown, FolderGit2, FolderOpen, FolderPlus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +27,16 @@ export function Dashboard() {
   const setCreateRepoDialogOpen = useAppStore((s) => s.setCreateRepoDialogOpen);
   const setGroupManagerOpen = useAppStore((s) => s.setGroupManagerOpen);
   const setCreateAccountDialogOpen = useAppStore((s) => s.setCreateAccountDialogOpen);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const doRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshStatuses();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     const interval = setInterval(() => refreshStatuses(), 60_000);
@@ -39,6 +50,16 @@ export function Dashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Dashboard</h1>
         <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={doRefresh}
+            disabled={refreshing}
+            title="Refresh every repo's status now"
+          >
+            <RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />
+            Refresh
+          </Button>
           <Button
             size="sm"
             variant="outline"

@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { ArrowLeft, ArrowRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { computeLineNumbers } from "@/lib/diffLineNumbers";
 import type { DiffHunk } from "@/lib/types";
 
 const LINE_STYLES: Record<string, string> = {
@@ -24,6 +26,8 @@ export function DiffHunkView({
   onUnstage?: () => void;
   onDiscard?: () => void;
 }) {
+  const lineNumbers = useMemo(() => computeLineNumbers(hunk.header, hunk.lines), [hunk]);
+
   return (
     <div className="overflow-hidden rounded-md border">
       <div className="flex items-center justify-between bg-muted/50 px-2 py-1">
@@ -48,14 +52,23 @@ export function DiffHunkView({
         )}
       </div>
       <div className="font-mono text-xs">
-        {hunk.lines.map((line, i) => (
-          <div key={i} className={cn("whitespace-pre px-2", LINE_STYLES[line.kind])}>
-            <span className="select-none opacity-60">
-              {line.kind === "add" ? "+" : line.kind === "del" ? "-" : " "}
-            </span>
-            {line.content}
-          </div>
-        ))}
+        {hunk.lines.map((line, i) => {
+          const { oldLine, newLine } = lineNumbers[i];
+          return (
+            <div key={i} className={cn("flex whitespace-pre px-2", LINE_STYLES[line.kind])}>
+              <span className="mr-2 w-8 shrink-0 select-none text-right text-muted-foreground/60">
+                {oldLine ?? ""}
+              </span>
+              <span className="mr-2 w-8 shrink-0 select-none text-right text-muted-foreground/60">
+                {newLine ?? ""}
+              </span>
+              <span className="select-none opacity-60">
+                {line.kind === "add" ? "+" : line.kind === "del" ? "-" : " "}
+              </span>
+              {line.content}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

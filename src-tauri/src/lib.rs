@@ -27,6 +27,7 @@ pub fn run() {
             app.manage(AppState {
                 db: Mutex::new(conn),
             });
+            util::cleanup_stale_updater_temp_dirs(&app.package_info().name);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

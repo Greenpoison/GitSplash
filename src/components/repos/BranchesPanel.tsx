@@ -54,6 +54,7 @@ import { GitCommandTooltip } from "@/components/GitCommandTooltip";
 import { CommitDetailDialog } from "./CommitDetailDialog";
 import { CommitGraph } from "./CommitGraph";
 import { CompareBranchDialog } from "./CompareBranchDialog";
+import { MultiBranchCompareDialog } from "./MultiBranchCompareDialog";
 import { GitflowPanel } from "./GitflowPanel";
 import { RebaseDialog } from "./RebaseDialog";
 
@@ -106,6 +107,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const [newBranchName, setNewBranchName] = useState("");
   const [newBranchBase, setNewBranchBase] = useState("");
   const [compareBranch, setCompareBranch] = useState<string | null>(null);
+  const [multiCompareOpen, setMultiCompareOpen] = useState(false);
   const [selectedCommit, setSelectedCommit] = useState<CommitNode | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [forceDeleteTarget, setForceDeleteTarget] = useState<{ name: string; message: string } | null>(null);
@@ -411,6 +413,15 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         </Button>
         <Button
           size="sm"
+          variant="outline"
+          onClick={() => setMultiCompareOpen(true)}
+          disabled={busy || branches.length < 2}
+        >
+          <GitCompareArrows className="size-3.5" />
+          Compare branches…
+        </Button>
+        <Button
+          size="sm"
           variant={cherryPickInProgress ? "destructive" : "outline"}
           onClick={() => setCherryPickOpen(true)}
           disabled={busy}
@@ -536,6 +547,13 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
           onOpenChange={(o) => !o && setCompareBranch(null)}
         />
       )}
+
+      <MultiBranchCompareDialog
+        repo={repo}
+        branches={branches}
+        open={multiCompareOpen}
+        onOpenChange={setMultiCompareOpen}
+      />
 
       <CommitDetailDialog
         repo={repo}

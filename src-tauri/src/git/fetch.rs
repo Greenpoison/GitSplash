@@ -24,6 +24,12 @@ pub struct FetchOutcome {
     /// present whenever `diverged` is true, so the caller can offer to
     /// compare or merge against it without a second round-trip.
     pub upstream: Option<String>,
+    /// The current branch's own name, present whenever `diverged` is true —
+    /// carried directly in this outcome rather than making the caller reach
+    /// for a separately-cached status snapshot (which can be stale relative
+    /// to the fetch that was just run, e.g. right after adding a repo or
+    /// before its first background status refresh).
+    pub branch: Option<String>,
     /// Specifically true when the pull was skipped because the working tree
     /// has uncommitted changes — distinct from `diverged` so the caller can
     /// offer a targeted "stash, pull, then restore" flow instead of a
@@ -49,6 +55,7 @@ pub async fn fetch_and_maybe_pull(repo_id: &str, repo_path: &Path, pull: bool) -
                 diverged: false,
                 dirty: false,
                 upstream: None,
+                branch: None,
                 message: Some(format!("failed to run git fetch: {e}")),
             }
         }
@@ -67,6 +74,7 @@ pub async fn fetch_and_maybe_pull(repo_id: &str, repo_path: &Path, pull: bool) -
             diverged: false,
             dirty: false,
             upstream: None,
+            branch: None,
             message: Some(message),
         };
     }
@@ -79,6 +87,7 @@ pub async fn fetch_and_maybe_pull(repo_id: &str, repo_path: &Path, pull: bool) -
             diverged: false,
             dirty: false,
             upstream: None,
+            branch: None,
             message: None,
         };
     }
@@ -92,6 +101,7 @@ pub async fn fetch_and_maybe_pull(repo_id: &str, repo_path: &Path, pull: bool) -
             diverged: false,
             dirty: false,
             upstream: None,
+            branch: None,
             message: Some(format!("could not check status before pull: {err}")),
         };
     }
@@ -103,6 +113,7 @@ pub async fn fetch_and_maybe_pull(repo_id: &str, repo_path: &Path, pull: bool) -
             diverged: false,
             dirty: false,
             upstream: None,
+            branch: None,
             message: Some("skipped pull: branch has no upstream".to_string()),
         };
     }
@@ -114,6 +125,7 @@ pub async fn fetch_and_maybe_pull(repo_id: &str, repo_path: &Path, pull: bool) -
             diverged: false,
             dirty: true,
             upstream: None,
+            branch: None,
             message: Some("skipped pull: working tree is not clean".to_string()),
         };
     }
@@ -128,6 +140,7 @@ pub async fn fetch_and_maybe_pull(repo_id: &str, repo_path: &Path, pull: bool) -
                 diverged: false,
                 dirty: false,
                 upstream: None,
+                branch: None,
                 message: Some(format!("failed to run git merge: {e}")),
             }
         }
@@ -151,6 +164,7 @@ pub async fn fetch_and_maybe_pull(repo_id: &str, repo_path: &Path, pull: bool) -
             diverged: true,
             dirty: false,
             upstream,
+            branch: status.branch,
             message: Some("branch and upstream have diverged".to_string()),
         };
     }
@@ -162,6 +176,7 @@ pub async fn fetch_and_maybe_pull(repo_id: &str, repo_path: &Path, pull: bool) -
         diverged: false,
         dirty: false,
         upstream: None,
+        branch: None,
         message: None,
     }
 }

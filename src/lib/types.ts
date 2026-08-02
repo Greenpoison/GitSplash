@@ -145,6 +145,7 @@ export interface FetchOutcome {
   skippedPull: boolean;
   diverged: boolean;
   upstream: string | null;
+  branch: string | null;
   dirty: boolean;
   message: string | null;
 }

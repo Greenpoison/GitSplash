@@ -86,8 +86,16 @@ export function RepoCard({ repo }: { repo: Repo }) {
       const outcome = await api.fetchRepo(repo.id, pull);
       if (!outcome.fetched) {
         toast.error(outcome.message ?? "Fetch failed");
-      } else if (outcome.diverged && outcome.upstream && status?.branch) {
-        setDiverged({ branch: status.branch, upstream: outcome.upstream });
+      } else if (outcome.diverged && outcome.upstream && (outcome.branch ?? status?.branch)) {
+        // Prefer the branch name the fetch itself resolved over the
+        // separately cached status snapshot — that can lag behind a fetch
+        // just run (e.g. right after adding a repo, before its first
+        // background refresh), which previously made this fall through to
+        // a plain "branch and upstream have diverged" toast instead of this
+        // dialog. DivergedPullDialog uses this as a real git ref (it's the
+        // compare/merge base), so there's no safe placeholder if both are
+        // somehow missing — fall through to the toast instead.
+        setDiverged({ branch: (outcome.branch ?? status?.branch)!, upstream: outcome.upstream });
       } else if (pull && outcome.dirty) {
         setDirtyPull(true);
       } else if (pull && !outcome.pulled && outcome.message?.includes("no upstream")) {

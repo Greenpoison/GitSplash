@@ -33,7 +33,17 @@ export function GitflowPanel({
   const [busy, setBusy] = useState(false);
 
   const current = branches.find((b) => b.isCurrent);
-  const finishing = current ? parseGitflowBranch(current.name) : null;
+  const parsed = current ? parseGitflowBranch(current.name) : null;
+  // A branch merely being *named* like a Gitflow branch (e.g. this
+  // project's own "feature/V1.18" naming convention, unrelated to actual
+  // Gitflow) shouldn't be enough to offer "finish" — only do that when at
+  // least one of its real merge targets (develop/main) actually exists,
+  // otherwise this repo clearly isn't using Gitflow and the prompt would
+  // just be confusing noise.
+  const existingTargets = parsed
+    ? GITFLOW_DEFAULT_TARGETS[parsed.kind].filter((t) => branches.some((b) => b.name === t))
+    : [];
+  const finishing = parsed && existingTargets.length > 0 ? parsed : null;
 
   const [targets, setTargets] = useState<Set<string>>(new Set());
   const [tag, setTag] = useState("");
@@ -42,7 +52,7 @@ export function GitflowPanel({
 
   useEffect(() => {
     if (finishing) {
-      setTargets(new Set(GITFLOW_DEFAULT_TARGETS[finishing.kind]));
+      setTargets(new Set(existingTargets));
       setTag("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

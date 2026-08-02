@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { reportGitError } from "@/lib/gitErrors";
 import {
+  ArrowDown,
   ArrowLeft,
+  ArrowUp,
   ChevronDown,
   Crosshair,
   Eye,
   EyeOff,
+  GitBranch,
   GitBranchPlus,
   GitCommitHorizontal,
   GitCompareArrows,
@@ -56,6 +59,7 @@ import * as api from "@/lib/api";
 import type { BranchInfo, CommitNode, GitflowKind, Repo } from "@/lib/types";
 import { GITFLOW_DEFAULT_BASE } from "@/lib/gitflow";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/store/appStore";
 import { useUndoStore } from "@/store/undoStore";
 import { CherryPickDialog } from "./CherryPickDialog";
 import { GitCommandPreview } from "@/components/GitCommandPreview";
@@ -124,6 +128,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [forceDeleteTarget, setForceDeleteTarget] = useState<{ name: string; message: string } | null>(null);
   const pushUndo = useUndoStore((s) => s.push);
+  const status = useAppStore((s) => s.statuses[repo.id]);
 
   const load = async () => {
     try {
@@ -314,6 +319,34 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
 
   return (
     <div className="flex flex-col gap-4">
+      {current && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+          <GitBranch className="size-4 text-muted-foreground" />
+          <span>
+            You're on <span className="font-mono font-semibold">{current.name}</span>
+          </span>
+          {status?.upstream && (
+            <Badge variant="secondary" className="font-mono text-[10px]">
+              {status.upstream}
+            </Badge>
+          )}
+          {status && status.ahead > 0 && (
+            <Badge variant="outline" className="gap-1">
+              <ArrowUp className="size-3" />
+              {status.ahead}
+            </Badge>
+          )}
+          {status && status.behind > 0 && (
+            <Badge variant="outline" className="gap-1">
+              <ArrowDown className="size-3" />
+              {status.behind}
+            </Badge>
+          )}
+          {status && !status.hasUpstream && (
+            <span className="text-xs text-muted-foreground">not published yet</span>
+          )}
+        </div>
+      )}
       {(branches.length > 5 || mergedCount > 0) && (
         <div className="flex items-center gap-2">
           {branches.length > 5 && (

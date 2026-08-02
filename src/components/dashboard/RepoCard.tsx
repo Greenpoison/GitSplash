@@ -7,6 +7,7 @@ import {
   ArrowUp,
   Check,
   CheckCircle2,
+  ChevronDown,
   Download,
   ExternalLink,
   FolderOpen,
@@ -150,6 +151,41 @@ export function RepoCard({ repo }: { repo: Repo }) {
     }
   };
 
+  // One contextual "sync" action instead of three always-visible icons —
+  // matches the GitHub Desktop convention of a single button that adapts to
+  // what the branch actually needs right now, with the individual explicit
+  // actions still one click away via the dropdown for anyone who wants to
+  // fetch/pull/push separately.
+  const noUpstream = !status?.hasUpstream;
+  const behind = status?.behind ?? 0;
+  const ahead = status?.ahead ?? 0;
+  let syncLabel: string;
+  let syncCommand: string | string[];
+  let SyncIcon = Download;
+  let runSync: () => void;
+  if (noUpstream) {
+    syncLabel = "Publish branch";
+    syncCommand = `git push -u origin ${status?.branch ?? "<branch>"}`;
+    SyncIcon = Upload;
+    runSync = () => doPush(false);
+  } else if (behind > 0) {
+    syncLabel = `Pull (${behind} behind)`;
+    syncCommand = ["git fetch --prune", "git merge --ff-only @{upstream}"];
+    SyncIcon = GitPullRequestArrow;
+    runSync = () => doFetch(true);
+  } else if (ahead > 0) {
+    syncLabel = `Push (${ahead} ahead)`;
+    syncCommand = "git push";
+    SyncIcon = Upload;
+    runSync = () => doPush(false);
+  } else {
+    syncLabel = "Fetch";
+    syncCommand = "git fetch --prune";
+    SyncIcon = Download;
+    runSync = () => doFetch(false);
+  }
+  const syncBusy = fetching || pushing;
+
   return (
     <Card
       className="flex cursor-pointer flex-row items-center gap-4 px-4 py-3"
@@ -231,50 +267,50 @@ export function RepoCard({ repo }: { repo: Repo }) {
         </Tooltip>
       </div>
 
-      <GitCommandTooltip label="Fetch" command="git fetch --prune">
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled={fetching}
-          onClick={(e) => {
-            e.stopPropagation();
-            doFetch(false);
-          }}
-        >
-          {fetching ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-        </Button>
-      </GitCommandTooltip>
+      <div className="relative">
+        <GitCommandTooltip label={syncLabel} command={syncCommand}>
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={syncBusy || !status || !status.branch}
+            onClick={(e) => {
+              e.stopPropagation();
+              runSync();
+            }}
+          >
+            {syncBusy ? <Loader2 className="size-4 animate-spin" /> : <SyncIcon className="size-4" />}
+          </Button>
+        </GitCommandTooltip>
+        {!syncBusy && (behind > 0 || ahead > 0) && (
+          <span className="pointer-events-none absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">
+            {behind > 0 ? behind : ahead}
+          </span>
+        )}
+      </div>
 
-      <GitCommandTooltip label="Fetch & pull" command={["git fetch --prune", "git merge --ff-only @{upstream}"]}>
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled={fetching}
-          onClick={(e) => {
-            e.stopPropagation();
-            doFetch(true);
-          }}
-        >
-          {fetching ? <Loader2 className="size-4 animate-spin" /> : <GitPullRequestArrow className="size-4" />}
-        </Button>
-      </GitCommandTooltip>
-
-      <GitCommandTooltip
-        label={status?.hasUpstream ? "Push" : "Publish branch"}
-        command={status?.hasUpstream ? "git push" : `git push -u origin ${status?.branch ?? "<branch>"}`}
-      >
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled={pushing || !status || !status.branch}
-          onClick={(e) => {
-            e.stopPropagation();
-            doPush(false);
-          }}
-        >
-          {pushing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-        </Button>
-      </GitCommandTooltip>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="More sync actions"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ChevronDown className="size-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenuItem disabled={fetching} onClick={() => doFetch(false)}>
+            <Download className="size-4" /> Fetch
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={fetching} onClick={() => doFetch(true)}>
+            <GitPullRequestArrow className="size-4" /> Fetch & pull
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={pushing || !status?.branch} onClick={() => doPush(false)}>
+            <Upload className="size-4" /> {status?.hasUpstream ? "Push" : "Publish branch"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <Button
         variant="ghost"

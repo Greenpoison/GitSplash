@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -207,7 +208,8 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   const [files, setFiles] = useState<FileChange[]>([]);
   const [selected, setSelected] = useState<{ path: string; staged: boolean } | null>(null);
   const [diff, setDiff] = useState<FileDiff | null>(null);
-  const [message, setMessage] = useState("");
+  const [summary, setSummary] = useState("");
+  const [description, setDescription] = useState("");
   const [committing, setCommitting] = useState(false);
   const [amend, setAmend] = useState(false);
   const [discardTarget, setDiscardTarget] = useState<FileChange | null>(null);
@@ -225,7 +227,11 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
     [files],
   );
   const conflicted = useMemo(() => files.filter((f) => f.isConflicted), [files]);
-  const messageTips = useMemo(() => lintCommitMessage(message), [message]);
+  const messageTips = useMemo(() => lintCommitMessage(summary), [summary]);
+  const fullMessage = useMemo(
+    () => (description.trim() ? `${summary.trim()}\n\n${description.trim()}` : summary.trim()),
+    [summary, description],
+  );
 
   const loadFiles = async () => {
     try {
@@ -402,8 +408,8 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
   };
 
   const commit = async () => {
-    if (!message.trim()) {
-      toast.error("Write a commit message first");
+    if (!summary.trim()) {
+      toast.error("Write a commit summary first");
       return;
     }
     if (!amend && staged.length === 0) {
@@ -417,9 +423,10 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
     setCommitting(true);
     try {
       const previousHeadSha = amend
-        ? await api.amendCommit(repo.id, message.trim())
-        : await api.commitChanges(repo.id, message.trim());
-      setMessage("");
+        ? await api.amendCommit(repo.id, fullMessage)
+        : await api.commitChanges(repo.id, fullMessage);
+      setSummary("");
+      setDescription("");
       setAmend(false);
       setSelected(null);
       setDiff(null);
@@ -533,10 +540,16 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
         </ScrollArea>
 
         <div className="flex flex-col gap-2">
+          <Input
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            placeholder="Summary (required)"
+            className="text-sm font-medium"
+          />
           <Textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Commit message"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Description (optional)"
             rows={3}
             className="text-sm"
           />
@@ -555,9 +568,12 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
               checked={amend}
               onCheckedChange={async (c) => {
                 setAmend(!!c);
-                if (c && !message.trim()) {
+                if (c && !summary.trim()) {
                   const last = await api.getCommit(repo.id, "HEAD").catch(() => null);
-                  if (last) setMessage(last.body ? `${last.subject}\n\n${last.body}` : last.subject);
+                  if (last) {
+                    setSummary(last.subject);
+                    setDescription(last.body);
+                  }
                 }
               }}
             />
@@ -571,7 +587,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
           )}
           <Button
             onClick={commit}
-            disabled={committing || (!amend && staged.length === 0) || conflicted.length > 0 || !message.trim()}
+            disabled={committing || (!amend && staged.length === 0) || conflicted.length > 0 || !summary.trim()}
           >
             {committing
               ? amend
@@ -581,8 +597,8 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
                 ? "Resolve conflicts first"
                 : !amend && staged.length === 0
                   ? "Stage files to commit"
-                  : !message.trim()
-                    ? "Write a commit message"
+                  : !summary.trim()
+                    ? "Write a commit summary"
                     : amend
                       ? "Amend previous commit"
                       : `Commit ${staged.length} file${staged.length === 1 ? "" : "s"}`}

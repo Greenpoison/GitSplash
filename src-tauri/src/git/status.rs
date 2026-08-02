@@ -14,6 +14,16 @@ pub async fn get_status(repo_id: &str, repo_path: &Path) -> RepoGitStatus {
         error: None,
     };
 
+    // Best-effort: refreshes git's cached stat info (mtime/size per file)
+    // against what's actually on disk before checking status. Without this,
+    // a file touched by a concurrent process (e.g. a build writing to the
+    // working tree while this repo is also open elsewhere) can leave stale
+    // stat-cache entries that make `git status` report it modified even
+    // though its content is byte-identical to the index. Exit code is
+    // ignored — it's non-zero whenever real changes exist, which is exactly
+    // the normal case, not a failure.
+    let _ = run_git(repo_path, &["update-index", "-q", "--refresh"]).await;
+
     let output = match run_git(repo_path, &["status", "--porcelain=2", "--branch"]).await {
         Ok(o) => o,
         Err(e) => {

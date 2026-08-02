@@ -1,5 +1,6 @@
 use super::process::run_git;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -271,6 +272,12 @@ pub struct BranchInfo {
     pub name: String,
     pub is_current: bool,
     pub upstream: Option<String>,
+    /// Whether this branch's tip is already an ancestor of HEAD — i.e. fully
+    /// merged into whatever's currently checked out, so its own history
+    /// doesn't hold anything not already reachable from HEAD. Lets the UI
+    /// hide these by default instead of piling up dead branch chips after
+    /// every merge.
+    pub is_merged: bool,
 }
 
 pub async fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>, String> {
@@ -290,6 +297,18 @@ pub async fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>, String> 
         });
     }
 
+    // Best-effort: if this fails for any reason, nothing gets flagged as
+    // merged (the safe default — never hides a branch it isn't sure about).
+    let merged: HashSet<String> = run_git(
+        repo_path,
+        &["for-each-ref", "refs/heads", "--format=%(refname:short)", "--merged=HEAD"],
+    )
+    .await
+    .ok()
+    .filter(|o| o.success)
+    .map(|o| o.stdout.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect())
+    .unwrap_or_default();
+
     let mut branches = Vec::new();
     for record in output.stdout.split(RECORD_SEP) {
         let record = record.trim();
@@ -300,9 +319,11 @@ pub async fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>, String> 
         if fields.len() < 3 {
             continue;
         }
+        let name = fields[1].to_string();
         branches.push(BranchInfo {
             is_current: fields[0] == "*",
-            name: fields[1].to_string(),
+            is_merged: merged.contains(&name),
+            name,
             upstream: if fields[2].is_empty() {
                 None
             } else {

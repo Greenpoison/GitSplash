@@ -118,6 +118,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const [newBranchKind, setNewBranchKind] = useState<GitflowKind | "none">("none");
   const [compareBranch, setCompareBranch] = useState<string | null>(null);
   const [branchQuery, setBranchQuery] = useState("");
+  const [showMerged, setShowMerged] = useState(false);
   const [multiCompareOpen, setMultiCompareOpen] = useState(false);
   const [selectedCommit, setSelectedCommit] = useState<CommitNode | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -266,10 +267,19 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
 
   const current = branches.find((b) => b.isCurrent);
 
+  const mergedCount = useMemo(
+    () => branches.filter((b) => b.isMerged && !b.isCurrent).length,
+    [branches],
+  );
+
   const filteredBranches = useMemo(() => {
     const q = branchQuery.trim().toLowerCase();
-    return q ? branches.filter((b) => b.name.toLowerCase().includes(q)) : branches;
-  }, [branches, branchQuery]);
+    // A branch search should look across everything, merged or not — only
+    // the default, unfiltered view hides already-merged branches to keep
+    // the chip list from piling up with dead branches after every merge.
+    if (q) return branches.filter((b) => b.name.toLowerCase().includes(q));
+    return showMerged ? branches : branches.filter((b) => !b.isMerged || b.isCurrent);
+  }, [branches, branchQuery, showMerged]);
 
   const visibleBranches = useMemo(() => {
     if (soloedBranch) return new Set([soloedBranch]);
@@ -304,15 +314,29 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
 
   return (
     <div className="flex flex-col gap-4">
-      {branches.length > 5 && (
-        <div className="relative w-64">
-          <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={branchQuery}
-            onChange={(e) => setBranchQuery(e.target.value)}
-            placeholder="Filter branches…"
-            className="h-8 pl-7 text-xs"
-          />
+      {(branches.length > 5 || mergedCount > 0) && (
+        <div className="flex items-center gap-2">
+          {branches.length > 5 && (
+            <div className="relative w-64">
+              <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={branchQuery}
+                onChange={(e) => setBranchQuery(e.target.value)}
+                placeholder="Filter branches…"
+                className="h-8 pl-7 text-xs"
+              />
+            </div>
+          )}
+          {mergedCount > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-xs text-muted-foreground"
+              onClick={() => setShowMerged((v) => !v)}
+            >
+              {showMerged ? "Hide merged" : `Show merged (${mergedCount})`}
+            </Button>
+          )}
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2">

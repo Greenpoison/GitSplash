@@ -388,11 +388,12 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
           <Trash2 className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
           <span>
-            {goneBranches.length} branch{goneBranches.length === 1 ? "" : "es"} already merged, with no
-            branch left on any remote — most likely deleted there after merging.
+            {goneBranches.length} local branch{goneBranches.length === 1 ? "" : "es"} already merged,
+            with no branch left on any remote — most likely deleted on GitHub after merging. Safe to
+            delete your local copy too.
           </span>
           <Button size="sm" variant="outline" className="ml-auto" onClick={() => setCleanupOpen(true)}>
-            Clean up
+            Delete local {goneBranches.length === 1 ? "branch" : `${goneBranches.length} branches`}
           </Button>
         </div>
       )}
@@ -798,12 +799,13 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete {goneBranches.length} branch{goneBranches.length === 1 ? "" : "es"}?
+              Delete {goneBranches.length} local branch{goneBranches.length === 1 ? "" : "es"}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              These are already merged and no branch by that name exists on any remote anymore —
-              most likely deleted there after their pull request was merged. Each deletion can
-              still be undone individually afterward.
+              These only exist locally now — they're already merged, and no branch by that name
+              exists on any remote anymore (most likely deleted on GitHub after their pull request
+              was merged). This won't touch GitHub or anything else remote. Each deletion can still
+              be undone individually afterward.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex max-h-32 flex-col gap-0.5 overflow-y-auto rounded-md border bg-muted/30 p-2 font-mono text-xs">

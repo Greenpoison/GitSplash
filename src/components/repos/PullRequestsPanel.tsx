@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import * as api from "@/lib/api";
-import type { BranchInfo, PullRequestSummary, Repo } from "@/lib/types";
+import type { BranchInfo, PrTemplate, PullRequestSummary, Repo } from "@/lib/types";
 import { GitCommandPreview } from "@/components/GitCommandPreview";
 import { GitCommandTooltip } from "@/components/GitCommandTooltip";
 import { PullRequestDetailDialog } from "./PullRequestDetailDialog";
@@ -46,6 +46,34 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
   const [pushing, setPushing] = useState(false);
   const [mergeTarget, setMergeTarget] = useState<{ pr: PullRequestSummary; method: "merge" | "squash" | "rebase" } | null>(null);
   const [detailPr, setDetailPr] = useState<PullRequestSummary | null>(null);
+  const [templates, setTemplates] = useState<PrTemplate[]>([]);
+  const [templateName, setTemplateName] = useState("");
+
+  // Detects the repo's own PR template(s) on disk (no AI involved — this
+  // only ever surfaces the literal file(s) the repo's maintainers wrote)
+  // and pre-fills the description so the user fills in the existing
+  // format instead of starting from a blank box or having to remember it.
+  useEffect(() => {
+    if (!showCreate) return;
+    api
+      .getPullRequestTemplates(repo.id)
+      .then((found) => {
+        setTemplates(found);
+        if (found.length > 0 && !body.trim()) {
+          setBody(found[0].content);
+          setTemplateName(found[0].name);
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCreate, repo.id]);
+
+  const applyTemplate = (name: string) => {
+    const t = templates.find((x) => x.name === name);
+    if (!t) return;
+    setTemplateName(name);
+    setBody(t.content);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -118,6 +146,8 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
       toast.success("Pull request created", { description: url });
       setTitle("");
       setBody("");
+      setTemplateName("");
+      setTemplates([]);
       setShowCreate(false);
       await load();
     } catch (e) {
@@ -187,9 +217,33 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
+          {templates.length > 1 && (
+            <div className="flex flex-col gap-1.5">
+              <Label>Template</Label>
+              <Select value={templateName} onValueChange={applyTemplate}>
+                <SelectTrigger className="h-8">
+                  <SelectValue placeholder="Select a template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((t) => (
+                    <SelectItem key={t.name} value={t.name}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
-            <Label>Description</Label>
-            <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} />
+            <Label className="flex items-center gap-1.5">
+              Description
+              {templates.length === 1 && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  (pre-filled from this repo's PR template — fill it in below)
+                </span>
+              )}
+            </Label>
+            <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={templates.length > 0 ? 8 : 3} />
           </div>
           <div className="flex items-center gap-3">
             <div className="flex flex-1 flex-col gap-1.5">

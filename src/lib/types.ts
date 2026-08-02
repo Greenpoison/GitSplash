@@ -233,6 +233,11 @@ export interface PullRequestSummary {
   baseRefName: string;
 }
 
+export interface PrTemplate {
+  name: string;
+  content: string;
+}
+
 export interface PrCheck {
   name: string;
   status: string;

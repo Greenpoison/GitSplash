@@ -23,6 +23,7 @@ import type {
   MergeResult,
   PullRequestSummary,
   PullRequestDetail,
+  PrTemplate,
   RebaseInProgress,
   RebasePlanItem,
   RebaseStepResult,
@@ -310,6 +311,8 @@ export const mergePullRequest = (repoId: string, number: number, method: "merge"
   invoke<string>("merge_pull_request", { repoId, number, method });
 export const getPullRequestDetail = (repoId: string, number: number) =>
   invoke<PullRequestDetail>("get_pull_request_detail", { repoId, number });
+export const getPullRequestTemplates = (repoId: string) =>
+  invoke<PrTemplate[]>("get_pull_request_templates", { repoId });
 
 // Misc
 export const openRepoExternal = (repoId: string) => invoke<void>("open_repo_external", { repoId });

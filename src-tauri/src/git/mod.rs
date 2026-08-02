@@ -15,6 +15,7 @@ pub mod files;
 pub mod gitflow;
 pub mod init;
 pub mod log;
+pub mod pr_template;
 pub mod process;
 pub mod push;
 pub mod rebase;

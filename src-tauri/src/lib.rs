@@ -135,6 +135,7 @@ pub fn run() {
             commands::pr::create_pull_request,
             commands::pr::merge_pull_request,
             commands::pr::get_pull_request_detail,
+            commands::pr::get_pull_request_templates,
             commands::open::open_repo_external,
             commands::undo::reset_to,
             commands::undo::get_head_sha,

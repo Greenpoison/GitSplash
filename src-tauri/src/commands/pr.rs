@@ -2,6 +2,7 @@ use crate::db;
 use crate::error::{AppError, AppResult};
 use crate::gh;
 use crate::gh::{PullRequestDetail, PullRequestSummary};
+use crate::git::pr_template::{find_pull_request_templates, PrTemplate};
 use crate::state::AppState;
 use std::path::PathBuf;
 use tauri::State;
@@ -82,6 +83,15 @@ pub async fn merge_pull_request(
     gh::merge_pull_request(&ctx.path, &ctx.hostname, ctx.github_username.as_deref(), number, &method)
         .await
         .map_err(AppError::Git)
+}
+
+#[tauri::command]
+pub async fn get_pull_request_templates(
+    state: State<'_, AppState>,
+    repo_id: String,
+) -> AppResult<Vec<PrTemplate>> {
+    let ctx = repo_context(&state, &repo_id).await?;
+    Ok(find_pull_request_templates(&ctx.path).await)
 }
 
 #[tauri::command]

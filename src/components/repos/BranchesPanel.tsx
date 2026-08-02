@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  Check,
   ChevronDown,
   Crosshair,
   Eye,
@@ -372,46 +373,62 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
           )}
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        {filteredBranches.map((b) => (
-          <div key={b.name} className="flex items-center gap-0.5">
-            <Button
-              size="sm"
-              variant={b.isCurrent ? "default" : "outline"}
-              disabled={busy || b.isCurrent || blockedByOp}
-              title={blockedByOp ? blockedTitle : undefined}
-              onClick={() => checkout(b.name)}
+      <div className="flex max-h-64 flex-col divide-y overflow-y-auto rounded-md border">
+        {filteredBranches.map((b) => {
+          const disabled = busy || b.isCurrent || blockedByOp;
+          return (
+            <div
+              key={b.name}
+              className={cn("group flex items-center gap-2 px-3 py-2 text-sm", b.isCurrent && "bg-primary/5")}
             >
-              {b.name}
-              {b.upstream && (
-                <Badge variant="secondary" className="ml-1 text-[10px]">
-                  {b.upstream}
-                </Badge>
-              )}
-            </Button>
-            {!b.isCurrent && current && (
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                title={`Compare ${b.name} against ${current.name}`}
-                onClick={() => setCompareBranch(b.name)}
+              <button
+                type="button"
+                disabled={disabled}
+                title={blockedByOp ? blockedTitle : b.isCurrent ? undefined : `Switch to ${b.name}`}
+                onClick={() => checkout(b.name)}
+                className={cn(
+                  "flex min-w-0 flex-1 items-center gap-2 text-left",
+                  !disabled && "cursor-pointer hover:text-primary",
+                )}
               >
-                <GitCompareArrows className="size-3.5" />
-              </Button>
-            )}
-            {!b.isCurrent && (
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                title={`Delete ${b.name}`}
-                disabled={busy}
-                onClick={() => setDeleteTarget(b.name)}
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            )}
-          </div>
-        ))}
+                {b.isCurrent ? (
+                  <Check className="size-3.5 shrink-0 text-primary" />
+                ) : (
+                  <span className="size-3.5 shrink-0" />
+                )}
+                <span className={cn("truncate font-mono", b.isCurrent && "font-semibold")}>{b.name}</span>
+                {b.upstream && (
+                  <Badge variant="secondary" className="shrink-0 text-[10px]">
+                    {b.upstream}
+                  </Badge>
+                )}
+              </button>
+              <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                {!b.isCurrent && current && (
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    title={`Compare ${b.name} against ${current.name}`}
+                    onClick={() => setCompareBranch(b.name)}
+                  >
+                    <GitCompareArrows className="size-3.5" />
+                  </Button>
+                )}
+                {!b.isCurrent && (
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    title={`Delete ${b.name}`}
+                    disabled={busy}
+                    onClick={() => setDeleteTarget(b.name)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

@@ -23,13 +23,37 @@ pub async fn checkout_branch(repo_path: &Path, branch: &str) -> Result<(), Strin
     Ok(())
 }
 
+/// Resolves the freshest available starting point for `base`: if it has an
+/// upstream, branching from that (after a best-effort fetch) instead of
+/// `base`'s own local ref avoids a brand new branch starting out already
+/// several commits behind — the local ref only moves when something fast-
+/// forwards or checks it out, so it can go stale just sitting there while
+/// its upstream keeps advancing. Never touches `base` itself, so this is
+/// safe even when `base` is the currently checked-out branch.
+pub(crate) async fn resolve_freshest_base(repo_path: &Path, base: &str) -> String {
+    let _ = run_git(repo_path, &["fetch", "--prune"]).await;
+    let upstream = run_git(repo_path, &["rev-parse", "--abbrev-ref", &format!("{base}@{{upstream}}")]).await;
+    match upstream {
+        Ok(o) if o.success => o.stdout.trim().to_string(),
+        _ => base.to_string(),
+    }
+}
+
 /// Creates a plain branch off `base` (defaults to current HEAD) and checks
 /// it out immediately — unlike Gitflow's start command, this doesn't apply
 /// any naming convention.
 pub async fn create_branch(repo_path: &Path, name: &str, base: Option<&str>) -> Result<(), String> {
+    let resolved_base;
     let mut args = vec!["switch", "-c", name];
     if let Some(base) = base {
-        args.push(base);
+        resolved_base = resolve_freshest_base(repo_path, base).await;
+        // --no-track: branching directly from a remote-tracking ref (e.g.
+        // origin/master) would otherwise auto-configure the new branch's
+        // upstream to point at it too (git's default for that case), which
+        // would be wrong — this is a new independent branch, not another
+        // copy of master.
+        args.push("--no-track");
+        args.push(&resolved_base);
     }
     let output = run_git(repo_path, &args)
         .await

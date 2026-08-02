@@ -1,4 +1,4 @@
-use super::branch::merge_branch;
+use super::branch::{merge_branch, resolve_freshest_base};
 use super::process::run_git;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -47,7 +47,8 @@ pub struct GitflowFinishResult {
 /// convention layered on the existing checkout primitive.
 pub async fn start_gitflow_branch(repo_path: &Path, kind: GitflowKind, name: &str, base_branch: &str) -> Result<(), String> {
     let branch = branch_name(kind, name);
-    let output = run_git(repo_path, &["switch", "-c", &branch, base_branch])
+    let resolved_base = resolve_freshest_base(repo_path, base_branch).await;
+    let output = run_git(repo_path, &["switch", "-c", &branch, "--no-track", &resolved_base])
         .await
         .map_err(|e| format!("failed to run git switch: {e}"))?;
     if !output.success {

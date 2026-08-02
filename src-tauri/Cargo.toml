@@ -1,6 +1,6 @@
 [package]
 name = "gitsplash"
-version = "1.0.54-beta"
+version = "1.0.55-beta"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -27,7 +27,7 @@ rusqlite = { version = "0.40.1", features = ["bundled"] }
 uuid = { version = "1.24.0", features = ["v4", "serde"] }
 chrono = { version = "0.4.45", features = ["serde"] }
 thiserror = "2.0.19"
-tokio = { version = "1.53.1", features = ["process", "sync", "time", "rt-multi-thread"] }
+tokio = { version = "1.53.1", features = ["process", "sync", "time", "rt-multi-thread", "macros"] }
 tauri-plugin-dialog = "2.7.2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"

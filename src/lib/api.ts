@@ -22,6 +22,7 @@ import type {
   Group,
   MergeResult,
   PullRequestSummary,
+  PullRequestDetail,
   RebaseInProgress,
   RebasePlanItem,
   RebaseStepResult,
@@ -307,6 +308,8 @@ export const createPullRequest = (
 ) => invoke<string>("create_pull_request", { repoId, title, body, base, draft });
 export const mergePullRequest = (repoId: string, number: number, method: "merge" | "squash" | "rebase") =>
   invoke<string>("merge_pull_request", { repoId, number, method });
+export const getPullRequestDetail = (repoId: string, number: number) =>
+  invoke<PullRequestDetail>("get_pull_request_detail", { repoId, number });
 
 // Misc
 export const openRepoExternal = (repoId: string) => invoke<void>("open_repo_external", { repoId });

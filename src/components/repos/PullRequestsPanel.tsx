@@ -29,6 +29,7 @@ import * as api from "@/lib/api";
 import type { BranchInfo, PullRequestSummary, Repo } from "@/lib/types";
 import { GitCommandPreview } from "@/components/GitCommandPreview";
 import { GitCommandTooltip } from "@/components/GitCommandTooltip";
+import { PullRequestDetailDialog } from "./PullRequestDetailDialog";
 
 export function PullRequestsPanel({ repo }: { repo: Repo }) {
   const [ghAvailable, setGhAvailable] = useState<boolean | null>(null);
@@ -44,6 +45,7 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
   const [creating, setCreating] = useState(false);
   const [pushing, setPushing] = useState(false);
   const [mergeTarget, setMergeTarget] = useState<{ pr: PullRequestSummary; method: "merge" | "squash" | "rebase" } | null>(null);
+  const [detailPr, setDetailPr] = useState<PullRequestSummary | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -219,7 +221,11 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
 
       <div className="flex flex-col gap-2">
         {prs.map((pr) => (
-          <div key={pr.number} className="flex items-center gap-2 rounded-md border p-2 text-sm">
+          <div
+            key={pr.number}
+            className="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm hover:bg-accent/50"
+            onClick={() => setDetailPr(pr)}
+          >
             <GitPullRequest className="size-4 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate">
               #{pr.number} {pr.title}
@@ -228,7 +234,7 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
             <Badge variant="secondary">
               {pr.headRefName} → {pr.baseRefName}
             </Badge>
-            <Button size="icon" variant="ghost" className="size-7" asChild>
+            <Button size="icon" variant="ghost" className="size-7" asChild onClick={(e) => e.stopPropagation()}>
               <a href={pr.url} target="_blank" rel="noreferrer">
                 <ExternalLink className="size-3.5" />
               </a>
@@ -236,7 +242,7 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
             <Select
               onValueChange={(m) => setMergeTarget({ pr, method: m as "merge" | "squash" | "rebase" })}
             >
-              <SelectTrigger className="h-7 w-28 text-xs">
+              <SelectTrigger className="h-7 w-28 text-xs" onClick={(e) => e.stopPropagation()}>
                 <SelectValue placeholder="Merge…" />
               </SelectTrigger>
               <SelectContent>
@@ -273,6 +279,13 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PullRequestDetailDialog
+        repo={repo}
+        pr={detailPr}
+        open={!!detailPr}
+        onOpenChange={(o) => !o && setDetailPr(null)}
+      />
     </div>
   );
 }

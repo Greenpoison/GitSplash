@@ -70,6 +70,36 @@ pub(crate) fn parse_diff(raw_output: &str) -> (String, Vec<DiffHunk>) {
     (file_header, hunks)
 }
 
+/// Splits a multi-file unified diff (e.g. `gh pr diff --patch`, which covers
+/// every changed file in one blob) into per-file sections and parses each
+/// with the same [`parse_diff`] used for a single `git diff` — so PR diffs
+/// render through the exact same `DiffHunkView` as every other diff in the
+/// app instead of needing a separate renderer.
+pub(crate) fn parse_multi_file_diff(raw: &str) -> Vec<(String, bool, Vec<DiffHunk>)> {
+    let lines: Vec<&str> = raw.lines().collect();
+    let mut files = Vec::new();
+    let mut i = 0;
+    while i < lines.len() {
+        if let Some(path) = lines[i]
+            .strip_prefix("diff --git a/")
+            .and_then(|rest| rest.split(" b/").next())
+        {
+            let start = i;
+            i += 1;
+            while i < lines.len() && !lines[i].starts_with("diff --git ") {
+                i += 1;
+            }
+            let section = lines[start..i].join("\n");
+            let is_binary = section.contains("Binary files ") || section.contains("GIT binary patch");
+            let hunks = if is_binary { Vec::new() } else { parse_diff(&section).1 };
+            files.push((path.to_string(), is_binary, hunks));
+        } else {
+            i += 1;
+        }
+    }
+    files
+}
+
 /// Synthesizes a diff for an untracked file (git itself won't diff
 /// something outside the index) — every line renders as added. Hunk-level
 /// staging is intentionally not offered for these; only whole-file `git
@@ -242,5 +272,26 @@ mod tests {
         let (header, hunks) = parse_diff(raw);
         assert!(header.contains("Binary files"));
         assert!(hunks.is_empty());
+    }
+
+    #[test]
+    fn splits_a_multi_file_diff_into_per_file_sections() {
+        let raw = "diff --git a/foo.txt b/foo.txt\n@@ -1,1 +1,1 @@\n-a\n+b\ndiff --git a/bar.txt b/bar.txt\n@@ -2,1 +2,1 @@\n-c\n+d\n";
+        let files = parse_multi_file_diff(raw);
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].0, "foo.txt");
+        assert_eq!(files[0].2.len(), 1);
+        assert_eq!(files[1].0, "bar.txt");
+        assert_eq!(files[1].2.len(), 1);
+    }
+
+    #[test]
+    fn marks_a_binary_file_in_a_multi_file_diff() {
+        let raw = "diff --git a/img.png b/img.png\nBinary files a/img.png and b/img.png differ\n";
+        let files = parse_multi_file_diff(raw);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].0, "img.png");
+        assert!(files[0].1);
+        assert!(files[0].2.is_empty());
     }
 }

@@ -1,7 +1,7 @@
 use crate::db;
 use crate::error::{AppError, AppResult};
 use crate::gh;
-use crate::gh::PullRequestSummary;
+use crate::gh::{PullRequestDetail, PullRequestSummary};
 use crate::state::AppState;
 use std::path::PathBuf;
 use tauri::State;
@@ -80,6 +80,18 @@ pub async fn merge_pull_request(
 ) -> AppResult<String> {
     let ctx = repo_context(&state, &repo_id).await?;
     gh::merge_pull_request(&ctx.path, &ctx.hostname, ctx.github_username.as_deref(), number, &method)
+        .await
+        .map_err(AppError::Git)
+}
+
+#[tauri::command]
+pub async fn get_pull_request_detail(
+    state: State<'_, AppState>,
+    repo_id: String,
+    number: u32,
+) -> AppResult<PullRequestDetail> {
+    let ctx = repo_context(&state, &repo_id).await?;
+    gh::get_pull_request_detail(&ctx.path, &ctx.hostname, ctx.github_username.as_deref(), number)
         .await
         .map_err(AppError::Git)
 }

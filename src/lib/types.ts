@@ -232,6 +232,46 @@ export interface PullRequestSummary {
   baseRefName: string;
 }
 
+export interface PrCheck {
+  name: string;
+  status: string;
+  conclusion: string | null;
+  detailsUrl: string | null;
+}
+
+export interface PrReview {
+  author: string;
+  state: string;
+  body: string;
+  submittedAt: string | null;
+}
+
+export interface PrComment {
+  author: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface PrDiffFile {
+  path: string;
+  isBinary: boolean;
+  insertions: number;
+  deletions: number;
+  hunks: DiffHunk[];
+}
+
+export interface PullRequestDetail {
+  number: number;
+  title: string;
+  body: string;
+  url: string;
+  reviewDecision: string | null;
+  checks: PrCheck[];
+  reviews: PrReview[];
+  comments: PrComment[];
+  files: PrDiffFile[];
+}
+
 export interface FileChange {
   path: string;
   origPath: string | null;

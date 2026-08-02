@@ -1,3 +1,4 @@
+use crate::git::diff::{parse_multi_file_diff, DiffHunk};
 use crate::util::{no_window_std, no_window_tokio};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -329,4 +330,273 @@ pub async fn merge_pull_request(
         &["pr", "merge", &number_str, method_flag, "--delete-branch=false"],
     )
     .await
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrCheck {
+    pub name: String,
+    pub status: String,
+    pub conclusion: Option<String>,
+    pub details_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrReview {
+    pub author: String,
+    pub state: String,
+    pub body: String,
+    pub submitted_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrComment {
+    pub author: String,
+    pub body: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrDiffFile {
+    pub path: String,
+    pub is_binary: bool,
+    pub insertions: u32,
+    pub deletions: u32,
+    pub hunks: Vec<DiffHunk>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PullRequestDetail {
+    pub number: u32,
+    pub title: String,
+    pub body: String,
+    pub url: String,
+    pub review_decision: Option<String>,
+    pub checks: Vec<PrCheck>,
+    pub reviews: Vec<PrReview>,
+    pub comments: Vec<PrComment>,
+    pub files: Vec<PrDiffFile>,
+}
+
+const PR_VIEW_FIELDS: &str =
+    "number,title,body,url,reviewDecision,statusCheckRollup,reviews,comments";
+
+/// GitHub's GraphQL-backed `statusCheckRollup` mixes two different shapes —
+/// modern check runs use `name`/`status`/`conclusion`/`detailsUrl`, legacy
+/// commit statuses use `context`/`state`/`targetUrl` — so every field here
+/// is optional and normalized afterward rather than assuming one shape.
+#[derive(Debug, Deserialize)]
+struct RawCheck {
+    name: Option<String>,
+    context: Option<String>,
+    status: Option<String>,
+    state: Option<String>,
+    conclusion: Option<String>,
+    #[serde(rename = "detailsUrl")]
+    details_url: Option<String>,
+    #[serde(rename = "targetUrl")]
+    target_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawAuthor {
+    login: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawReview {
+    author: Option<RawAuthor>,
+    state: String,
+    body: String,
+    #[serde(rename = "submittedAt")]
+    submitted_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawComment {
+    author: Option<RawAuthor>,
+    body: String,
+    #[serde(rename = "createdAt")]
+    created_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawPrView {
+    number: u32,
+    title: String,
+    body: String,
+    url: String,
+    #[serde(rename = "reviewDecision")]
+    review_decision: Option<String>,
+    #[serde(default, rename = "statusCheckRollup")]
+    status_check_rollup: Vec<RawCheck>,
+    #[serde(default)]
+    reviews: Vec<RawReview>,
+    #[serde(default)]
+    comments: Vec<RawComment>,
+}
+
+fn parse_pr_view(stdout: &str) -> Result<RawPrView, String> {
+    serde_json::from_str(stdout).map_err(|e| format!("failed to parse gh output: {e}"))
+}
+
+fn normalize_check(c: RawCheck) -> PrCheck {
+    PrCheck {
+        name: c.name.or(c.context).unwrap_or_else(|| "check".to_string()),
+        status: c.status.unwrap_or_else(|| "COMPLETED".to_string()),
+        conclusion: c.conclusion.or(c.state),
+        details_url: c.details_url.or(c.target_url),
+    }
+}
+
+pub async fn get_pull_request_detail(
+    repo_path: &Path,
+    hostname: &str,
+    github_username: Option<&str>,
+    number: u32,
+) -> Result<PullRequestDetail, String> {
+    let number_str = number.to_string();
+    let view_stdout = run_gh(
+        repo_path,
+        hostname,
+        github_username,
+        &["pr", "view", &number_str, "--json", PR_VIEW_FIELDS],
+    )
+    .await?;
+    let raw = parse_pr_view(&view_stdout)?;
+
+    // gh doesn't support filtering `pr diff` to one file, so this pulls the
+    // whole patch in one call and splits it client-side (parse_multi_file_diff)
+    // rather than one gh invocation per changed file.
+    let diff_stdout = run_gh(
+        repo_path,
+        hostname,
+        github_username,
+        &["pr", "diff", &number_str, "--patch"],
+    )
+    .await
+    .unwrap_or_default();
+    let files = parse_multi_file_diff(&diff_stdout)
+        .into_iter()
+        .map(|(path, is_binary, hunks)| {
+            let insertions = hunks.iter().flat_map(|h| &h.lines).filter(|l| l.kind == "add").count() as u32;
+            let deletions = hunks.iter().flat_map(|h| &h.lines).filter(|l| l.kind == "del").count() as u32;
+            PrDiffFile { path, is_binary, insertions, deletions, hunks }
+        })
+        .collect();
+
+    Ok(PullRequestDetail {
+        number: raw.number,
+        title: raw.title,
+        body: raw.body,
+        url: raw.url,
+        review_decision: raw.review_decision,
+        checks: raw.status_check_rollup.into_iter().map(normalize_check).collect(),
+        reviews: raw
+            .reviews
+            .into_iter()
+            .map(|r| PrReview {
+                author: r.author.map(|a| a.login).unwrap_or_else(|| "unknown".to_string()),
+                state: r.state,
+                body: r.body,
+                submitted_at: r.submitted_at,
+            })
+            .collect(),
+        comments: raw
+            .comments
+            .into_iter()
+            .map(|c| PrComment {
+                author: c.author.map(|a| a.login).unwrap_or_else(|| "unknown".to_string()),
+                body: c.body,
+                created_at: c.created_at,
+            })
+            .collect(),
+        files,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalizes_a_modern_check_run() {
+        let raw = RawCheck {
+            name: Some("build".to_string()),
+            context: None,
+            status: Some("COMPLETED".to_string()),
+            state: None,
+            conclusion: Some("SUCCESS".to_string()),
+            details_url: Some("https://example.com/run".to_string()),
+            target_url: None,
+        };
+        let check = normalize_check(raw);
+        assert_eq!(check.name, "build");
+        assert_eq!(check.conclusion.as_deref(), Some("SUCCESS"));
+        assert_eq!(check.details_url.as_deref(), Some("https://example.com/run"));
+    }
+
+    #[test]
+    fn normalizes_a_legacy_status_context() {
+        let raw = RawCheck {
+            name: None,
+            context: Some("ci/legacy".to_string()),
+            status: None,
+            state: Some("FAILURE".to_string()),
+            conclusion: None,
+            details_url: None,
+            target_url: Some("https://example.com/status".to_string()),
+        };
+        let check = normalize_check(raw);
+        assert_eq!(check.name, "ci/legacy");
+        assert_eq!(check.status, "COMPLETED");
+        assert_eq!(check.conclusion.as_deref(), Some("FAILURE"));
+        assert_eq!(check.details_url.as_deref(), Some("https://example.com/status"));
+    }
+
+    #[test]
+    fn parses_a_full_pr_view_payload() {
+        let json = r#"{
+            "number": 42,
+            "title": "Add feature",
+            "body": "Does the thing.",
+            "url": "https://github.com/o/r/pull/42",
+            "reviewDecision": "APPROVED",
+            "statusCheckRollup": [
+                {"name": "build", "status": "COMPLETED", "conclusion": "SUCCESS"}
+            ],
+            "reviews": [
+                {"author": {"login": "alice"}, "state": "APPROVED", "body": "LGTM", "submittedAt": "2026-01-01T00:00:00Z"}
+            ],
+            "comments": [
+                {"author": {"login": "bob"}, "body": "one nit", "createdAt": "2026-01-01T01:00:00Z"}
+            ]
+        }"#;
+        let raw = parse_pr_view(json).unwrap();
+        assert_eq!(raw.number, 42);
+        assert_eq!(raw.review_decision.as_deref(), Some("APPROVED"));
+        assert_eq!(raw.status_check_rollup.len(), 1);
+        assert_eq!(raw.reviews.len(), 1);
+        assert_eq!(raw.reviews[0].author.as_ref().unwrap().login, "alice");
+        assert_eq!(raw.comments.len(), 1);
+    }
+
+    #[test]
+    fn tolerates_missing_optional_pr_view_fields() {
+        let json = r#"{
+            "number": 1,
+            "title": "x",
+            "body": "",
+            "url": "https://example.com",
+            "reviewDecision": null
+        }"#;
+        let raw = parse_pr_view(json).unwrap();
+        assert!(raw.status_check_rollup.is_empty());
+        assert!(raw.reviews.is_empty());
+        assert!(raw.comments.is_empty());
+    }
 }

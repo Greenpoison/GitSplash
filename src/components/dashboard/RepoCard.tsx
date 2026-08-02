@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { reportGitError } from "@/lib/gitErrors";
+import { reportGitError, translateGitError } from "@/lib/gitErrors";
 import {
   AlertTriangle,
   ArrowDown,
@@ -85,7 +85,8 @@ export function RepoCard({ repo }: { repo: Repo }) {
     try {
       const outcome = await api.fetchRepo(repo.id, pull);
       if (!outcome.fetched) {
-        toast.error(outcome.message ?? "Fetch failed");
+        const { message, hint } = translateGitError(outcome.message ?? "Fetch failed");
+        toast.error(message, hint ? { description: hint } : undefined);
       } else if (outcome.diverged && outcome.upstream && (outcome.branch ?? status?.branch)) {
         // Prefer the branch name the fetch itself resolved over the
         // separately cached status snapshot — that can lag behind a fetch
@@ -103,7 +104,8 @@ export function RepoCard({ repo }: { repo: Repo }) {
           description: "Use the Push button to publish it to the remote first.",
         });
       } else if (pull && !outcome.pulled) {
-        toast.warning(outcome.message ?? "Fetched, but didn't pull", { description: repo.displayName });
+        const { message, hint } = translateGitError(outcome.message ?? "Fetched, but didn't pull");
+        toast.warning(message, { description: hint ?? repo.displayName });
       } else {
         toast.success(`${pull ? "Fetch & pull" : "Fetch"} finished for ${repo.displayName}`);
       }
@@ -125,7 +127,8 @@ export function RepoCard({ repo }: { repo: Repo }) {
             description: "Fetch & pull first, then push again.",
           });
         } else {
-          toast.error(outcome.message ?? "Push failed");
+          const { message, hint } = translateGitError(outcome.message ?? "Push failed");
+          toast.error(message, hint ? { description: hint } : undefined);
         }
       } else {
         toast.success(outcome.setUpstream ? `Published ${repo.displayName} to origin` : `Pushed ${repo.displayName}`);

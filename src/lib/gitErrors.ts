@@ -94,6 +94,62 @@ const PATTERNS: { test: RegExp; translate: (match: RegExpMatchArray) => Translat
       hint: "It may have been moved, renamed, or deleted outside GitSplash since it was last loaded — try refreshing.",
     }),
   },
+  {
+    test: /unable to create '([^']*index\.lock)'|Another git process seems to be running/i,
+    translate: () => ({
+      message: "Another git process is already running against this repo.",
+      hint: "Wait for it to finish (a build, a terminal command, another GitSplash action) and try again. If nothing is actually running, a previous process may have crashed and left a stale index.lock file behind — deleting that file lets git proceed.",
+    }),
+  },
+  {
+    test: /reference does not exist|remote ref does not exist/i,
+    translate: () => ({
+      message: "Git tried to use a ref that doesn't exist — often a brief timing issue rather than a real problem.",
+      hint: "This can happen if a branch was renamed or force-pushed on the remote right around when this ran. Try the same action again — it usually resolves itself on the next attempt.",
+    }),
+  },
+  {
+    test: /protected branch|GH006/i,
+    translate: () => ({
+      message: "The remote rejected this because the branch is protected.",
+      hint: "Push to a different branch and open a pull request instead, or ask whoever manages the repo's branch protection rules for an exception.",
+    }),
+  },
+  {
+    test: /Repository not found/i,
+    translate: () => ({
+      message: "GitHub says this repository doesn't exist — or you don't have access to it.",
+      hint: "Double-check the URL for typos, and make sure the account assigned to this repo actually has access (it may need to be a different account, or added as a collaborator).",
+    }),
+  },
+  {
+    test: /SSL certificate problem|certificate verify failed/i,
+    translate: () => ({
+      message: "Git couldn't verify the remote's SSL certificate.",
+      hint: "This is common on corporate networks with a proxy that intercepts HTTPS — using SSH instead of HTTPS for this remote usually avoids it.",
+    }),
+  },
+  {
+    test: /src refspec .* does not match any/i,
+    translate: () => ({
+      message: "There's no local branch matching what this tried to push.",
+      hint: "Double-check the branch name — it may be a typo, or the branch may need to be created (or committed to) first.",
+    }),
+  },
+  {
+    test: /cannot pull with rebase: You have unstaged changes|cannot rebase: You have unstaged changes/i,
+    translate: () => ({
+      message: "This rebase needs a clean working tree, but you have uncommitted changes.",
+      hint: "Commit or stash those changes first, then try again.",
+    }),
+  },
+  {
+    test: /Repository does not exist|could not read Password/i,
+    translate: () => ({
+      message: "Git tried to authenticate over HTTPS and failed.",
+      hint: "GitSplash prefers SSH — check this repo's account has \"Use SSH over HTTPS\" enabled in Settings, or that its SSH key is set up correctly.",
+    }),
+  },
 ];
 
 /// Translates a raw git/gh error string into something a git beginner can

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { reportGitError } from "@/lib/gitErrors";
+import { reportGitError, translateGitError } from "@/lib/gitErrors";
 import { ExternalLink, GitPullRequest, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -90,7 +90,8 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
             description: "Fetch & pull first, then try again.",
           });
         } else {
-          toast.error(outcome.message ?? "Push failed");
+          const { message, hint } = translateGitError(outcome.message ?? "Push failed");
+          toast.error(message, hint ? { description: hint } : undefined);
         }
         return;
       }

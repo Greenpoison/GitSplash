@@ -64,7 +64,9 @@ pub async fn list_stashes(repo_path: &Path) -> Result<Vec<StashEntry>, String> {
 /// a bad pop.
 pub async fn stash_pop(repo_path: &Path, index: u32) -> Result<(), String> {
     let selector = format!("stash@{{{index}}}");
-    let output = run_git(repo_path, &["stash", "pop", &selector])
+    // diff3 markers give the conflict resolver UI the common-ancestor
+    // version of each hunk, not just ours/theirs.
+    let output = run_git(repo_path, &["-c", "merge.conflictStyle=diff3", "stash", "pop", &selector])
         .await
         .map_err(|e| e.to_string())?;
     if !output.success {
@@ -80,7 +82,7 @@ pub async fn stash_pop(repo_path: &Path, index: u32) -> Result<(), String> {
 /// than one branch.
 pub async fn stash_apply(repo_path: &Path, index: u32) -> Result<(), String> {
     let selector = format!("stash@{{{index}}}");
-    let output = run_git(repo_path, &["stash", "apply", &selector])
+    let output = run_git(repo_path, &["-c", "merge.conflictStyle=diff3", "stash", "apply", &selector])
         .await
         .map_err(|e| e.to_string())?;
     if !output.success {

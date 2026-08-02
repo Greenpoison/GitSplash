@@ -233,7 +233,15 @@ export function ConflictResolverDialog({
                         </div>
                       ) : (
                         <>
-                          <div className="grid grid-cols-2 divide-x">
+                          <div className={cn("grid divide-x", seg.base !== null ? "grid-cols-3" : "grid-cols-2")}>
+                            {seg.base !== null && (
+                              <div className="whitespace-pre-wrap bg-muted/40 p-2">
+                                <div className="mb-1 text-[10px] font-semibold text-muted-foreground">
+                                  Base (common ancestor)
+                                </div>
+                                {seg.base}
+                              </div>
+                            )}
                             <div className={cn("whitespace-pre-wrap p-2", "bg-emerald-500/10")}>
                               <div className="mb-1 text-[10px] font-semibold text-muted-foreground">
                                 Ours ({seg.oursLabel})

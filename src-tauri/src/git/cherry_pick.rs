@@ -87,7 +87,9 @@ async fn run_plan(repo_path: &Path, state: &mut CherryPickState) -> Result<Cherr
     while state.current_index < total {
         let sha = state.shas[state.current_index].clone();
 
-        let pick_out = run_git(repo_path, &["cherry-pick", &sha])
+        // diff3 markers give the conflict resolver UI the common-ancestor
+        // version of each hunk, not just ours/theirs.
+        let pick_out = run_git(repo_path, &["-c", "merge.conflictStyle=diff3", "cherry-pick", &sha])
             .await
             .map_err(|e| format!("failed to run git cherry-pick: {e}"))?;
 

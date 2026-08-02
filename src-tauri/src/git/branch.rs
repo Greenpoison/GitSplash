@@ -114,7 +114,11 @@ pub async fn merge_branch(repo_path: &Path, from_branch: &str, no_ff: bool) -> R
 
     let previous_head_sha = get_head_sha(repo_path).await;
 
-    let mut args = vec!["merge", "--no-edit"];
+    // diff3-style markers include the common-ancestor version of each
+    // conflicted hunk (not just ours/theirs), which the conflict resolver UI
+    // uses for a proper 3-way view — scoped to just this invocation via -c
+    // rather than touching the repo's own git config.
+    let mut args = vec!["-c", "merge.conflictStyle=diff3", "merge", "--no-edit"];
     if no_ff {
         args.push("--no-ff");
     }

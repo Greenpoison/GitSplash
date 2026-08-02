@@ -89,6 +89,7 @@ export interface BranchInfo {
   isCurrent: boolean;
   upstream: string | null;
   isMerged: boolean;
+  isGone: boolean;
 }
 
 export interface TagInfo {

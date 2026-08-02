@@ -124,6 +124,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const [compareBranch, setCompareBranch] = useState<string | null>(null);
   const [branchQuery, setBranchQuery] = useState("");
   const [showMerged, setShowMerged] = useState(false);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
   const [multiCompareOpen, setMultiCompareOpen] = useState(false);
   const [selectedCommit, setSelectedCommit] = useState<CommitNode | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -278,6 +279,41 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
     [branches],
   );
 
+  const goneBranches = useMemo(() => branches.filter((b) => b.isGone), [branches]);
+
+  const cleanupGoneBranches = async () => {
+    setCleanupOpen(false);
+    setBusy(true);
+    let succeeded = 0;
+    for (const b of goneBranches) {
+      try {
+        const sha = await api.resolveRef(repo.id, b.name).catch(() => null);
+        await api.deleteBranch(repo.id, b.name, false);
+        succeeded++;
+        if (sha) {
+          pushUndo({
+            id: crypto.randomUUID(),
+            repoId: repo.id,
+            label: `Delete ${b.name}`,
+            destructive: true,
+            undoCommand: `git branch ${b.name} ${sha.slice(0, 7)}`,
+            redoCommand: `git branch -d ${b.name}`,
+            undo: () => api.createBranchAt(repo.id, b.name, sha).then(() => { load(); onChanged(); }),
+            redo: () => api.deleteBranch(repo.id, b.name, false).then(() => { load(); onChanged(); }),
+          });
+        }
+      } catch (e) {
+        reportGitError(e);
+      }
+    }
+    if (succeeded > 0) {
+      toast.success(`Deleted ${succeeded} branch${succeeded === 1 ? "" : "es"} whose remote was gone`);
+    }
+    await load();
+    onChanged();
+    setBusy(false);
+  };
+
   const filteredBranches = useMemo(() => {
     const q = branchQuery.trim().toLowerCase();
     // A branch search should look across everything, merged or not — only
@@ -348,6 +384,18 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
           )}
         </div>
       )}
+      {goneBranches.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
+          <Trash2 className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span>
+            {goneBranches.length} branch{goneBranches.length === 1 ? "" : "es"} already merged, with no
+            branch left on any remote — most likely deleted there after merging.
+          </span>
+          <Button size="sm" variant="outline" className="ml-auto" onClick={() => setCleanupOpen(true)}>
+            Clean up
+          </Button>
+        </div>
+      )}
       {(branches.length > 5 || mergedCount > 0) && (
         <div className="flex items-center gap-2">
           {branches.length > 5 && (
@@ -400,6 +448,11 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
                 {b.upstream && (
                   <Badge variant="secondary" className="shrink-0 text-[10px]">
                     {b.upstream}
+                  </Badge>
+                )}
+                {b.isGone && (
+                  <Badge variant="outline" className="shrink-0 text-[10px] text-amber-600 dark:text-amber-400">
+                    remote deleted
                   </Badge>
                 )}
               </button>
@@ -737,6 +790,31 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
             <AlertDialogAction onClick={() => forceDeleteTarget && deleteBranch(forceDeleteTarget.name, true)}>
               Force delete
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={cleanupOpen} onOpenChange={setCleanupOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {goneBranches.length} branch{goneBranches.length === 1 ? "" : "es"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              These are already merged and no branch by that name exists on any remote anymore —
+              most likely deleted there after their pull request was merged. Each deletion can
+              still be undone individually afterward.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex max-h-32 flex-col gap-0.5 overflow-y-auto rounded-md border bg-muted/30 p-2 font-mono text-xs">
+            {goneBranches.map((b) => (
+              <div key={b.name}>{b.name}</div>
+            ))}
+          </div>
+          <GitCommandPreview command={goneBranches.map((b) => `git branch -d ${b.name}`)} />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={cleanupGoneBranches}>Delete all</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

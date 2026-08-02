@@ -278,6 +278,18 @@ pub struct BranchInfo {
     /// hide these by default instead of piling up dead branch chips after
     /// every merge.
     pub is_merged: bool,
+    /// True when this branch is merged *and* no remote has a branch by this
+    /// name — i.e. its work already made it into history and there's
+    /// nothing left on any remote to still track. Deliberately broader than
+    /// git's own "gone" (`branch.<x>.merge` pointing at a since-deleted
+    /// ref): that only fires for branches that had upstream tracking
+    /// configured in the first place, which misses branches checked out
+    /// without `--track` (e.g. via a PR checkout) — those never get a
+    /// "gone" marker even after their remote branch is deleted, despite
+    /// being just as safe to clean up. Deliberately NOT set for anything
+    /// unmerged, so a legitimate local-only WIP branch is never suggested
+    /// for deletion just because it was never pushed.
+    pub is_gone: bool,
 }
 
 pub async fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>, String> {
@@ -297,11 +309,25 @@ pub async fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>, String> 
         });
     }
 
-    // Best-effort: if this fails for any reason, nothing gets flagged as
-    // merged (the safe default — never hides a branch it isn't sure about).
+    // Best-effort: if either of these fails, nothing gets flagged as merged
+    // or gone (the safe default — never hides or suggests deleting a
+    // branch it isn't sure about).
     let merged: HashSet<String> = run_git(
         repo_path,
         &["for-each-ref", "refs/heads", "--format=%(refname:short)", "--merged=HEAD"],
+    )
+    .await
+    .ok()
+    .filter(|o| o.success)
+    .map(|o| o.stdout.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect())
+    .unwrap_or_default();
+
+    // refname:strip=3 drops "refs", "remotes", and the remote name, leaving
+    // just the branch name — correct even when that name itself contains
+    // slashes (e.g. refs/remotes/origin/feature/foo -> feature/foo).
+    let remote_branch_names: HashSet<String> = run_git(
+        repo_path,
+        &["for-each-ref", "refs/remotes", "--format=%(refname:strip=3)"],
     )
     .await
     .ok()
@@ -320,9 +346,12 @@ pub async fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>, String> 
             continue;
         }
         let name = fields[1].to_string();
+        let is_current = fields[0] == "*";
+        let is_merged = merged.contains(&name);
         branches.push(BranchInfo {
-            is_current: fields[0] == "*",
-            is_merged: merged.contains(&name),
+            is_current,
+            is_merged,
+            is_gone: is_merged && !is_current && !remote_branch_names.contains(&name),
             name,
             upstream: if fields[2].is_empty() {
                 None

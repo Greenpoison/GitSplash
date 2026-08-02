@@ -31,6 +31,7 @@ import { ChangesPanel } from "./ChangesPanel";
 import { FileEditorPanel } from "./FileEditorPanel";
 import { FileHistoryPanel } from "./FileHistoryPanel";
 import { HistorySearchPanel } from "./HistorySearchPanel";
+import { LocallyIgnoredPanel } from "./LocallyIgnoredPanel";
 import { PullRequestsPanel } from "./PullRequestsPanel";
 import { ReflogPanel } from "./ReflogPanel";
 import { SecretsPanel } from "./SecretsPanel";
@@ -54,6 +55,7 @@ const SECONDARY_TABS = [
   { value: "worktrees", label: "Worktrees" },
   { value: "submodules", label: "Submodules" },
   { value: "secrets", label: "Secrets" },
+  { value: "locallyignored", label: "Locally Ignored" },
 ];
 
 export function RepoDetailDialog({
@@ -165,6 +167,9 @@ export function RepoDetailDialog({
             </TabsContent>
             <TabsContent value="secrets">
               <SecretsPanel repo={repo} />
+            </TabsContent>
+            <TabsContent value="locallyignored">
+              <LocallyIgnoredPanel repo={repo} />
             </TabsContent>
           </div>
         </Tabs>

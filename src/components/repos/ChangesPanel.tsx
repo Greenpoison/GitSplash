@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   ArrowRight,
   FileWarning,
+  Lock,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -66,6 +67,7 @@ function FileRow({
   onStage,
   onUnstage,
   onDiscard,
+  onKeepLocally,
 }: {
   repoId: string;
   change: FileChange;
@@ -75,6 +77,7 @@ function FileRow({
   onStage?: () => void;
   onUnstage?: () => void;
   onDiscard?: () => void;
+  onKeepLocally?: () => void;
 }) {
   const code = staged ? change.indexStatus : change.isUntracked ? "?" : change.worktreeStatus;
   const [lastCommit, setLastCommit] = useState<CommitNode | null | undefined>(undefined);
@@ -139,6 +142,22 @@ function FileRow({
           </GitCommandTooltip>
         ) : (
           <>
+            {!change.isUntracked && onKeepLocally && (
+              <GitCommandTooltip
+                label="Keep locally, never commit"
+                command={`git update-index --skip-worktree -- ${change.path}`}
+              >
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-5"
+                  aria-label="Keep locally, never commit"
+                  onClick={(e) => { e.stopPropagation(); onKeepLocally(); }}
+                >
+                  <Lock className="size-3" />
+                </Button>
+              </GitCommandTooltip>
+            )}
             <GitCommandTooltip
               label="Discard"
               command={change.isUntracked ? `rm ${change.path}` : `git restore -- ${change.path}`}
@@ -298,6 +317,30 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
         label: `Unstage ${path}`,
         undo: () => api.stageFile(repo.id, path).then(refreshAfterAction),
         redo: () => api.unstageFile(repo.id, path).then(refreshAfterAction),
+      });
+      await refreshAfterAction();
+    } catch (e) {
+      reportGitError(e);
+    }
+  };
+
+  // Keeps a change to an already-tracked file purely local — git stops
+  // reporting it as modified, .gitignore is never touched (it has no
+  // effect on already-tracked files anyway), and nothing here gets
+  // committed unless this is reversed first (see the repo's "Locally
+  // ignored" panel).
+  const keepLocally = async (path: string) => {
+    try {
+      await api.skipWorktree(repo.id, [path]);
+      toast.success(`${path} will stay local — manage it from "Locally ignored" in More`);
+      pushUndo({
+        id: crypto.randomUUID(),
+        repoId: repo.id,
+        label: `Keep ${path} locally`,
+        undoCommand: `git update-index --no-skip-worktree -- ${path}`,
+        redoCommand: `git update-index --skip-worktree -- ${path}`,
+        undo: () => api.unskipWorktree(repo.id, [path]).then(refreshAfterAction),
+        redo: () => api.skipWorktree(repo.id, [path]).then(refreshAfterAction),
       });
       await refreshAfterAction();
     } catch (e) {
@@ -528,6 +571,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
                       onSelect={() => setSelected({ path: f.path, staged: false })}
                       onStage={() => stage(f.path)}
                       onDiscard={() => setDiscardTarget(f)}
+                      onKeepLocally={() => keepLocally(f.path)}
                     />
                   </DraggableFileRow>
                 ))}

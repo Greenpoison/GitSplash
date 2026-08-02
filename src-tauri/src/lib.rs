@@ -95,6 +95,8 @@ pub fn run() {
             commands::changes::discard_file,
             commands::changes::untrack_paths,
             commands::changes::skip_worktree,
+            commands::changes::unskip_worktree,
+            commands::changes::list_skip_worktree_files,
             commands::changes::stage_all,
             commands::changes::unstage_all,
             commands::changes::stage_hunk,

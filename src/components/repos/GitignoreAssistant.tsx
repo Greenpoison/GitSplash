@@ -97,7 +97,7 @@ export function GitignoreAssistant({
         `Git will stop showing changes to ${s.trackedPaths.length} file${s.trackedPaths.length === 1 ? "" : "s"} as modified`,
         {
           description:
-            "This only applies here on this machine — a fresh clone or a collaborator won't get it automatically.",
+            "This only applies here on this machine — manage or reverse it later from \"Locally Ignored\" in More.",
         },
       );
       setSkipTarget(null);

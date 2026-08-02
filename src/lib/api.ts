@@ -146,6 +146,10 @@ export const untrackPaths = (repoId: string, paths: string[]) =>
   invoke<void>("untrack_paths", { repoId, paths });
 export const skipWorktree = (repoId: string, paths: string[]) =>
   invoke<void>("skip_worktree", { repoId, paths });
+export const unskipWorktree = (repoId: string, paths: string[]) =>
+  invoke<void>("unskip_worktree", { repoId, paths });
+export const listSkipWorktreeFiles = (repoId: string) =>
+  invoke<string[]>("list_skip_worktree_files", { repoId });
 export const stageAll = (repoId: string) => invoke<void>("stage_all", { repoId });
 export const unstageAll = (repoId: string) => invoke<void>("unstage_all", { repoId });
 export const stageHunk = (repoId: string, path: string, hunkRaw: string) =>

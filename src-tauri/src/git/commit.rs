@@ -85,6 +85,43 @@ pub async fn skip_worktree(repo_path: &Path, rel_paths: &[String]) -> Result<(),
     Ok(())
 }
 
+/// Reverses `skip_worktree` — git goes back to reporting changes to this
+/// file normally. Doesn't touch the file's content or its place in the
+/// index, only the flag.
+pub async fn unskip_worktree(repo_path: &Path, rel_paths: &[String]) -> Result<(), String> {
+    if rel_paths.is_empty() {
+        return Ok(());
+    }
+    let mut args = vec!["update-index", "--no-skip-worktree", "--"];
+    args.extend(rel_paths.iter().map(|p| p.as_str()));
+    let output = run_git(repo_path, &args).await.map_err(|e| e.to_string())?;
+    if !output.success {
+        return Err(git_err("could not clear skip-worktree", &output.stderr));
+    }
+    Ok(())
+}
+
+/// `git ls-files -v` tags every tracked path with a status letter; a
+/// skip-worktree'd file is tagged with a capital "S" specifically (not to
+/// be confused with the *lowercase* variants of other tags, which mean
+/// "assume-unchanged" instead — a different, less safe bit this app never
+/// sets).
+fn parse_skip_worktree_paths(stdout: &str) -> Vec<String> {
+    stdout
+        .lines()
+        .filter_map(|line| line.strip_prefix("S "))
+        .map(|s| s.to_string())
+        .collect()
+}
+
+pub async fn list_skip_worktree_files(repo_path: &Path) -> Result<Vec<String>, String> {
+    let output = run_git(repo_path, &["ls-files", "-v"]).await.map_err(|e| e.to_string())?;
+    if !output.success {
+        return Err(git_err("could not list files", &output.stderr));
+    }
+    Ok(parse_skip_worktree_paths(&output.stdout))
+}
+
 /// Destructive: discards unstaged changes to a tracked file, or deletes an
 /// untracked file outright (there's nothing in git history to restore it
 /// from either way — the caller is expected to have confirmed with the user).
@@ -129,4 +166,31 @@ pub async fn amend_commit(repo_path: &Path, message: &str) -> Result<Option<Stri
         return Err(git_err("amend failed", &output.stderr));
     }
     Ok(previous_head_sha)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extracts_only_skip_worktree_tagged_paths() {
+        let stdout = "S config/local.json\nH src/main.rs\nS build/output.txt\n? scratch.tmp\n";
+        let paths = parse_skip_worktree_paths(stdout);
+        assert_eq!(paths, vec!["config/local.json", "build/output.txt"]);
+    }
+
+    #[test]
+    fn ignores_lowercase_assume_unchanged_tags() {
+        // Lowercase tags mean assume-unchanged, a different bit this app
+        // never sets — must not be confused with capital-S skip-worktree.
+        let stdout = "h src/main.rs\ns build/output.txt\n";
+        let paths = parse_skip_worktree_paths(stdout);
+        assert!(paths.is_empty());
+    }
+
+    #[test]
+    fn returns_nothing_for_a_clean_index() {
+        let stdout = "H a.txt\nH b.txt\n";
+        assert!(parse_skip_worktree_paths(stdout).is_empty());
+    }
 }

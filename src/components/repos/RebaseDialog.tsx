@@ -339,6 +339,7 @@ export function RebaseDialog({
                   {branches.map((b) => (
                     <SelectItem key={b.name} value={b.name}>
                       {b.name}
+                      {b.isRemote && <span className="ml-1 text-muted-foreground">(remote only)</span>}
                     </SelectItem>
                   ))}
                 </SelectContent>

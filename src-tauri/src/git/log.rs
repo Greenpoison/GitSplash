@@ -290,6 +290,14 @@ pub struct BranchInfo {
     /// unmerged, so a legitimate local-only WIP branch is never suggested
     /// for deletion just because it was never pushed.
     pub is_gone: bool,
+    /// True for a synthetic entry standing in for a remote-tracking branch
+    /// that has no local branch of the same name yet — e.g. a teammate's
+    /// branch that only just showed up after a fetch. `name` is the full
+    /// remote-tracking ref (e.g. "origin/feature/x") rather than a local
+    /// branch name, so it resolves directly wherever a ref is expected
+    /// (rebase onto, diff, merge) without first requiring `git branch
+    /// --track`.
+    pub is_remote: bool,
 }
 
 pub async fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>, String> {
@@ -358,8 +366,47 @@ pub async fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>, String> 
             } else {
                 Some(fields[2].to_string())
             },
+            is_remote: false,
         });
     }
+
+    // Remote-tracking branches with no local branch of the same name — most
+    // often a branch a teammate pushed that was never checked out here.
+    // Without this, they're invisible to both the rebase-onto picker and the
+    // branch switcher even right after a fetch, since fetch only ever
+    // updates refs/remotes/* and never creates a local branch.
+    let local_names: HashSet<String> = branches.iter().map(|b| b.name.clone()).collect();
+    let remote_refs: Vec<String> = run_git(
+        repo_path,
+        &["for-each-ref", "refs/remotes", "--format=%(refname:short)"],
+    )
+    .await
+    .ok()
+    .filter(|o| o.success)
+    .map(|o| o.stdout.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect())
+    .unwrap_or_default();
+    for remote_ref in remote_refs {
+        // refname:short of "refs/remotes/origin/feature/x" is
+        // "origin/feature/x" — split off the remote name to get the branch's
+        // own short name for the "already has a local branch" check below.
+        let Some(short_name) = remote_ref.splitn(2, '/').nth(1) else {
+            continue;
+        };
+        // "origin/HEAD" is the remote's symbolic default-branch pointer, not
+        // an actual branch.
+        if short_name == "HEAD" || local_names.contains(short_name) {
+            continue;
+        }
+        branches.push(BranchInfo {
+            name: remote_ref,
+            is_current: false,
+            upstream: None,
+            is_merged: false,
+            is_gone: false,
+            is_remote: true,
+        });
+    }
+
     Ok(branches)
 }
 

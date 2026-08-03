@@ -210,8 +210,8 @@ export const writeFileText = (
 export const listBranches = (repoId: string) => invoke<BranchInfo[]>("list_branches", { repoId });
 export const getCommitGraph = (repoId: string, limit: number) =>
   invoke<CommitNode[]>("get_commit_graph", { repoId, limit });
-export const checkoutBranch = (repoId: string, branch: string) =>
-  invoke<void>("checkout_branch", { repoId, branch });
+export const checkoutBranch = (repoId: string, branch: string, isRemote = false) =>
+  invoke<void>("checkout_branch", { repoId, branch, isRemote });
 export const createBranch = (repoId: string, name: string, base?: string) =>
   invoke<void>("create_branch", { repoId, name, base });
 export const createBranchAt = (repoId: string, name: string, sha: string) =>

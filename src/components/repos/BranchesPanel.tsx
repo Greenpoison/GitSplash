@@ -154,19 +154,24 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repo.id]);
 
-  const checkout = async (branch: string) => {
+  const checkout = async (branch: string, isRemote = false) => {
     const previousBranch = current?.name;
+    // A remote-only entry's `name` is the full remote ref (e.g.
+    // "origin/feature/x") — after this checkout it exists as a local branch
+    // under its short name, so undo/redo (which run later, once that local
+    // branch is real) should target that short name with a plain checkout.
+    const localName = isRemote ? branch.slice(branch.indexOf("/") + 1) : branch;
     setBusy(true);
     try {
-      await api.checkoutBranch(repo.id, branch);
-      toast.success(`Switched to ${branch}`);
-      if (previousBranch && previousBranch !== branch) {
+      await api.checkoutBranch(repo.id, branch, isRemote);
+      toast.success(`Switched to ${localName}`);
+      if (previousBranch && previousBranch !== localName) {
         pushUndo({
           id: crypto.randomUUID(),
           repoId: repo.id,
-          label: `Checkout ${branch}`,
+          label: `Checkout ${localName}`,
           undo: () => api.checkoutBranch(repo.id, previousBranch).then(() => { load(); onChanged(); }),
-          redo: () => api.checkoutBranch(repo.id, branch).then(() => { load(); onChanged(); }),
+          redo: () => api.checkoutBranch(repo.id, localName).then(() => { load(); onChanged(); }),
         });
       }
       await load();
@@ -274,6 +279,12 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
 
   const current = branches.find((b) => b.isCurrent);
 
+  // Remote-only entries (a fetched branch with no local copy yet) are shown
+  // in the switcher list and offered as rebase targets, but everything else
+  // here — merge, gitflow, comparison, the commit graph — expects real local
+  // branches, so they're scoped out of those.
+  const localBranches = useMemo(() => branches.filter((b) => !b.isRemote), [branches]);
+
   const mergedCount = useMemo(
     () => branches.filter((b) => b.isMerged && !b.isCurrent).length,
     [branches],
@@ -325,8 +336,8 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
 
   const visibleBranches = useMemo(() => {
     if (soloedBranch) return new Set([soloedBranch]);
-    return new Set(branches.filter((b) => !hiddenBranches.has(b.name)).map((b) => b.name));
-  }, [branches, hiddenBranches, soloedBranch]);
+    return new Set(localBranches.filter((b) => !hiddenBranches.has(b.name)).map((b) => b.name));
+  }, [localBranches, hiddenBranches, soloedBranch]);
 
   const filteredCommits = useMemo(
     () => (hiddenBranches.size === 0 && !soloedBranch ? commits : filterCommitsByBranches(commits, visibleBranches)),
@@ -434,7 +445,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
                 type="button"
                 disabled={disabled}
                 title={blockedByOp ? blockedTitle : b.isCurrent ? undefined : `Switch to ${b.name}`}
-                onClick={() => checkout(b.name)}
+                onClick={() => checkout(b.name, b.isRemote)}
                 className={cn(
                   "flex min-w-0 flex-1 items-center gap-2 text-left",
                   !disabled && "cursor-pointer hover:text-primary",
@@ -446,6 +457,11 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
                   <span className="size-3.5 shrink-0" />
                 )}
                 <span className={cn("truncate font-mono", b.isCurrent && "font-semibold")}>{b.name}</span>
+                {b.isRemote && (
+                  <Badge variant="secondary" className="shrink-0 text-[10px]">
+                    remote only
+                  </Badge>
+                )}
                 {b.upstream && (
                   <Badge variant="secondary" className="shrink-0 text-[10px]">
                     {b.upstream}
@@ -468,7 +484,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
                     <GitCompareArrows className="size-3.5" />
                   </Button>
                 )}
-                {!b.isCurrent && (
+                {!b.isCurrent && !b.isRemote && (
                   <Button
                     size="icon-sm"
                     variant="ghost"
@@ -498,7 +514,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         <Button
           size="sm"
           onClick={() => setMergeDialogOpen(true)}
-          disabled={busy || branches.length < 2 || blockedByOp}
+          disabled={busy || localBranches.length < 2 || blockedByOp}
           title={blockedByOp ? blockedTitle : undefined}
         >
           <GitMerge className="size-3.5" />
@@ -542,7 +558,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setMultiCompareOpen(true)}
-              disabled={branches.length < 2}
+              disabled={localBranches.length < 2}
             >
               <GitCompareArrows className="size-3.5" /> Compare branches…
             </DropdownMenuItem>
@@ -550,12 +566,12 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         </DropdownMenu>
       </div>
 
-      <GitflowPanel repo={repo} branches={branches} onChanged={() => { load(); onChanged(); }} />
+      <GitflowPanel repo={repo} branches={localBranches} onChanged={() => { load(); onChanged(); }} />
 
-      {branches.length > 1 && (
+      {localBranches.length > 1 && (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs text-muted-foreground">Graph:</span>
-          {branches.map((b) => {
+          {localBranches.map((b) => {
             const hidden = !visibleBranches.has(b.name);
             return (
               <span
@@ -586,7 +602,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
         </div>
       )}
 
-      <CommitGraph commits={filteredCommits} branches={branches} onSelectCommit={setSelectedCommit} />
+      <CommitGraph commits={filteredCommits} branches={localBranches} onSelectCommit={setSelectedCommit} />
 
       <RebaseDialog
         repo={repo}
@@ -654,7 +670,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="current">Current ({current?.name ?? "HEAD"})</SelectItem>
-                  {branches
+                  {localBranches
                     .filter((b) => !b.isCurrent)
                     .map((b) => (
                       <SelectItem key={b.name} value={b.name}>
@@ -731,14 +747,14 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
 
       <MultiBranchCompareDialog
         repo={repo}
-        branches={branches}
+        branches={localBranches}
         open={multiCompareOpen}
         onOpenChange={setMultiCompareOpen}
       />
 
       <MergeBranchDialog
         repo={repo}
-        branches={branches}
+        branches={localBranches}
         current={current}
         open={mergeDialogOpen}
         onOpenChange={setMergeDialogOpen}

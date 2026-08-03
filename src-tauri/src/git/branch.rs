@@ -13,8 +13,14 @@ fn git_err(prefix: &str, stderr: &str) -> String {
     }
 }
 
-pub async fn checkout_branch(repo_path: &Path, branch: &str) -> Result<(), String> {
-    let output = run_git(repo_path, &["switch", branch])
+pub async fn checkout_branch(repo_path: &Path, branch: &str, is_remote: bool) -> Result<(), String> {
+    // `branch` for a remote-only entry is a full remote-tracking ref (e.g.
+    // "origin/feature/x") with no local branch yet. A plain `git switch
+    // origin/feature/x` would just detach HEAD at that ref instead of
+    // creating a branch — `--track` is the documented shortcut for `git
+    // switch -c feature/x --track origin/feature/x`.
+    let args: &[&str] = if is_remote { &["switch", "--track", branch] } else { &["switch", branch] };
+    let output = run_git(repo_path, args)
         .await
         .map_err(|e| format!("failed to run git switch: {e}"))?;
     if !output.success {

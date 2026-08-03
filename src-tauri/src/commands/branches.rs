@@ -23,9 +23,14 @@ pub async fn get_commit_graph(
 }
 
 #[tauri::command]
-pub async fn checkout_branch(state: State<'_, AppState>, repo_id: String, branch: String) -> AppResult<()> {
+pub async fn checkout_branch(
+    state: State<'_, AppState>,
+    repo_id: String,
+    branch: String,
+    is_remote: bool,
+) -> AppResult<()> {
     let path = repo_path(&state, &repo_id).await?;
-    git::branch::checkout_branch(&path, &branch).await.map_err(AppError::Git)
+    git::branch::checkout_branch(&path, &branch, is_remote).await.map_err(AppError::Git)
 }
 
 #[tauri::command]

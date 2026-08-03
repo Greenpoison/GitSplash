@@ -127,7 +127,7 @@ function FileRow({
           )}
         </TooltipContent>
       </Tooltip>
-      <span className="flex shrink-0 gap-0.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto">
+      <span className="flex shrink-0 gap-0.5">
         {staged ? (
           <GitCommandTooltip label="Unstage" command={`git restore --staged -- ${change.path}`}>
             <Button

@@ -140,6 +140,7 @@ pub fn run() {
             commands::pr::get_pull_request_templates,
             commands::open::open_repo_external,
             commands::undo::reset_to,
+            commands::undo::discard_and_reset_to,
             commands::undo::get_head_sha,
             commands::undo::resolve_ref,
             commands::worktree::list_worktrees,

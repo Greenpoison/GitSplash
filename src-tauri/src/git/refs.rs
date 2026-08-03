@@ -70,3 +70,23 @@ pub async fn reset_to(repo_path: &Path, sha: &str, mode: &str) -> Result<(), Str
     }
     Ok(())
 }
+
+/// Discards every uncommitted change and moves the branch to exactly match
+/// `target_ref` (typically its upstream) — for an explicit, user-confirmed
+/// "throw away my local changes and take the remote's version" action.
+/// Unlike `reset_to`, this deliberately does not refuse on a dirty working
+/// tree: discarding it is the entire point here, not an accidental side
+/// effect a caller stumbled into.
+pub async fn discard_and_reset_to(repo_path: &Path, target_ref: &str) -> Result<(), String> {
+    let output = run_git(repo_path, &["reset", "--hard", target_ref])
+        .await
+        .map_err(|e| format!("failed to run git reset: {e}"))?;
+    if !output.success {
+        return Err(if output.stderr.trim().is_empty() {
+            "git reset failed".to_string()
+        } else {
+            output.stderr.trim().to_string()
+        });
+    }
+    Ok(())
+}

@@ -174,6 +174,8 @@ export const stashDrop = (repoId: string, index: number) => invoke<void>("stash_
 // Undo/redo primitives
 export const resetTo = (repoId: string, sha: string, mode: "soft" | "mixed" | "hard") =>
   invoke<void>("reset_to", { repoId, sha, mode });
+export const discardAndResetTo = (repoId: string, targetRef: string) =>
+  invoke<void>("discard_and_reset_to", { repoId, targetRef });
 export const getHeadSha = (repoId: string) => invoke<string | null>("get_head_sha", { repoId });
 export const resolveRef = (repoId: string, rev: string) => invoke<string>("resolve_ref", { repoId, rev });
 

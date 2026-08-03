@@ -15,6 +15,12 @@ pub async fn reset_to(state: State<'_, AppState>, repo_id: String, sha: String, 
 }
 
 #[tauri::command]
+pub async fn discard_and_reset_to(state: State<'_, AppState>, repo_id: String, target_ref: String) -> AppResult<()> {
+    let repo = repo_path(&state, &repo_id).await?;
+    git::refs::discard_and_reset_to(&repo, &target_ref).await.map_err(AppError::Git)
+}
+
+#[tauri::command]
 pub async fn get_head_sha(state: State<'_, AppState>, repo_id: String) -> AppResult<Option<String>> {
     let repo = repo_path(&state, &repo_id).await?;
     Ok(git::refs::get_head_sha(&repo).await)

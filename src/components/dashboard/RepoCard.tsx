@@ -420,6 +420,8 @@ export function RepoCard({ repo }: { repo: Repo }) {
         )}
         <DirtyPullDialog
           repo={repo}
+          branch={status?.branch ?? null}
+          upstream={status?.upstream ?? null}
           open={dirtyPull}
           onOpenChange={setDirtyPull}
           onChanged={() => refreshStatuses([repo.id])}

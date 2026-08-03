@@ -51,6 +51,7 @@ export function GitignoreAssistant({
   onChanged: () => void;
 }) {
   const [trackedPaths, setTrackedPaths] = useState<string[]>([]);
+  const [skipWorktreePaths, setSkipWorktreePaths] = useState<Set<string>>(new Set());
   const [ignored, setIgnored] = useState<Set<string>>(new Set());
   const [confirmTarget, setConfirmTarget] = useState<GitignoreSuggestion | null>(null);
   const [skipTarget, setSkipTarget] = useState<GitignoreSuggestion | null>(null);
@@ -62,10 +63,25 @@ export function GitignoreAssistant({
       .listTrackedFiles(repo.id)
       .then(setTrackedPaths)
       .catch(() => setTrackedPaths([]));
+    // git ls-files (above) lists a skip-worktree'd file exactly the same as
+    // any other tracked file — the bit only suppresses git status's
+    // "modified" reporting, it doesn't untrack anything. Without excluding
+    // these, a file the user already explicitly chose to keep-locally
+    // (rather than gitignore) re-triggers this same suggestion the moment
+    // this component remounts (e.g. switching tabs and back), since that
+    // resets the plain in-memory `ignored` dismissal set below.
+    api
+      .listSkipWorktreeFiles(repo.id)
+      .then((paths) => setSkipWorktreePaths(new Set(paths)))
+      .catch(() => setSkipWorktreePaths(new Set()));
   }, [repo.id]);
 
   const untrackedPaths = changedFiles.filter((f) => f.isUntracked).map((f) => f.path);
-  const suggestions = detectGitignoreSuggestions(trackedPaths, untrackedPaths, ignored);
+  const suggestions = detectGitignoreSuggestions(
+    trackedPaths.filter((p) => !skipWorktreePaths.has(p)),
+    untrackedPaths,
+    ignored,
+  );
 
   const apply = async (s: GitignoreSuggestion) => {
     setBusy(true);
@@ -206,8 +222,9 @@ export function GitignoreAssistant({
               git stops showing changes to them as modified, without removing them from the repo
               or touching .gitignore. This is local to this clone only: a fresh clone or a
               collaborator won't inherit it. If you ever need to actually commit a real change to
-              one of these files again, you'll need to run{" "}
-              <code className="font-mono">git update-index --no-skip-worktree</code> on it first.
+              one of these files again, restore normal tracking first — from "Locally Ignored" in
+              More, or by running <code className="font-mono">git update-index --no-skip-worktree</code> on
+              it yourself.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {skipTarget && (

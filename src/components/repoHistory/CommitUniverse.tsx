@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Locate, ZoomIn, ZoomOut } from "lucide-react";
+import { Locate, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DiffStatBadge } from "@/components/repos/DiffStatBadge";
 import { ancestorsOfBranchTip, colorForBranchName, computeBranchSegments } from "@/lib/branchSegments";
 import { computeUniverseLayout } from "@/lib/commitUniverseLayout";
 import { reportGitError } from "@/lib/gitErrors";
-import { relativeTime } from "@/lib/utils";
+import { cn, relativeTime } from "@/lib/utils";
 import * as api from "@/lib/api";
 import type { BranchInfo, CommitNode, CompareFile, TagInfo } from "@/lib/types";
 
@@ -228,13 +228,19 @@ export function CommitUniverse({
     setTrackedHashes(null);
   };
 
-  const backToFiles = () => {
+  const stopTracking = () => {
     trackingRequestRef.current += 1; // abandon any in-flight tracking fetch
     setTrackedFile(null);
     setTrackedHashes(null);
   };
 
   const colorFor = (hash: string) => {
+    // While hovering a legend entry, its own color should actually show up
+    // on the commits it's spotlighting — otherwise the legend's colors
+    // never appear anywhere in the graph for a branch with no permanently
+    // "unique" commits (e.g. one that's already fully merged), which reads
+    // as the legend being disconnected from what's on screen.
+    if (hoveredBranch && hoveredBranchAncestors?.has(hash)) return colorForBranchName(hoveredBranch);
     const label = segments.get(hash);
     return label ? colorForBranchName(label) : UNATTRIBUTED_COLOR;
   };
@@ -451,59 +457,50 @@ export function CommitUniverse({
       )}
 
       {selectedCommit && (
-        <div className="absolute bottom-3 left-3 flex max-h-64 w-80 flex-col rounded-md border border-white/10 bg-black/70 p-3 text-xs text-white/80 backdrop-blur-sm">
-          {trackedFile ? (
-            <>
-              <div className="flex items-center justify-between gap-2">
-                <span className="min-w-0 truncate font-mono font-medium text-white" title={trackedFile}>
-                  {trackedFile}
-                </span>
-                <button className="shrink-0 text-white/50 hover:text-white" onClick={clearAll}>
-                  Clear
-                </button>
-              </div>
-              <div className="mt-1">
+        <div className="absolute bottom-3 left-3 flex max-h-96 w-80 flex-col rounded-md border border-white/10 bg-black/70 p-3 text-xs text-white/80 backdrop-blur-sm">
+          <div className="flex shrink-0 items-center justify-between gap-2">
+            <span className="min-w-0 truncate font-medium text-white" title={selectedCommit.subject}>
+              {selectedCommit.subject}
+            </span>
+            <button className="shrink-0 text-white/50 hover:text-white" onClick={clearAll}>
+              Clear
+            </button>
+          </div>
+          <div className="mt-1 shrink-0 text-white/60">
+            {trackedFile ? (
+              <>
+                Tracking <span className="font-mono text-amber-300">{trackedFile}</span> —{" "}
                 {trackingLoading
-                  ? "Loading…"
-                  : `${trackedHashes?.size ?? 0} commit${trackedHashes?.size === 1 ? "" : "s"} touched this file, across every branch.`}
-              </div>
-              <button
-                className="mt-2 flex items-center gap-1 self-start text-white/60 hover:text-white"
-                onClick={backToFiles}
-              >
-                <ArrowLeft className="size-3" /> Back to changed files
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center justify-between gap-2">
-                <span className="min-w-0 truncate font-medium text-white" title={selectedCommit.subject}>
-                  {selectedCommit.subject}
-                </span>
-                <button className="shrink-0 text-white/50 hover:text-white" onClick={clearAll}>
-                  Clear
+                  ? "loading…"
+                  : `${trackedHashes?.size ?? 0} commit${trackedHashes?.size === 1 ? "" : "s"} across every branch.`}
+              </>
+            ) : (
+              "Files changed — click one to track it across the graph:"
+            )}
+          </div>
+          <div className="mt-1.5 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+            {filesLoading && <div className="text-white/50">Loading…</div>}
+            {filesFailed && <div className="text-red-300">Couldn't load changed files.</div>}
+            {!filesLoading && !filesFailed && commitFiles?.length === 0 && (
+              <div className="text-white/50">No file changes (e.g. a merge commit).</div>
+            )}
+            {commitFiles?.map((f) => {
+              const isTracked = trackedFile === f.path;
+              return (
+                <button
+                  key={f.path}
+                  className={cn(
+                    "flex items-center gap-1.5 truncate rounded px-1.5 py-1 text-left font-mono",
+                    isTracked ? "bg-amber-400/20 text-amber-200" : "hover:bg-white/10",
+                  )}
+                  onClick={() => (isTracked ? stopTracking() : trackFile(f.path))}
+                >
+                  <span className="min-w-0 flex-1 truncate">{f.path}</span>
+                  <DiffStatBadge file={f} />
                 </button>
-              </div>
-              <div className="mt-1 text-white/60">Files changed — click one to track it across the graph:</div>
-              <div className="mt-1 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
-                {filesLoading && <div className="text-white/50">Loading…</div>}
-                {filesFailed && <div className="text-red-300">Couldn't load changed files.</div>}
-                {!filesLoading && !filesFailed && commitFiles?.length === 0 && (
-                  <div className="text-white/50">No file changes (e.g. a merge commit).</div>
-                )}
-                {commitFiles?.map((f) => (
-                  <button
-                    key={f.path}
-                    className="flex items-center gap-1.5 truncate rounded px-1 py-0.5 text-left font-mono hover:bg-white/10"
-                    onClick={() => trackFile(f.path)}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{f.path}</span>
-                    <DiffStatBadge file={f} />
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

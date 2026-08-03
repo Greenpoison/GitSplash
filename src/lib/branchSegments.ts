@@ -83,3 +83,20 @@ export function computeBranchSegments(
   }
   return labels;
 }
+
+/// Every commit reachable from `branchName`'s tip — its full lineage,
+/// including whatever mainline history it was built on. Unlike
+/// computeBranchSegments (which only labels commits unique to a branch, to
+/// avoid crediting it with shared/merged history it doesn't own), this is
+/// for a "show me everything this branch actually contains" spotlight —
+/// there's no misattribution risk here since it doesn't claim exclusive
+/// ownership of anything, so it stays meaningful even for a branch with no
+/// unique commits left (e.g. one that's already fully merged, or one that
+/// was only ever created as a marker at some point on the mainline).
+/// Returns null if no commit is decorated with that branch name.
+export function ancestorsOfBranchTip(commits: CommitNode[], branchName: string): Set<string> | null {
+  const byHash = new Map(commits.map((c) => [c.hash, c]));
+  const tip = commits.find((c) => c.refs.includes(branchName));
+  if (!tip) return null;
+  return ancestorsOf(byHash, tip.hash);
+}

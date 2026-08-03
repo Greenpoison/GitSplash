@@ -119,6 +119,12 @@ export function generateFakeHistory(seed: number): FakeHistory {
   const byHash = new Map(commits.map((c) => [c.hash, c]));
   byHash.get(mainTip)!.refs.push("HEAD -> main");
   byHash.get(betaTip)!.refs.push("feature/beta");
+  // A marker branch left pointing at a plain mainline commit — no merge,
+  // never diverged, nothing unique to it (mirrors this project's own
+  // feature/VN release-marker branches). Exercises the "still show it in
+  // the legend, spotlight its full history" path for a branch that
+  // computeBranchSegments correctly leaves unlabeled.
+  byHash.get(v020)!.refs.push("marker/v2");
   byHash.get(v010)!.refs.push("v0.1.0");
   byHash.get(v020)!.refs.push("v0.2.0");
   byHash.get(v030)!.refs.push("v0.3.0");
@@ -126,6 +132,7 @@ export function generateFakeHistory(seed: number): FakeHistory {
   const branches: BranchInfo[] = [
     { name: "main", isCurrent: true, upstream: "origin/main", isMerged: false, isGone: false, isRemote: false },
     { name: "feature/beta", isCurrent: false, upstream: null, isMerged: false, isGone: false, isRemote: false },
+    { name: "marker/v2", isCurrent: false, upstream: null, isMerged: true, isGone: false, isRemote: false },
   ];
 
   const tags: TagInfo[] = [

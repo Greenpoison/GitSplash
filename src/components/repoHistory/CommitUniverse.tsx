@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Locate, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DiffStatBadge } from "@/components/repos/DiffStatBadge";
-import { colorForBranchName, computeBranchSegments } from "@/lib/branchSegments";
+import { ancestorsOfBranchTip, colorForBranchName, computeBranchSegments } from "@/lib/branchSegments";
 import { computeUniverseLayout } from "@/lib/commitUniverseLayout";
 import { reportGitError } from "@/lib/gitErrors";
 import { relativeTime } from "@/lib/utils";
@@ -59,9 +59,9 @@ export function CommitUniverse({
   const [trackedHashes, setTrackedHashes] = useState<Set<string> | null>(null);
   const [trackingLoading, setTrackingLoading] = useState(false);
 
-  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; panX: number; panY: number } | null>(
-    null,
-  );
+  const dragRef = useRef<
+    { pointerId: number; startX: number; startY: number; panX: number; panY: number; captured: boolean } | null
+  >(null);
 
   // Bumped on every selectCommit/trackFile call (and on anything that
   // abandons one without starting a replacement) so an in-flight fetch's
@@ -148,10 +148,18 @@ export function CommitUniverse({
   const tagByHash = useMemo(() => new Map(tags.map((t) => [t.hash, t])), [tags]);
   const commitByHash = useMemo(() => new Map(commits.map((c) => [c.hash, c])), [commits]);
 
-  const legendBranches = useMemo(() => {
-    const used = new Set(segments.values());
-    return branchNames.filter((n) => used.has(n));
-  }, [segments, branchNames]);
+  // Every non-current local branch, regardless of whether it has any commits
+  // colorFor would actually attribute to it — a branch that's already fully
+  // merged (or was only ever a marker on plain mainline history, e.g. a
+  // release-tracking branch) has nothing unique to permanently color, but
+  // hovering it to see its full lineage is still meaningful, so it still
+  // belongs in the legend.
+  const legendBranches = branchNames;
+
+  const hoveredBranchAncestors = useMemo(
+    () => (hoveredBranch ? ancestorsOfBranchTip(commits, hoveredBranch) : null),
+    [hoveredBranch, commits],
+  );
 
   const selectCommit = (hash: string) => {
     if (selectedHash === hash) {
@@ -233,23 +241,44 @@ export function CommitUniverse({
 
   const isDimmed = (hash: string): boolean => {
     if (trackedHashes) return !trackedHashes.has(hash);
-    if (hoveredBranch) return segments.get(hash) !== hoveredBranch;
+    if (hoveredBranchAncestors) return !hoveredBranchAncestors.has(hash);
     return false;
   };
 
+  // Deliberately does NOT capture the pointer here. A click on a commit
+  // node fires pointerdown on the node first, which bubbles up to this
+  // handler — capturing immediately (before knowing this is a click, not a
+  // drag) redirects the browser's eventual pointerup/mouseup to the SVG
+  // instead of the node, which silently breaks the node's click handler
+  // for every plain click. Capture only kicks in once real movement proves
+  // this is actually a pan — see onPointerMoveCanvas — by which point any
+  // click's mouseup has already long resolved normally.
+  const DRAG_THRESHOLD_PX = 4;
+
   const onPointerDownCanvas = (e: React.PointerEvent<SVGSVGElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    dragRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, panX: view.panX, panY: view.panY };
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      panX: view.panX,
+      panY: view.panY,
+      captured: false,
+    };
   };
 
   const onPointerMoveCanvas = (e: React.PointerEvent<SVGSVGElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== e.pointerId) return;
-    setView((prev) => ({
-      ...prev,
-      panX: drag.panX + (e.clientX - drag.startX),
-      panY: drag.panY + (e.clientY - drag.startY),
-    }));
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    if (!drag.captured) {
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+      drag.captured = true;
+      // Captured only now — once movement is confirmed — so panning still
+      // keeps working even if the pointer moves outside the SVG mid-drag.
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    setView((prev) => ({ ...prev, panX: drag.panX + dx, panY: drag.panY + dy }));
   };
 
   const onPointerUpCanvas = (e: React.PointerEvent<SVGSVGElement>) => {

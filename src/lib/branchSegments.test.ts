@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeBranchSegments } from "./branchSegments";
+import { ancestorsOfBranchTip, computeBranchSegments } from "./branchSegments";
 import type { CommitNode } from "./types";
 
 function commit(hash: string, parents: string[] = [], refs: string[] = []): CommitNode {
@@ -100,5 +100,24 @@ describe("computeBranchSegments", () => {
 
   it("handles an empty commit list", () => {
     expect(computeBranchSegments([], ["feature/v1"]).size).toBe(0);
+  });
+});
+
+describe("ancestorsOfBranchTip", () => {
+  it("returns the full lineage even for a branch with no unique commits", () => {
+    // A marker branch pointing at a spot on plain mainline history — it has
+    // zero commits unique to it, but its full lineage is still meaningful
+    // to spotlight.
+    const commits = [
+      commit("head", ["marker"], ["HEAD -> main"]),
+      commit("marker", ["root"], ["feature/marker"]),
+      commit("root", []),
+    ];
+    expect(ancestorsOfBranchTip(commits, "feature/marker")).toEqual(new Set(["marker", "root"]));
+  });
+
+  it("returns null when no commit is decorated with that branch name", () => {
+    const commits = [commit("a")];
+    expect(ancestorsOfBranchTip(commits, "feature/missing")).toBeNull();
   });
 });

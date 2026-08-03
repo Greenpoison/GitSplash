@@ -46,6 +46,19 @@ pub async fn get_file_history(
 }
 
 #[tauri::command]
+pub async fn get_file_history_across_branches(
+    state: State<'_, AppState>,
+    repo_id: String,
+    path: String,
+    limit: u32,
+) -> AppResult<Vec<CommitNode>> {
+    let repo = repo_path(&state, &repo_id).await?;
+    git::log::get_file_history_across_branches(&repo, &path, limit)
+        .await
+        .map_err(AppError::Git)
+}
+
+#[tauri::command]
 pub async fn get_blame(state: State<'_, AppState>, repo_id: String, path: String) -> AppResult<Vec<BlameLine>> {
     let repo = repo_path(&state, &repo_id).await?;
     git::blame::get_blame(&repo, &path).await.map_err(AppError::Git)

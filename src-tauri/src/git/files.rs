@@ -1,3 +1,4 @@
+use super::path_safety::safe_repo_path;
 use super::process::run_git;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -38,7 +39,7 @@ fn mtime_millis(meta: &std::fs::Metadata) -> Option<i64> {
 /// current on-disk state (including unsaved/uncommitted edits), not a
 /// specific revision.
 pub async fn read_file_text(repo_path: &Path, rel_path: &str) -> Result<FileTextContent, String> {
-    let full_path = repo_path.join(rel_path);
+    let full_path = safe_repo_path(repo_path, rel_path)?;
     let bytes = tokio::fs::read(&full_path)
         .await
         .map_err(|e| format!("failed to read {rel_path}: {e}"))?;
@@ -59,7 +60,7 @@ pub async fn write_file_text(
     content: &str,
     expected_modified_at: Option<i64>,
 ) -> Result<Option<i64>, String> {
-    let full_path = repo_path.join(rel_path);
+    let full_path = safe_repo_path(repo_path, rel_path)?;
 
     if let Some(expected) = expected_modified_at {
         if let Ok(meta) = tokio::fs::metadata(&full_path).await {

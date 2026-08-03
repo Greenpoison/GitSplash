@@ -47,24 +47,39 @@ function ancestorsOf(byHash: Map<string, CommitNode>, tip: string): Set<string> 
 /// of its commits are actually unique anymore. The old version retroactively
 /// recolored that stretch anyway; this doesn't, in exchange for never
 /// mislabeling an unrelated branch's history as belonging to something else.
+///
+/// A second, narrower ambiguity: two sibling branches that both diverge from
+/// the same not-yet-mainline commit share that commit (and everything
+/// before their actual split) as "unique" ancestry relative to `mainline`.
+/// Rather than arbitrarily crediting it to whichever branch happens to be
+/// processed first, every branch that reaches a given commit is tracked and
+/// it's only labeled when exactly one of them does — genuinely shared,
+/// equally-unmerged history is left unlabeled instead of picked at random.
 export function computeBranchSegments(
   commits: CommitNode[],
   branchNames: string[],
 ): Map<string, string> {
   const byHash = new Map(commits.map((c) => [c.hash, c]));
-  const labels = new Map<string, string>();
-  if (commits.length === 0) return labels;
+  if (commits.length === 0) return new Map();
 
   const currentTip = commits.find((c) => c.refs.some((r) => r === "HEAD" || r.startsWith("HEAD -> ")));
   const mainline = ancestorsOf(byHash, (currentTip ?? commits[0]).hash);
 
+  const claimants = new Map<string, Set<string>>();
   for (const name of branchNames) {
     const tip = commits.find((c) => c.refs.includes(name));
     if (!tip) continue;
     for (const hash of ancestorsOf(byHash, tip.hash)) {
-      if (!mainline.has(hash) && !labels.has(hash)) labels.set(hash, name);
+      if (mainline.has(hash)) continue;
+      const claimed = claimants.get(hash);
+      if (claimed) claimed.add(name);
+      else claimants.set(hash, new Set([name]));
     }
   }
 
+  const labels = new Map<string, string>();
+  for (const [hash, names] of claimants) {
+    if (names.size === 1) labels.set(hash, [...names][0]);
+  }
   return labels;
 }

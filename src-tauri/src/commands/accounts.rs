@@ -5,7 +5,7 @@ use crate::git;
 use crate::models::{Account, AccountUploadResult, Repo};
 use crate::ssh;
 use crate::state::AppState;
-use crate::util::{new_id, now_iso, slugify};
+use crate::util::{new_id, now_iso, slugify, validate_host_alias};
 use std::path::PathBuf;
 use tauri::{AppHandle, State};
 
@@ -59,6 +59,7 @@ pub async fn create_account(
     github_username: Option<String>,
     hostname: Option<String>,
 ) -> AppResult<Account> {
+    validate_host_alias(&host_alias).map_err(AppError::InvalidInput)?;
     let hostname = hostname.unwrap_or_else(|| "github.com".to_string());
     let ssh_dir = ssh::config::ssh_dir().map_err(AppError::Ssh)?;
     let key_path = ssh_dir.join(format!("id_ed25519_{}", slugify(&host_alias)));
@@ -101,6 +102,7 @@ pub async fn create_account_via_browser(
     host_alias: String,
     hostname: Option<String>,
 ) -> AppResult<Account> {
+    validate_host_alias(&host_alias).map_err(AppError::InvalidInput)?;
     let hostname = hostname.unwrap_or_else(|| "github.com".to_string());
 
     gh::login_with_browser(&app, &hostname).await.map_err(AppError::Ssh)?;

@@ -77,10 +77,13 @@ pub async fn add_worktree(
     branch: &str,
     create_branch: bool,
 ) -> Result<(), String> {
+    // `--` stops option parsing before the remaining positional(s) — without
+    // it, a `target_path` or `branch` value starting with `-` would be
+    // parsed as a flag instead of a ref/path.
     let args: Vec<&str> = if create_branch {
-        vec!["worktree", "add", "-b", branch, target_path]
+        vec!["worktree", "add", "-b", branch, "--", target_path]
     } else {
-        vec!["worktree", "add", target_path, branch]
+        vec!["worktree", "add", "--", target_path, branch]
     };
     let output = run_git(repo_path, &args)
         .await

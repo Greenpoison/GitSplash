@@ -64,6 +64,16 @@ struct RebaseState {
     previous_head_sha: String,
     plan: Vec<RebasePlanItem>,
     current_index: usize,
+    /// Set when `current_index`'s cherry-pick has already succeeded but
+    /// `finish_step` (the reword/squash/fixup commit that follows it) then
+    /// failed — e.g. a commit-msg hook rejected the message. Resuming in
+    /// that state must retry `finish_step` directly rather than
+    /// `cherry-pick --continue`, since there's no cherry-pick left to
+    /// continue at that point. `#[serde(default)]` so a state file written
+    /// before this field existed still loads (as `false`, the previously-only
+    /// possible state).
+    #[serde(default)]
+    pending_finish: bool,
 }
 
 fn state_file_path(repo_path: &Path) -> PathBuf {
@@ -200,6 +210,33 @@ async fn finish_step(repo_path: &Path, item: &RebasePlanItem) -> Result<(), Stri
     }
 }
 
+/// Runs `finish_step` for the item at `current_index` and advances past it
+/// on success. On failure, persists state with `pending_finish` set — the
+/// cherry-pick itself already succeeded (that's the only way this gets
+/// called), so what's left to retry on resume is just this, not the pick —
+/// and returns an error that says so rather than the raw git failure alone,
+/// since a bare hook-rejection message wouldn't explain why the rebase
+/// looks stuck.
+async fn finish_step_and_advance(
+    repo_path: &Path,
+    state: &mut RebaseState,
+    item: &RebasePlanItem,
+    total: usize,
+) -> Result<(), String> {
+    if let Err(e) = finish_step(repo_path, item).await {
+        state.pending_finish = true;
+        persist_state(repo_path, state).await?;
+        return Err(format!(
+            "rebase stopped while finishing step {}/{} — the rebase state was kept so you can retry (Continue) or abort: {e}",
+            state.current_index + 1,
+            total
+        ));
+    }
+    state.pending_finish = false;
+    state.current_index += 1;
+    Ok(())
+}
+
 /// Cherry-picks (or continues cherry-picking) the current step, then walks
 /// the rest of the plan. Stops and persists state on the first conflict;
 /// otherwise runs to completion and moves the original branch ref onto the
@@ -213,35 +250,39 @@ async fn run_plan(repo_path: &Path, state: &mut RebaseState) -> Result<RebaseSte
             continue;
         }
 
-        // diff3 markers give the conflict resolver UI the common-ancestor
-        // version of each hunk, not just ours/theirs.
-        let pick_out = run_git(repo_path, &["-c", "merge.conflictStyle=diff3", "cherry-pick", &item.sha])
-            .await
-            .map_err(|e| format!("failed to run git cherry-pick: {e}"))?;
+        // A resumed step whose cherry-pick already succeeded last time (only
+        // its finish_step failed) has nothing left to pick — retrying the
+        // cherry-pick itself would error with "nothing to commit".
+        if !state.pending_finish {
+            // diff3 markers give the conflict resolver UI the common-ancestor
+            // version of each hunk, not just ours/theirs.
+            let pick_out = run_git(repo_path, &["-c", "merge.conflictStyle=diff3", "cherry-pick", &item.sha])
+                .await
+                .map_err(|e| format!("failed to run git cherry-pick: {e}"))?;
 
-        if !pick_out.success {
-            persist_state(repo_path, state).await?;
-            let conflicted = get_conflicted_files(repo_path).await.unwrap_or_default();
-            if !conflicted.is_empty() {
-                return Ok(RebaseStepResult {
-                    status: "conflict".to_string(),
-                    conflicted_files: conflicted,
-                    message: Some(format!(
-                        "rebase stopped at step {}/{} — resolve the listed files, then continue",
-                        state.current_index + 1,
-                        total
-                    )),
-                    previous_head_sha: None,
-                    new_head_sha: None,
-                    step: state.current_index,
-                    total_steps: total,
-                });
+            if !pick_out.success {
+                persist_state(repo_path, state).await?;
+                let conflicted = get_conflicted_files(repo_path).await.unwrap_or_default();
+                if !conflicted.is_empty() {
+                    return Ok(RebaseStepResult {
+                        status: "conflict".to_string(),
+                        conflicted_files: conflicted,
+                        message: Some(format!(
+                            "rebase stopped at step {}/{} — resolve the listed files, then continue",
+                            state.current_index + 1,
+                            total
+                        )),
+                        previous_head_sha: None,
+                        new_head_sha: None,
+                        step: state.current_index,
+                        total_steps: total,
+                    });
+                }
+                return Err(git_err("rebase step failed", &pick_out.stderr));
             }
-            return Err(git_err("rebase step failed", &pick_out.stderr));
         }
 
-        finish_step(repo_path, &item).await?;
-        state.current_index += 1;
+        finish_step_and_advance(repo_path, state, &item, total).await?;
     }
 
     let new_head_sha = get_head_sha(repo_path)
@@ -306,7 +347,10 @@ pub async fn start_rebase(repo_path: &Path, onto: &str, plan: Vec<RebasePlanItem
         .await
         .ok_or_else(|| "could not resolve current HEAD".to_string())?;
 
-    let checkout_out = run_git(repo_path, &["checkout", "--detach", onto])
+    // `--end-of-options` stops option parsing before `onto` (which can be a
+    // remote-only branch's name, not just something the local user typed)
+    // without git treating it as a pathspec the way plain `--` would here.
+    let checkout_out = run_git(repo_path, &["checkout", "--detach", "--end-of-options", onto])
         .await
         .map_err(|e| format!("failed to run git checkout: {e}"))?;
     if !checkout_out.success {
@@ -318,6 +362,7 @@ pub async fn start_rebase(repo_path: &Path, onto: &str, plan: Vec<RebasePlanItem
         previous_head_sha,
         plan,
         current_index: 0,
+        pending_finish: false,
     };
 
     run_plan(repo_path, &mut state).await
@@ -335,11 +380,13 @@ pub async fn continue_rebase(repo_path: &Path) -> Result<RebaseStepResult, Strin
         return Err("resolve the remaining conflicted files before continuing".to_string());
     }
 
-    // Only try to continue a cherry-pick if one is actually pending — if
-    // every step already applied and it was just the final branch move that
-    // failed (see run_plan), there's nothing to continue; fall straight
-    // through to run_plan, which retries the branch move.
-    if state.current_index < state.plan.len() {
+    // Only try to continue a cherry-pick if one is actually pending. Two
+    // cases fall straight through to run_plan instead: every step already
+    // applied and it was just the final branch move that failed (see
+    // run_plan), or the current step's cherry-pick already succeeded last
+    // time and only its finish_step needs retrying (`pending_finish`) — in
+    // both, there's no cherry-pick left to continue.
+    if state.current_index < state.plan.len() && !state.pending_finish {
         // GIT_EDITOR=true: cherry-pick --continue otherwise opens $GIT_EDITOR
         // to let you tweak the commit message, which would hang with no
         // terminal attached. `true` (the no-op unix command) just accepts
@@ -356,8 +403,8 @@ pub async fn continue_rebase(repo_path: &Path) -> Result<RebaseStepResult, Strin
         }
 
         let item = state.plan[state.current_index].clone();
-        finish_step(repo_path, &item).await?;
-        state.current_index += 1;
+        let total = state.plan.len();
+        finish_step_and_advance(repo_path, &mut state, &item, total).await?;
     }
 
     run_plan(repo_path, &mut state).await
@@ -405,4 +452,101 @@ pub async fn get_in_progress_rebase(repo_path: &Path) -> Result<Option<RebaseInP
         total_steps: state.plan.len(),
         conflicted_files: conflicted,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::Command as StdCommand;
+
+    fn git(repo: &Path, args: &[&str]) {
+        let status = StdCommand::new("git").arg("-C").arg(repo).args(args).status().unwrap();
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    fn init_repo() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        git(dir.path(), &["init", "-q", "-b", "main"]);
+        git(dir.path(), &["config", "user.email", "test@example.com"]);
+        git(dir.path(), &["config", "user.name", "Test"]);
+        dir
+    }
+
+    fn commit(repo: &Path, message: &str) -> String {
+        std::fs::write(repo.join("file.txt"), format!("{message}\n")).unwrap();
+        git(repo, &["add", "-A"]);
+        git(repo, &["commit", "-q", "-m", message]);
+        let out = StdCommand::new("git").arg("-C").arg(repo).args(["rev-parse", "HEAD"]).output().unwrap();
+        String::from_utf8(out.stdout).unwrap().trim().to_string()
+    }
+
+    /// A `commit-msg` hook that rejects any message containing "REJECT" —
+    /// exercising the exact real-world trigger for `finish_step` failing
+    /// after its cherry-pick already succeeded (e.g. a project's own
+    /// message-format hook).
+    fn install_rejecting_hook(repo: &Path) {
+        let hooks_dir = repo.join(".git").join("hooks");
+        std::fs::create_dir_all(&hooks_dir).unwrap();
+        let hook_path = hooks_dir.join("commit-msg");
+        std::fs::write(&hook_path, "#!/bin/sh\ngrep -q REJECT \"$1\" && exit 1\nexit 0\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&hook_path).unwrap().permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&hook_path, perms).unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn finishing_a_reword_step_a_hook_rejects_can_be_retried_after_fixing_it() {
+        let repo = init_repo();
+        commit(repo.path(), "base");
+        let sha = commit(repo.path(), "to reword");
+        install_rejecting_hook(repo.path());
+
+        let plan = vec![RebasePlanItem {
+            sha: sha.clone(),
+            action: RebaseAction::Reword,
+            message: Some("REJECT this message".to_string()),
+        }];
+
+        // The cherry-pick succeeds (it's a no-op reorder of the same commit);
+        // only the hook-rejected amend should fail.
+        let result = start_rebase(repo.path(), "HEAD~1", plan).await;
+        let err = result.expect_err("the hook should have rejected the reworded message");
+        assert!(err.contains("finishing step"), "unexpected error: {err}");
+
+        // Bug being fixed: this used to leave the repo mid-rebase with no
+        // persisted state at all, so the app had no way to show it.
+        let in_progress = get_in_progress_rebase(repo.path())
+            .await
+            .unwrap()
+            .expect("rebase state should have been persisted, not silently dropped");
+        assert!(
+            in_progress.conflicted_files.is_empty(),
+            "the cherry-pick itself succeeded — nothing should be marked conflicted"
+        );
+
+        // Retrying while the hook still rejects should fail the same way
+        // (not blow up trying a `cherry-pick --continue` with nothing to
+        // continue).
+        let retry_err = continue_rebase(repo.path()).await.expect_err("hook still rejects");
+        assert!(retry_err.contains("finishing step"), "unexpected error: {retry_err}");
+
+        // Simulate the user resolving whatever the hook was enforcing, then
+        // continuing again — this time it should actually finish.
+        std::fs::remove_file(repo.path().join(".git/hooks/commit-msg")).unwrap();
+        let done = continue_rebase(repo.path()).await.expect("should finish once the hook stops rejecting");
+        assert_eq!(done.status, "done");
+
+        assert!(get_in_progress_rebase(repo.path()).await.unwrap().is_none(), "state file should be cleaned up");
+        let log = StdCommand::new("git")
+            .arg("-C")
+            .arg(repo.path())
+            .args(["log", "-1", "--pretty=%s"])
+            .output()
+            .unwrap();
+        assert_eq!(String::from_utf8(log.stdout).unwrap().trim(), "REJECT this message");
+    }
 }

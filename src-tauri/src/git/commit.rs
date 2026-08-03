@@ -1,3 +1,4 @@
+use super::path_safety::safe_repo_path;
 use super::process::run_git;
 use super::refs::get_head_sha;
 use std::path::Path;
@@ -127,7 +128,8 @@ pub async fn list_skip_worktree_files(repo_path: &Path) -> Result<Vec<String>, S
 /// from either way — the caller is expected to have confirmed with the user).
 pub async fn discard_file(repo_path: &Path, rel_path: &str, is_untracked: bool) -> Result<(), String> {
     if is_untracked {
-        std::fs::remove_file(repo_path.join(rel_path)).map_err(|e| e.to_string())?;
+        let full_path = safe_repo_path(repo_path, rel_path)?;
+        std::fs::remove_file(full_path).map_err(|e| e.to_string())?;
         return Ok(());
     }
     let output = run_git(repo_path, &["restore", "--", rel_path])

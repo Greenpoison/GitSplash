@@ -56,8 +56,9 @@ export function RepoHistoryPage() {
         <div>
           <h1 className="text-xl font-semibold">Repo history</h1>
           <p className="text-sm text-muted-foreground">
-            Every branch's commits, spread out and zoomable. Click a commit to trace its lineage —
-            hover a branch in the legend to spotlight it.
+            Every branch's commits, spread out and zoomable. Click a commit to see what it
+            changed, then click a file to track it across the whole graph — hover a branch in the
+            legend to spotlight it.
           </p>
         </div>
         {repos.length > 0 && (
@@ -87,7 +88,7 @@ export function RepoHistoryPage() {
           Loading commit history…
         </div>
       ) : (
-        <CommitUniverse commits={commits} branches={branches} tags={tags} />
+        <CommitUniverse repoId={selected.id} commits={commits} branches={branches} tags={tags} />
       )}
     </div>
   );

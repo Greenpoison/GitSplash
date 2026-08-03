@@ -49,6 +49,32 @@ describe("computeBranchSegments", () => {
     expect(labels.size).toBe(2);
   });
 
+  it("leaves a commit unlabeled when two sibling branches equally share it", () => {
+    // root -> s -> a1 -> a2 (feature/a)
+    //           -> b1 -> b2 (feature/b)
+    // main branches directly from root, never incorporating s — so s (and
+    // everything on either branch up to their actual split) is equally
+    // "unique-relative-to-mainline" ancestry for both feature/a and
+    // feature/b. Neither branch should win it by array-order coincidence.
+    const commits = [
+      commit("m1", ["root"], ["HEAD -> main"]),
+      commit("a2", ["a1"], ["feature/a"]),
+      commit("a1", ["s"]),
+      commit("b2", ["b1"], ["feature/b"]),
+      commit("b1", ["s"]),
+      commit("s", ["root"]),
+      commit("root", []),
+    ];
+    const labels = computeBranchSegments(commits, ["feature/a", "feature/b"]);
+
+    expect(labels.get("a1")).toBe("feature/a");
+    expect(labels.get("a2")).toBe("feature/a");
+    expect(labels.get("b1")).toBe("feature/b");
+    expect(labels.get("b2")).toBe("feature/b");
+    expect(labels.has("s")).toBe(false);
+    expect(labels.has("root")).toBe(false);
+  });
+
   it("leaves a fast-forward-merged branch's now-shared history unlabeled", () => {
     // A branch ref lingering on a commit that's now just a plain ancestor of
     // HEAD (fast-forwarded, no merge commit) has nothing left unique to it.

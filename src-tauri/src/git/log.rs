@@ -63,9 +63,22 @@ fn parse_log_records(stdout: &str) -> Vec<CommitNode> {
 /// frontend reuse CommitDetailDialog for things that resolve to a commit
 /// but aren't already a CommitNode from a graph/history call, like a tag.
 pub async fn get_commit(repo_path: &Path, rev: &str) -> Result<Option<CommitNode>, String> {
+    // `rev` is a revision, not a path, so `git log`'s usual `--` (which
+    // means "everything after this is a path") isn't the right separator
+    // here — `--end-of-options` stops option parsing without that pathspec
+    // implication, so a `rev` crafted to look like a flag (e.g.
+    // `--output=...`, which git log would otherwise happily obey) is
+    // treated as a literal, almost certainly invalid revision instead.
     let output = run_git(
         repo_path,
-        &["log", "-n1", "--date=iso-strict", &format!("--pretty=format:{}", log_format()), rev],
+        &[
+            "log",
+            "-n1",
+            "--date=iso-strict",
+            &format!("--pretty=format:{}", log_format()),
+            "--end-of-options",
+            rev,
+        ],
     )
     .await
     .map_err(|e| format!("failed to run git log: {e}"))?;
@@ -144,6 +157,46 @@ pub async fn get_file_history(repo_path: &Path, rel_path: &str, limit: u32) -> R
         &[
             "log",
             "--follow",
+            "--date=iso-strict",
+            &format!("--pretty=format:{}", log_format()),
+            &limit_arg,
+            "--",
+            rel_path,
+        ],
+    )
+    .await
+    .map_err(|e| format!("failed to run git log: {e}"))?;
+
+    if !output.success {
+        return Err(if output.stderr.trim().is_empty() {
+            "git log failed".to_string()
+        } else {
+            output.stderr.trim().to_string()
+        });
+    }
+    Ok(parse_log_records(&output.stdout))
+}
+
+/// History of a single file across every local branch, not just the
+/// currently checked-out one — for tracking a file within a multi-branch
+/// view (e.g. the commit-universe graph, which is itself built from
+/// `--branches`) where a file's history on an unmerged branch would
+/// otherwise be invisible. Drops `--follow`'s rename tracking in exchange:
+/// `--follow` only supports following a single line of history from one
+/// starting point, which doesn't have defined behavior across several
+/// branch tips at once.
+pub async fn get_file_history_across_branches(
+    repo_path: &Path,
+    rel_path: &str,
+    limit: u32,
+) -> Result<Vec<CommitNode>, String> {
+    let limit_arg = format!("-n{limit}");
+    let output = run_git(
+        repo_path,
+        &[
+            "log",
+            "--branches",
+            "--topo-order",
             "--date=iso-strict",
             &format!("--pretty=format:{}", log_format()),
             &limit_arg,
@@ -376,6 +429,17 @@ pub async fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>, String> 
     // branch switcher even right after a fetch, since fetch only ever
     // updates refs/remotes/* and never creates a local branch.
     let local_names: HashSet<String> = branches.iter().map(|b| b.name.clone()).collect();
+    // Needed to correctly split a remote-tracking ref's short name apart
+    // from the remote's own name: a remote's name can itself contain
+    // slashes (git allows `git remote add "my/remote" <url>`), so naively
+    // splitting off just the first path segment would cut a multi-segment
+    // remote name short and produce the wrong branch name.
+    let remote_names: Vec<String> = run_git(repo_path, &["remote"])
+        .await
+        .ok()
+        .filter(|o| o.success)
+        .map(|o| o.stdout.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect())
+        .unwrap_or_default();
     let remote_refs: Vec<String> = run_git(
         repo_path,
         &["for-each-ref", "refs/remotes", "--format=%(refname:short)"],
@@ -387,14 +451,19 @@ pub async fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>, String> 
     .unwrap_or_default();
     for remote_ref in remote_refs {
         // refname:short of "refs/remotes/origin/feature/x" is
-        // "origin/feature/x" — split off the remote name to get the branch's
-        // own short name for the "already has a local branch" check below.
-        let Some(short_name) = remote_ref.splitn(2, '/').nth(1) else {
+        // "origin/feature/x" — strip whichever configured remote name it
+        // actually starts with, to get the branch's own short name for the
+        // "already has a local branch" check below.
+        let Some(short_name) = remote_names
+            .iter()
+            .find_map(|remote_name| remote_ref.strip_prefix(&format!("{remote_name}/")))
+            .map(|s| s.to_string())
+        else {
             continue;
         };
         // "origin/HEAD" is the remote's symbolic default-branch pointer, not
         // an actual branch.
-        if short_name == "HEAD" || local_names.contains(short_name) {
+        if short_name == "HEAD" || local_names.contains(&short_name) {
             continue;
         }
         branches.push(BranchInfo {

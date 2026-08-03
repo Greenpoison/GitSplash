@@ -1,3 +1,4 @@
+use super::path_safety::safe_repo_path;
 use super::process::run_git;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -107,7 +108,7 @@ fn parse_conflicts(content: &str) -> ConflictFile {
 }
 
 pub async fn get_conflict_sections(repo_path: &Path, rel_path: &str) -> Result<ConflictFile, String> {
-    let full_path = repo_path.join(rel_path);
+    let full_path = safe_repo_path(repo_path, rel_path)?;
     let bytes = tokio::fs::read(&full_path)
         .await
         .map_err(|e| format!("failed to read {rel_path}: {e}"))?;
@@ -118,7 +119,8 @@ pub async fn get_conflict_sections(repo_path: &Path, rel_path: &str) -> Result<C
 }
 
 pub async fn write_resolved_file(repo_path: &Path, rel_path: &str, content: &str) -> Result<(), String> {
-    tokio::fs::write(repo_path.join(rel_path), content)
+    let full_path = safe_repo_path(repo_path, rel_path)?;
+    tokio::fs::write(full_path, content)
         .await
         .map_err(|e| format!("failed to write {rel_path}: {e}"))?;
     stage_resolved(repo_path, rel_path).await

@@ -27,6 +27,11 @@ pub async fn clone_repo(url: &str, dest: &Path) -> Result<(), String> {
     no_window_tokio(&mut cmd);
     let output = cmd
         .arg("clone")
+        // `--` stops option parsing before `url` — without it, a pasted
+        // string like `--upload-pack=...` is parsed as a flag instead of a
+        // URL (the well-known CVE-2017-1000117 pattern), which can run an
+        // arbitrary local command.
+        .arg("--")
         .arg(url)
         .arg(dest)
         .output()

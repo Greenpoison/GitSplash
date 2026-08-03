@@ -89,10 +89,12 @@ pub async fn create_tag(
     if force {
         args.push("-f");
     }
+    // `--` stops option parsing before the tag name — a tag name starting
+    // with `-` would otherwise be parsed as a flag instead of a ref.
     if let Some(m) = message {
-        args.extend(["-a", name, "-m", m, target]);
+        args.extend(["-a", "-m", m, "--", name, target]);
     } else {
-        args.extend([name, target]);
+        args.extend(["--", name, target]);
     }
     let output = run_git(repo_path, &args)
         .await
@@ -104,7 +106,7 @@ pub async fn create_tag(
 }
 
 pub async fn delete_tag(repo_path: &Path, name: &str) -> Result<(), String> {
-    let output = run_git(repo_path, &["tag", "-d", name])
+    let output = run_git(repo_path, &["tag", "-d", "--", name])
         .await
         .map_err(|e| format!("failed to run git tag -d: {e}"))?;
     if !output.success {
@@ -118,6 +120,10 @@ pub async fn push_tag(repo_path: &Path, name: &str, force: bool) -> Result<(), S
     if force {
         args.push("--force");
     }
+    // `--` stops option parsing before the tag name — a tag name (from a
+    // remote-advertised tag via fetch_tags, not just one created locally)
+    // starting with `-` would otherwise be parsed as a flag.
+    args.push("--");
     args.push(name);
     let output = run_git(repo_path, &args)
         .await
@@ -139,7 +145,7 @@ pub async fn push_all_tags(repo_path: &Path) -> Result<(), String> {
 }
 
 pub async fn delete_remote_tag(repo_path: &Path, name: &str) -> Result<(), String> {
-    let output = run_git(repo_path, &["push", "origin", "--delete", name])
+    let output = run_git(repo_path, &["push", "origin", "--delete", "--", name])
         .await
         .map_err(|e| format!("failed to run git push: {e}"))?;
     if !output.success {

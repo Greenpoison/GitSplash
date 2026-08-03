@@ -32,6 +32,10 @@ pub async fn checkout_branch(repo_path: &Path, branch: &str, is_remote: bool, fo
     if is_remote {
         args.push("--track");
     }
+    // `--` stops option parsing before the branch name — without it, a
+    // branch name that happens to start with `-` (e.g. one a malicious
+    // remote advertised) would be parsed as a flag instead of a ref.
+    args.push("--");
     args.push(branch);
     let output = run_git(repo_path, &args)
         .await

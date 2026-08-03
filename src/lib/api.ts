@@ -191,6 +191,8 @@ export const keepTheirs = (repoId: string, path: string) => invoke<void>("keep_t
 export const listTrackedFiles = (repoId: string) => invoke<string[]>("list_tracked_files", { repoId });
 export const getFileHistory = (repoId: string, path: string, limit: number) =>
   invoke<CommitNode[]>("get_file_history", { repoId, path, limit });
+export const getFileHistoryAcrossBranches = (repoId: string, path: string, limit: number) =>
+  invoke<CommitNode[]>("get_file_history_across_branches", { repoId, path, limit });
 export const getBlame = (repoId: string, path: string) => invoke<BlameLine[]>("get_blame", { repoId, path });
 export const searchCommits = (repoId: string, query: string, searchContent: boolean, limit: number) =>
   invoke<CommitNode[]>("search_commits", { repoId, query, searchContent, limit });

@@ -68,6 +68,15 @@ export function getFakeTags(repoId: string) {
   return historyFor(repoId).tags;
 }
 
+export function getFakeCommitFiles(repoId: string, hash: string) {
+  return historyFor(repoId).filesByHash.get(hash) ?? [];
+}
+
+export function getFakeFileHistory(repoId: string, path: string) {
+  const history = historyFor(repoId);
+  return history.commits.filter((c) => history.filesByHash.get(c.hash)?.some((f) => f.path === path));
+}
+
 export function getFakeStatus(repoId: string): RepoGitStatus {
   const current = getFakeBranches(repoId).find((b) => b.isCurrent);
   return {

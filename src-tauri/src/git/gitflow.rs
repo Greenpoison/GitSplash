@@ -48,7 +48,10 @@ pub struct GitflowFinishResult {
 pub async fn start_gitflow_branch(repo_path: &Path, kind: GitflowKind, name: &str, base_branch: &str) -> Result<(), String> {
     let branch = branch_name(kind, name);
     let resolved_base = resolve_freshest_base(repo_path, base_branch).await;
-    let output = run_git(repo_path, &["switch", "-c", &branch, "--no-track", &resolved_base])
+    // `--` stops option parsing before the start-point — `resolved_base` can
+    // come from a branch's upstream ref, not just something the local user
+    // chose, so a value starting with `-` shouldn't be parsed as a flag.
+    let output = run_git(repo_path, &["switch", "-c", &branch, "--no-track", "--", &resolved_base])
         .await
         .map_err(|e| format!("failed to run git switch: {e}"))?;
     if !output.success {

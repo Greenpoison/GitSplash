@@ -93,9 +93,14 @@ export async function invoke<T>(cmd: string, rawArgs?: Args): Promise<T> {
       const matches = store.getFakeCommits(repoId!).filter((c) => c.subject.toLowerCase().includes(query));
       return matches as unknown as T;
     }
+    case "get_commit_files":
+      return store.getFakeCommitFiles(repoId!, a.hash as string) as unknown as T;
+    case "get_file_history":
+    case "get_file_history_across_branches":
+      return store.getFakeFileHistory(repoId!, a.path as string) as unknown as T;
+
     case "get_rebase_candidates":
     case "get_cherry_pick_candidates":
-    case "get_file_history":
       return [] as unknown as T;
 
     case "get_file_changes":

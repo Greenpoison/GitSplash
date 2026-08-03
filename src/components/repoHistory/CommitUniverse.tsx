@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Locate, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowLeft, Locate, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DiffStatBadge } from "@/components/repos/DiffStatBadge";
 import { colorForBranchName, computeBranchSegments } from "@/lib/branchSegments";
-import { traceLineage } from "@/lib/commitLineage";
 import { computeUniverseLayout } from "@/lib/commitUniverseLayout";
+import { reportGitError } from "@/lib/gitErrors";
 import { relativeTime } from "@/lib/utils";
-import type { BranchInfo, CommitNode, TagInfo } from "@/lib/types";
+import * as api from "@/lib/api";
+import type { BranchInfo, CommitNode, CompareFile, TagInfo } from "@/lib/types";
 
 const UNATTRIBUTED_COLOR = "#d8d8f0";
 const VERSION_RING_COLOR = "#ffd76a";
+const SELECTION_RING_COLOR = "#4fd1ff";
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 5;
+const FILE_HISTORY_LIMIT = 2000;
 
 interface ViewState {
   zoom: number;
@@ -22,15 +26,18 @@ const DEFAULT_VIEW: ViewState = { zoom: 1, panX: 0, panY: 0 };
 
 /// The "exploded universe": a force-spread starfield of every commit across
 /// all local branches, rather than the single-lane linear list CommitGraph
-/// shows for one branch's history. Clicking a commit traces its full
-/// lineage — ancestors and descendants — and dims everything not part of
-/// that line of work, so you can see one feature's path through the shape
-/// of the whole project.
+/// shows for one branch's history. Clicking a commit shows what it changed;
+/// clicking one of those files then tracks it — highlighting every commit
+/// across every branch that touched it — which is a far more concrete
+/// through-line to follow than an abstract "everything connected to this
+/// commit" trace was.
 export function CommitUniverse({
+  repoId,
   commits,
   branches,
   tags,
 }: {
+  repoId: string;
   commits: CommitNode[];
   branches: BranchInfo[];
   tags: TagInfo[];
@@ -42,10 +49,28 @@ export function CommitUniverse({
   const [view, setView] = useState<ViewState>(DEFAULT_VIEW);
   const [hoveredHash, setHoveredHash] = useState<string | null>(null);
   const [hoveredBranch, setHoveredBranch] = useState<string | null>(null);
-  const [tracedHash, setTracedHash] = useState<string | null>(null);
+
+  const [selectedHash, setSelectedHash] = useState<string | null>(null);
+  const [commitFiles, setCommitFiles] = useState<CompareFile[] | null>(null);
+  const [filesLoading, setFilesLoading] = useState(false);
+  const [filesFailed, setFilesFailed] = useState(false);
+
+  const [trackedFile, setTrackedFile] = useState<string | null>(null);
+  const [trackedHashes, setTrackedHashes] = useState<Set<string> | null>(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; panX: number; panY: number } | null>(
     null,
   );
+
+  // Bumped on every selectCommit/trackFile call (and on anything that
+  // abandons one without starting a replacement) so an in-flight fetch's
+  // callback can tell it's no longer the latest request and skip applying
+  // its result — without this, clicking a different commit or file before
+  // the previous fetch resolves could let a stale, out-of-order response
+  // overwrite what's actually selected.
+  const selectionRequestRef = useRef(0);
+  const trackingRequestRef = useRef(0);
 
   useEffect(() => {
     sizeRef.current = size;
@@ -66,11 +91,16 @@ export function CommitUniverse({
 
   // A different repo's commits loading in should never leave the camera
   // parked over an empty corner of the previous repo's layout, and any
-  // active trace obviously no longer applies once the graph underneath it
-  // has changed.
+  // active selection/tracking obviously no longer applies once the graph
+  // underneath it has changed.
   useEffect(() => {
+    selectionRequestRef.current += 1;
+    trackingRequestRef.current += 1;
     setView(DEFAULT_VIEW);
-    setTracedHash(null);
+    setSelectedHash(null);
+    setCommitFiles(null);
+    setTrackedFile(null);
+    setTrackedHashes(null);
   }, [commits]);
 
   const zoomAt = useCallback((mx: number, my: number, factor: number) => {
@@ -123,17 +153,78 @@ export function CommitUniverse({
     return branchNames.filter((n) => used.has(n));
   }, [segments, branchNames]);
 
-  const tracedSet = useMemo(() => (tracedHash ? traceLineage(commits, tracedHash) : null), [commits, tracedHash]);
-  const tracedCommit = tracedHash ? (commitByHash.get(tracedHash) ?? null) : null;
-  const tracedVersions = useMemo(() => {
-    if (!tracedSet) return [];
-    // `commits` is newest-first; reverse so versions read oldest-to-newest,
-    // matching the order the feature actually shipped in.
-    return commits
-      .filter((c) => tracedSet.has(c.hash) && tagByHash.has(c.hash))
-      .map((c) => tagByHash.get(c.hash)!.name)
-      .reverse();
-  }, [tracedSet, commits, tagByHash]);
+  const selectCommit = (hash: string) => {
+    if (selectedHash === hash) {
+      // Clicking the same commit again closes the panel.
+      selectionRequestRef.current += 1;
+      trackingRequestRef.current += 1;
+      setSelectedHash(null);
+      setCommitFiles(null);
+      setTrackedFile(null);
+      setTrackedHashes(null);
+      return;
+    }
+    trackingRequestRef.current += 1; // abandon any in-flight tracking fetch from the previous commit
+    const requestId = ++selectionRequestRef.current;
+    setSelectedHash(hash);
+    setTrackedFile(null);
+    setTrackedHashes(null);
+    setCommitFiles(null);
+    setFilesFailed(false);
+    setFilesLoading(true);
+    api
+      .getCommitFiles(repoId, hash)
+      .then((files) => {
+        if (selectionRequestRef.current !== requestId) return;
+        setCommitFiles(files);
+      })
+      .catch((e) => {
+        if (selectionRequestRef.current !== requestId) return;
+        reportGitError(e);
+        setFilesFailed(true);
+      })
+      .finally(() => {
+        if (selectionRequestRef.current !== requestId) return;
+        setFilesLoading(false);
+      });
+  };
+
+  const trackFile = (path: string) => {
+    const requestId = ++trackingRequestRef.current;
+    setTrackedFile(path);
+    setTrackedHashes(null);
+    setTrackingLoading(true);
+    api
+      .getFileHistoryAcrossBranches(repoId, path, FILE_HISTORY_LIMIT)
+      .then((history) => {
+        if (trackingRequestRef.current !== requestId) return;
+        setTrackedHashes(new Set(history.map((c) => c.hash)));
+      })
+      .catch((e) => {
+        if (trackingRequestRef.current !== requestId) return;
+        reportGitError(e);
+        setTrackedFile(null);
+      })
+      .finally(() => {
+        if (trackingRequestRef.current !== requestId) return;
+        setTrackingLoading(false);
+      });
+  };
+
+  const clearAll = () => {
+    selectionRequestRef.current += 1;
+    trackingRequestRef.current += 1;
+    setSelectedHash(null);
+    setCommitFiles(null);
+    setTrackedFile(null);
+    setTrackedHashes(null);
+  };
+
+  const backToFiles = () => {
+    trackingRequestRef.current += 1; // abandon any in-flight tracking fetch
+    setTrackedFile(null);
+    setTrackedHashes(null);
+  };
 
   const colorFor = (hash: string) => {
     const label = segments.get(hash);
@@ -141,7 +232,7 @@ export function CommitUniverse({
   };
 
   const isDimmed = (hash: string): boolean => {
-    if (tracedSet) return !tracedSet.has(hash);
+    if (trackedHashes) return !trackedHashes.has(hash);
     if (hoveredBranch) return segments.get(hash) !== hoveredBranch;
     return false;
   };
@@ -177,6 +268,7 @@ export function CommitUniverse({
   const cy = size.height / 2 + view.panY;
   const hoveredCommit = hoveredHash ? (commitByHash.get(hoveredHash) ?? null) : null;
   const hoveredPos = hoveredHash ? (positions.get(hoveredHash) ?? null) : null;
+  const selectedCommit = selectedHash ? (commitByHash.get(selectedHash) ?? null) : null;
 
   return (
     <div
@@ -232,8 +324,19 @@ export function CommitUniverse({
             const radius = tag ? 6 : isMerge ? 5 : 3.5;
             const dim = isDimmed(c.hash);
             const isHovered = hoveredHash === c.hash;
+            const isSelected = selectedHash === c.hash;
             return (
               <g key={c.hash} opacity={dim ? 0.15 : 1}>
+                {isSelected && (
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={radius + 5}
+                    fill="none"
+                    stroke={SELECTION_RING_COLOR}
+                    strokeWidth={1.5}
+                  />
+                )}
                 {tag && (
                   <circle
                     cx={pos.x}
@@ -260,7 +363,7 @@ export function CommitUniverse({
                   className="cursor-pointer"
                   onMouseEnter={() => setHoveredHash(c.hash)}
                   onMouseLeave={() => setHoveredHash((h) => (h === c.hash ? null : h))}
-                  onClick={() => setTracedHash((prev) => (prev === c.hash ? null : c.hash))}
+                  onClick={() => selectCommit(c.hash)}
                 />
               </g>
             );
@@ -318,19 +421,59 @@ export function CommitUniverse({
         </div>
       )}
 
-      {tracedCommit && (
-        <div className="absolute bottom-3 left-3 max-w-sm rounded-md border border-white/10 bg-black/60 p-3 text-xs text-white/80 backdrop-blur-sm">
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-medium text-white">Tracing "{tracedCommit.subject}"</span>
-            <button className="text-white/50 hover:text-white" onClick={() => setTracedHash(null)}>
-              Clear
-            </button>
-          </div>
-          <div className="mt-1">{tracedSet?.size ?? 0} commits in this line of history.</div>
-          {tracedVersions.length > 0 && (
-            <div className="mt-1">
-              Shipped in: <span className="text-amber-300">{tracedVersions.join(", ")}</span>
-            </div>
+      {selectedCommit && (
+        <div className="absolute bottom-3 left-3 flex max-h-64 w-80 flex-col rounded-md border border-white/10 bg-black/70 p-3 text-xs text-white/80 backdrop-blur-sm">
+          {trackedFile ? (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate font-mono font-medium text-white" title={trackedFile}>
+                  {trackedFile}
+                </span>
+                <button className="shrink-0 text-white/50 hover:text-white" onClick={clearAll}>
+                  Clear
+                </button>
+              </div>
+              <div className="mt-1">
+                {trackingLoading
+                  ? "Loading…"
+                  : `${trackedHashes?.size ?? 0} commit${trackedHashes?.size === 1 ? "" : "s"} touched this file, across every branch.`}
+              </div>
+              <button
+                className="mt-2 flex items-center gap-1 self-start text-white/60 hover:text-white"
+                onClick={backToFiles}
+              >
+                <ArrowLeft className="size-3" /> Back to changed files
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate font-medium text-white" title={selectedCommit.subject}>
+                  {selectedCommit.subject}
+                </span>
+                <button className="shrink-0 text-white/50 hover:text-white" onClick={clearAll}>
+                  Clear
+                </button>
+              </div>
+              <div className="mt-1 text-white/60">Files changed — click one to track it across the graph:</div>
+              <div className="mt-1 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
+                {filesLoading && <div className="text-white/50">Loading…</div>}
+                {filesFailed && <div className="text-red-300">Couldn't load changed files.</div>}
+                {!filesLoading && !filesFailed && commitFiles?.length === 0 && (
+                  <div className="text-white/50">No file changes (e.g. a merge commit).</div>
+                )}
+                {commitFiles?.map((f) => (
+                  <button
+                    key={f.path}
+                    className="flex items-center gap-1.5 truncate rounded px-1 py-0.5 text-left font-mono hover:bg-white/10"
+                    onClick={() => trackFile(f.path)}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{f.path}</span>
+                    <DiffStatBadge file={f} />
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}
@@ -348,7 +491,7 @@ function Starfield({ width, height }: { width: number; height: number }) {
         o: Math.random() * 0.6 + 0.15,
       })),
     // A fixed backdrop that only needs to resize with the canvas, not react
-    // to the graph's own pan/zoom/trace state.
+    // to the graph's own pan/zoom/selection state.
     [width, height],
   );
   return (

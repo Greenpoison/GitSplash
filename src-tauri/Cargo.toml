@@ -1,6 +1,6 @@
 [package]
 name = "gitsplash"
-version = "1.0.65-beta"
+version = "1.0.66-beta"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -36,6 +36,9 @@ zip = { version = "8.6.0", features = ["aes-crypto", "deflate"] }
 walkdir = "2.5.0"
 rand = { version = "0.10.2", features = ["std"] }
 futures = "0.3.33"
+
+[dev-dependencies]
+tempfile = "3"
 
 # libsqlite3-sys 0.38.1 and rusqlite 0.40.1 both call the still-unstable
 # `cfg_select!` macro with no `#![feature(...)]` gate to unlock it, so they

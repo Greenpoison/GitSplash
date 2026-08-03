@@ -1,3 +1,4 @@
+use super::path_safety::safe_repo_path;
 use super::process::run_git;
 use crate::util::no_window_tokio;
 use serde::{Deserialize, Serialize};
@@ -105,7 +106,7 @@ pub(crate) fn parse_multi_file_diff(raw: &str) -> Vec<(String, bool, Vec<DiffHun
 /// staging is intentionally not offered for these; only whole-file `git
 /// add` makes sense for a file with no prior tracked version to hunk against.
 pub async fn get_untracked_file_diff(repo_path: &Path, rel_path: &str) -> Result<FileDiff, String> {
-    let full_path = repo_path.join(rel_path);
+    let full_path = safe_repo_path(repo_path, rel_path)?;
     let bytes = tokio::fs::read(&full_path)
         .await
         .map_err(|e| format!("failed to read {rel_path}: {e}"))?;

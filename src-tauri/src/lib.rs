@@ -121,6 +121,7 @@ pub fn run() {
             commands::conflicts::keep_theirs,
             commands::history::list_tracked_files,
             commands::history::get_file_history,
+            commands::history::get_file_history_across_branches,
             commands::history::get_blame,
             commands::history::search_commits,
             commands::history::get_reflog,

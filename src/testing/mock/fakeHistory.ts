@@ -1,6 +1,15 @@
-import type { BranchInfo, CommitNode, TagInfo } from "@/lib/types";
+import type { BranchInfo, CommitNode, CompareFile, TagInfo } from "@/lib/types";
 
 const AUTHORS = ["Ada Lovelace", "Grace Hopper", "Alan Turing", "Margaret Hamilton"];
+const FILE_POOL = [
+  "src/index.ts",
+  "src/app.tsx",
+  "src/utils/helpers.ts",
+  "src/components/Button.tsx",
+  "src/components/Modal.tsx",
+  "README.md",
+  "package.json",
+];
 const SUBJECTS = [
   "Fix off-by-one in pagination",
   "Add dark mode toggle",
@@ -32,6 +41,34 @@ export interface FakeHistory {
   commits: CommitNode[];
   branches: BranchInfo[];
   tags: TagInfo[];
+  filesByHash: Map<string, CompareFile[]>;
+}
+
+/// A small, deterministic set of "changed files" for a commit — enough
+/// overlap across the pool that at least one file's history typically spans
+/// both the mainline and the open feature branch, which is exactly the case
+/// worth exercising for cross-branch file tracking.
+function filesForCommit(seed: number): CompareFile[] {
+  const count = 1 + (seed % 3);
+  const files: CompareFile[] = [];
+  const used = new Set<number>();
+  for (let i = 0; i < count; i++) {
+    // 11 and 13 are both coprime with FILE_POOL.length (7) — using a
+    // multiplier that shared a factor with it (7 itself, notably) made
+    // `seed`'s contribution vanish entirely under the modulo, so every
+    // commit picked the exact same files regardless of which commit it was.
+    const idx = (seed * 11 + i * 13) % FILE_POOL.length;
+    if (used.has(idx)) continue;
+    used.add(idx);
+    files.push({
+      path: FILE_POOL[idx],
+      origPath: null,
+      status: "modified",
+      insertions: 1 + (seed % 20),
+      deletions: seed % 10,
+    });
+  }
+  return files;
 }
 
 /// Builds a small but structurally realistic history: a mainline, a merged
@@ -52,10 +89,12 @@ export function generateFakeHistory(seed: number): FakeHistory {
   let hashCounter = seed * 1000;
   const newHash = () => fakeHash(++hashCounter);
   const pick = <T,>(arr: T[], i: number): T => arr[(i + seed) % arr.length];
+  const filesByHash = new Map<string, CompareFile[]>();
 
   function addCommit(parents: string[], subject: string): string {
     const hash = newHash();
     commits.push({ hash, parents, refs: [], subject, body: "", author: pick(AUTHORS, hashCounter), date: dateFor() });
+    filesByHash.set(hash, filesForCommit(hashCounter));
     return hash;
   }
 
@@ -99,5 +138,5 @@ export function generateFakeHistory(seed: number): FakeHistory {
   // returns and what the app's own layout/segment logic assumes.
   commits.reverse();
 
-  return { commits, branches, tags };
+  return { commits, branches, tags, filesByHash };
 }

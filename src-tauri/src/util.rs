@@ -14,6 +14,27 @@ pub fn slugify(s: &str) -> String {
         .collect()
 }
 
+/// A host alias ends up interpolated, unescaped, into a `Host <alias>` line
+/// (and its own begin/end marker comments) in `~/.ssh/config`, and into a
+/// `git@<alias>:...` remote URL — so it's validated once, here, at account
+/// creation, rather than trusted as opaque text by every place that later
+/// writes or reads it. Restricting to this charset (rather than only
+/// rejecting newlines) closes off the whole class of "this breaks out of
+/// the line/URL it's written into" injection at once: a newline could add
+/// arbitrary extra SSH config directives, and even a stray `:` or `@` could
+/// change what a `git@<alias>:...` URL actually points at.
+pub fn validate_host_alias(host_alias: &str) -> Result<(), String> {
+    if host_alias.is_empty() {
+        return Err("account nickname can't be empty".to_string());
+    }
+    if !host_alias.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_')) {
+        return Err(format!(
+            "account nickname \"{host_alias}\" can only contain letters, numbers, '.', '-', and '_'"
+        ));
+    }
+    Ok(())
+}
+
 /// Windows briefly flashes a console window for every child process spawned
 /// from a GUI app that has no console of its own — every git/gh/ssh-keygen
 /// invocation otherwise. Suppresses that. No-op on other platforms.
@@ -92,5 +113,29 @@ mod tests {
     fn does_nothing_when_the_directory_does_not_exist() {
         let missing = std::env::temp_dir().join(format!("gitsplash-does-not-exist-{}", new_id()));
         cleanup_stale_updater_temp_dirs_in("gitsplash", &missing);
+    }
+
+    #[test]
+    fn accepts_typical_host_aliases() {
+        assert!(validate_host_alias("github.com").is_ok());
+        assert!(validate_host_alias("github.com-personal").is_ok());
+        assert!(validate_host_alias("work_account-2").is_ok());
+    }
+
+    #[test]
+    fn rejects_an_empty_alias() {
+        assert!(validate_host_alias("").is_err());
+    }
+
+    #[test]
+    fn rejects_a_newline_that_would_inject_extra_ssh_config_directives() {
+        assert!(validate_host_alias("github.com\nProxyCommand evil").is_err());
+    }
+
+    #[test]
+    fn rejects_characters_that_would_change_the_remote_url_shape() {
+        assert!(validate_host_alias("github.com:evil").is_err());
+        assert!(validate_host_alias("evil@github.com").is_err());
+        assert!(validate_host_alias("github.com evil").is_err());
     }
 }

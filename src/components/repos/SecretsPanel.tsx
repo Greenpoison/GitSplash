@@ -28,7 +28,7 @@ export function SecretsPanel({ repo }: { repo: Repo }) {
     try {
       const found = await api.scanRepoSecrets(repo.id);
       setFiles(found);
-      setSelected(new Set(found.map((f) => f.absolutePath)));
+      setSelected(new Set(found.map((f) => f.relativePath)));
     } catch (e) {
       reportGitError(e);
     } finally {
@@ -90,14 +90,14 @@ export function SecretsPanel({ repo }: { repo: Repo }) {
           <p className="text-sm text-muted-foreground">No secret-like files found.</p>
         )}
         {files.map((f) => (
-          <div key={f.absolutePath} className="flex items-center gap-2 rounded-md border px-2 py-1.5">
+          <div key={f.relativePath} className="flex items-center gap-2 rounded-md border px-2 py-1.5">
             <Checkbox
-              checked={selected.has(f.absolutePath)}
+              checked={selected.has(f.relativePath)}
               onCheckedChange={(c) => {
                 setSelected((prev) => {
                   const next = new Set(prev);
-                  if (c) next.add(f.absolutePath);
-                  else next.delete(f.absolutePath);
+                  if (c) next.add(f.relativePath);
+                  else next.delete(f.relativePath);
                   return next;
                 });
               }}

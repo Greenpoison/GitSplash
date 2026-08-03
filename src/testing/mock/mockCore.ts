@@ -41,7 +41,13 @@ export async function invoke<T>(cmd: string, rawArgs?: Args): Promise<T> {
       return store.getFakeStatus(repoId!) as unknown as T;
 
     case "list_branches":
-      return store.getFakeBranches(repoId!) as unknown as T;
+      // A real invoke() response is always a freshly-deserialized array, so
+      // React's setState always sees a new reference and re-renders. This
+      // mock mutates a single cached array in place (see fakeStore.ts) for
+      // simplicity — returning that same reference here instead of a copy
+      // would make React's Object.is bail-out silently swallow updates
+      // after the first one, which real usage could never hit.
+      return [...store.getFakeBranches(repoId!)] as unknown as T;
     case "get_head_sha":
       return (store.getFakeCommits(repoId!)[0]?.hash ?? null) as unknown as T;
     case "resolve_ref": {

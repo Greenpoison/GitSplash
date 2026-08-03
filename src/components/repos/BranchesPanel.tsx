@@ -144,6 +144,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const [selectedCommit, setSelectedCommit] = useState<CommitNode | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [forceDeleteTarget, setForceDeleteTarget] = useState<{ name: string; message: string } | null>(null);
+  const [deleteCurrentOpen, setDeleteCurrentOpen] = useState(false);
   const [overwriteTarget, setOverwriteTarget] = useState<{ branch: string; isRemote: boolean; files: string[] } | null>(null);
   const pushUndo = useUndoStore((s) => s.push);
   const status = useAppStore((s) => s.statuses[repo.id]);
@@ -308,6 +309,43 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   // here — merge, gitflow, comparison, the commit graph — expects real local
   // branches, so they're scoped out of those.
   const localBranches = useMemo(() => branches.filter((b) => !b.isRemote), [branches]);
+
+  // Git refuses to delete whatever branch is currently checked out, so
+  // deleting "the branch I'm on" is really "switch to something else, then
+  // delete it" — main/master if either exists (the common "I'm done with
+  // this branch" case), otherwise just any other local branch rather than
+  // leaving the user stuck.
+  const pickSwitchTarget = (excludeName: string): string | null => {
+    for (const name of ["main", "master"]) {
+      if (localBranches.some((b) => b.name === name && b.name !== excludeName)) return name;
+    }
+    return localBranches.find((b) => b.name !== excludeName)?.name ?? null;
+  };
+
+  const deleteCurrentBranch = async () => {
+    if (!current) return;
+    const originalName = current.name;
+    const target = pickSwitchTarget(originalName);
+    if (!target) {
+      toast.error("No other local branch to switch to — create one first.");
+      return;
+    }
+    setDeleteCurrentOpen(false);
+    setBusy(true);
+    try {
+      await api.checkoutBranch(repo.id, target);
+    } catch (e) {
+      reportGitError(e);
+      setBusy(false);
+      return;
+    }
+    await load();
+    onChanged();
+    setBusy(false);
+    // Now that it's no longer checked out, the normal single-branch delete
+    // flow applies as-is — including its "not fully merged, force?" fallback.
+    await deleteBranch(originalName, false);
+  };
 
   const mergedCount = useMemo(
     () => branches.filter((b) => b.isMerged && !b.isCurrent).length,
@@ -586,6 +624,12 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
             >
               <GitCompareArrows className="size-3.5" /> Compare branches…
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setDeleteCurrentOpen(true)}
+              disabled={!current || !pickSwitchTarget(current.name)}
+            >
+              <Trash2 className="size-3.5" /> Delete current branch…
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -831,6 +875,29 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
             <AlertDialogAction onClick={() => forceDeleteTarget && deleteBranch(forceDeleteTarget.name, true)}>
               Force delete
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteCurrentOpen} onOpenChange={setDeleteCurrentOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {current?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll be switched to <span className="font-mono">{current && pickSwitchTarget(current.name)}</span>{" "}
+              first, then {current?.name} is deleted. Only deletes the local branch — its remote
+              counterpart, if any, is untouched. Refused if it has commits not reachable from
+              anywhere else (you'll get the option to force it).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {current && (
+            <GitCommandPreview
+              command={`git switch ${pickSwitchTarget(current.name)} && git branch -d ${current.name}`}
+            />
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteCurrentBranch}>Switch &amp; delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

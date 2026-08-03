@@ -105,6 +105,21 @@ function filterCommitsByBranches(commits: CommitNode[], visibleBranches: Set<str
   return commits.filter((c) => reachable.has(c.hash));
 }
 
+const OVERWRITE_ERROR = /would be overwritten by checkout/i;
+
+/// Pulls the indented file list out of git's own "would be overwritten by
+/// checkout" stderr so the discard-and-switch confirmation can name exactly
+/// what's at stake, instead of just gesturing at "uncommitted changes" —
+/// best-effort: an empty result just means the generic wording is used.
+function extractOverwrittenFiles(raw: string): string[] {
+  const match = raw.match(/would be overwritten by checkout:\n((?:\t.+\n?)+)/);
+  if (!match) return [];
+  return match[1]
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
 export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () => void }) {
   const [branches, setBranches] = useState<BranchInfo[]>([]);
   const [commits, setCommits] = useState<CommitNode[]>([]);
@@ -129,6 +144,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
   const [selectedCommit, setSelectedCommit] = useState<CommitNode | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [forceDeleteTarget, setForceDeleteTarget] = useState<{ name: string; message: string } | null>(null);
+  const [overwriteTarget, setOverwriteTarget] = useState<{ branch: string; isRemote: boolean; files: string[] } | null>(null);
   const pushUndo = useUndoStore((s) => s.push);
   const status = useAppStore((s) => s.statuses[repo.id]);
 
@@ -154,7 +170,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repo.id]);
 
-  const checkout = async (branch: string, isRemote = false) => {
+  const checkout = async (branch: string, isRemote = false, force = false) => {
     const previousBranch = current?.name;
     // A remote-only entry's `name` is the full remote ref (e.g.
     // "origin/feature/x") — after this checkout it exists as a local branch
@@ -163,7 +179,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
     const localName = isRemote ? branch.slice(branch.indexOf("/") + 1) : branch;
     setBusy(true);
     try {
-      await api.checkoutBranch(repo.id, branch, isRemote);
+      await api.checkoutBranch(repo.id, branch, isRemote, force);
       toast.success(`Switched to ${localName}`);
       if (previousBranch && previousBranch !== localName) {
         pushUndo({
@@ -177,7 +193,15 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
       await load();
       onChanged();
     } catch (e) {
-      reportGitError(e);
+      // Git refuses a switch that would clobber uncommitted changes rather
+      // than doing it silently — that's not a dead end, just a decision the
+      // user needs to make explicitly, so offer the discard-and-switch path
+      // instead of just toasting the raw refusal.
+      if (!force && OVERWRITE_ERROR.test(String(e))) {
+        setOverwriteTarget({ branch, isRemote, files: extractOverwrittenFiles(String(e)) });
+      } else {
+        reportGitError(e);
+      }
     } finally {
       setBusy(false);
     }
@@ -433,13 +457,13 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
           )}
         </div>
       )}
-      <div className="flex max-h-64 flex-col divide-y overflow-y-auto rounded-md border">
+      <div className="flex max-h-36 flex-col divide-y overflow-y-auto rounded-md border">
         {filteredBranches.map((b) => {
           const disabled = busy || b.isCurrent || blockedByOp;
           return (
             <div
               key={b.name}
-              className={cn("group flex items-center gap-2 px-3 py-2 text-sm", b.isCurrent && "bg-primary/5")}
+              className={cn("group flex items-center gap-1.5 px-2.5 py-1.5 text-xs", b.isCurrent && "bg-primary/5")}
             >
               <button
                 type="button"
@@ -447,14 +471,14 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
                 title={blockedByOp ? blockedTitle : b.isCurrent ? undefined : `Switch to ${b.name}`}
                 onClick={() => checkout(b.name, b.isRemote)}
                 className={cn(
-                  "flex min-w-0 flex-1 items-center gap-2 text-left",
+                  "flex min-w-0 flex-1 items-center gap-1.5 text-left",
                   !disabled && "cursor-pointer hover:text-primary",
                 )}
               >
                 {b.isCurrent ? (
-                  <Check className="size-3.5 shrink-0 text-primary" />
+                  <Check className="size-3 shrink-0 text-primary" />
                 ) : (
-                  <span className="size-3.5 shrink-0" />
+                  <span className="size-3 shrink-0" />
                 )}
                 <span className={cn("truncate font-mono", b.isCurrent && "font-semibold")}>{b.name}</span>
                 {b.isRemote && (
@@ -481,7 +505,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
                     title={`Compare ${b.name} against ${current.name}`}
                     onClick={() => setCompareBranch(b.name)}
                   >
-                    <GitCompareArrows className="size-3.5" />
+                    <GitCompareArrows className="size-3" />
                   </Button>
                 )}
                 {!b.isCurrent && !b.isRemote && (
@@ -492,7 +516,7 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
                     disabled={busy}
                     onClick={() => setDeleteTarget(b.name)}
                   >
-                    <Trash2 className="size-3.5" />
+                    <Trash2 className="size-3" />
                   </Button>
                 )}
               </div>
@@ -806,6 +830,53 @@ export function BranchesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => forceDeleteTarget && deleteBranch(forceDeleteTarget.name, true)}>
               Force delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!overwriteTarget} onOpenChange={(o) => !o && setOverwriteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Discard changes and switch to{" "}
+              {overwriteTarget?.isRemote
+                ? overwriteTarget.branch.slice(overwriteTarget.branch.indexOf("/") + 1)
+                : overwriteTarget?.branch}
+              ?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {overwriteTarget?.files.length ? (
+                <>Switching would overwrite uncommitted changes in the file{overwriteTarget.files.length === 1 ? "" : "s"} below.</>
+              ) : (
+                <>Switching would overwrite uncommitted changes here.</>
+              )}{" "}
+              This can't be undone — commit, stash, or keep them locally first if you want to hang
+              onto them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {overwriteTarget && overwriteTarget.files.length > 0 && (
+            <div className="flex max-h-32 flex-col gap-0.5 overflow-y-auto rounded-md border bg-muted/30 p-2 font-mono text-xs">
+              {overwriteTarget.files.map((f) => (
+                <div key={f}>{f}</div>
+              ))}
+            </div>
+          )}
+          {overwriteTarget && (
+            <GitCommandPreview
+              command={`git switch --discard-changes ${overwriteTarget.isRemote ? `--track ${overwriteTarget.branch}` : overwriteTarget.branch}`}
+            />
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const target = overwriteTarget;
+                setOverwriteTarget(null);
+                if (target) checkout(target.branch, target.isRemote, true);
+              }}
+            >
+              Discard &amp; switch
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

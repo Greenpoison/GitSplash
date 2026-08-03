@@ -28,9 +28,10 @@ pub async fn checkout_branch(
     repo_id: String,
     branch: String,
     is_remote: bool,
+    force: bool,
 ) -> AppResult<()> {
     let path = repo_path(&state, &repo_id).await?;
-    git::branch::checkout_branch(&path, &branch, is_remote).await.map_err(AppError::Git)
+    git::branch::checkout_branch(&path, &branch, is_remote, force).await.map_err(AppError::Git)
 }
 
 #[tauri::command]

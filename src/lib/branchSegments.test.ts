@@ -2,46 +2,73 @@ import { describe, expect, it } from "vitest";
 import { computeBranchSegments } from "./branchSegments";
 import type { CommitNode } from "./types";
 
-function commit(hash: string, refs: string[] = []): CommitNode {
-  return { hash, parents: [], refs, subject: hash, body: "", author: "a", date: "2026-01-01T00:00:00Z" };
+function commit(hash: string, parents: string[] = [], refs: string[] = []): CommitNode {
+  return { hash, parents, refs, subject: hash, body: "", author: "a", date: "2026-01-01T00:00:00Z" };
 }
 
 describe("computeBranchSegments", () => {
-  it("labels a run of commits with the branch whose tip closes it", () => {
-    // Newest first, like the backend returns them.
+  it("labels a branch's own commits, diverged from the current tip", () => {
+    // root -> m1 (HEAD -> main); root -> m1 -> f1 -> f2 (feature/v1), never merged.
     const commits = [
-      commit("head"),
-      commit("c3", ["feature/v2"]),
-      commit("c2"),
-      commit("c1", ["feature/v1"]),
-      commit("root"),
+      commit("head", ["m1"], ["HEAD -> main"]),
+      commit("f2", ["f1"], ["feature/v1"]),
+      commit("f1", ["m1"]),
+      commit("m1", ["root"]),
+      commit("root", []),
     ];
-    const labels = computeBranchSegments(commits, ["feature/v1", "feature/v2"]);
+    const labels = computeBranchSegments(commits, ["feature/v1"]);
 
-    expect(labels.get("c1")).toBe("feature/v1");
-    expect(labels.get("root")).toBe("feature/v1");
-    expect(labels.get("c2")).toBe("feature/v2");
-    expect(labels.get("c3")).toBe("feature/v2");
+    expect(labels.get("f1")).toBe("feature/v1");
+    expect(labels.get("f2")).toBe("feature/v1");
+    expect(labels.has("m1")).toBe(false);
+    expect(labels.has("root")).toBe(false);
     expect(labels.has("head")).toBe(false);
   });
 
-  it("leaves commits after the last surviving tip unlabeled", () => {
-    const commits = [commit("newest"), commit("tip", ["feature/v1"]), commit("older")];
-    const labels = computeBranchSegments(commits, ["feature/v1"]);
+  it("doesn't credit an unrelated branch with history it merely shares via a merge commit", () => {
+    // root -> a1 -> a2 (side branch, no surviving ref)
+    // root -> m1 -> merge(m1, a2) -> m2 -> m3 (HEAD -> main)
+    // merge -> b1 -> b2 (feature/beta), branched off *after* the merge, never merged back.
+    // b2 should only ever be credited with its own 2 commits, not the merge's
+    // entire ancestry (root/a1/a2/m1/merge) — that's what regressed before.
+    const commits = [
+      commit("m3", ["m2"], ["HEAD -> main"]),
+      commit("m2", ["merge"]),
+      commit("b2", ["b1"], ["feature/beta"]),
+      commit("b1", ["merge"]),
+      commit("merge", ["m1", "a2"]),
+      commit("a2", ["a1"]),
+      commit("a1", ["root"]),
+      commit("m1", ["root"]),
+      commit("root", []),
+    ];
+    const labels = computeBranchSegments(commits, ["feature/beta"]);
 
-    expect(labels.has("newest")).toBe(false);
-    expect(labels.get("tip")).toBe("feature/v1");
-    expect(labels.get("older")).toBe("feature/v1");
+    expect(labels.get("b1")).toBe("feature/beta");
+    expect(labels.get("b2")).toBe("feature/beta");
+    expect(labels.size).toBe(2);
+  });
+
+  it("leaves a fast-forward-merged branch's now-shared history unlabeled", () => {
+    // A branch ref lingering on a commit that's now just a plain ancestor of
+    // HEAD (fast-forwarded, no merge commit) has nothing left unique to it.
+    const commits = [
+      commit("head", ["tip"], ["HEAD -> main"]),
+      commit("tip", ["older"], ["feature/v1"]),
+      commit("older", []),
+    ];
+    const labels = computeBranchSegments(commits, ["feature/v1"]);
+    expect(labels.size).toBe(0);
   });
 
   it("ignores refs that aren't in the known branch list", () => {
-    const commits = [commit("a", ["origin/main", "tag: v1.0.0"]), commit("b")];
+    const commits = [commit("a", [], ["origin/main", "tag: v1.0.0"]), commit("b", ["a"])];
     const labels = computeBranchSegments(commits, ["feature/v1"]);
     expect(labels.size).toBe(0);
   });
 
   it("returns no labels when there are no matching branch tips at all", () => {
-    const commits = [commit("a"), commit("b"), commit("c")];
+    const commits = [commit("a"), commit("b", ["a"]), commit("c", ["b"])];
     expect(computeBranchSegments(commits, ["feature/v1"]).size).toBe(0);
   });
 

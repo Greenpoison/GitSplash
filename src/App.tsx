@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { StatusBar } from "@/components/StatusBar";
 import { Dashboard } from "@/components/dashboard/Dashboard";
 import { SecretsPage } from "@/components/secrets/SecretsPage";
+import { RepoHistoryPage } from "@/components/repoHistory/RepoHistoryPage";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import { CommandPalette } from "@/components/CommandPalette";
 import { ShortcutsHelpDialog } from "@/components/ShortcutsHelpDialog";
@@ -68,6 +69,8 @@ function App() {
               <Dashboard />
             ) : view === "secrets" ? (
               <SecretsPage />
+            ) : view === "repoHistory" ? (
+              <RepoHistoryPage />
             ) : (
               <SettingsPage />
             )}

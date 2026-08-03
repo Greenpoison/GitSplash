@@ -2,7 +2,7 @@ import { create } from "zustand";
 import * as api from "@/lib/api";
 import type { Account, Group, Repo, RepoGitStatus, Settings } from "@/lib/types";
 
-export type View = "dashboard" | "secrets" | "settings";
+export type View = "dashboard" | "secrets" | "repoHistory" | "settings";
 
 interface AppState {
   repos: Repo[];

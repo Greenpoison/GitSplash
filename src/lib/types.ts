@@ -61,12 +61,14 @@ export interface RepoGitStatus {
   isDirty: boolean;
   hasUpstream: boolean;
   upstream: string | null;
-  // Set only when the current branch is behind the repo's default branch
-  // (main/master) — distinct from ahead/behind/upstream above, which are
-  // relative to this branch's own tracking branch (usually itself, or
-  // nothing, for a feature branch — never main).
+  // Set only when the current branch has diverged from the repo's default
+  // branch (main/master) in either direction — distinct from
+  // ahead/behind/upstream above, which are relative to this branch's own
+  // tracking branch (usually itself, or nothing, for a feature branch —
+  // never main).
   defaultBranch: string | null;
   behindDefault: number;
+  aheadDefault: number;
   error: string | null;
 }
 

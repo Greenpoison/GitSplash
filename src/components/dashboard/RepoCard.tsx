@@ -81,6 +81,7 @@ export function RepoCard({ repo }: { repo: Repo }) {
   const [diverged, setDiverged] = useState<{ branch: string; upstream: string } | null>(null);
   const [dirtyPull, setDirtyPull] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [compareDefaultOpen, setCompareDefaultOpen] = useState(false);
 
   const account = accounts.find((a) => a.id === repo.accountId);
 
@@ -308,9 +309,13 @@ export function RepoCard({ repo }: { repo: Repo }) {
             )}
             {/* Distinct from the ahead/behind badge above, which compares
                 against this branch's own upstream (usually itself, or
-                nothing, for a feature branch) — this instead flags when
-                the repo's actual default branch has moved on without this
-                branch, reusing the same diverged-pull dialog/merge flow. */}
+                nothing, for a feature branch) — these instead flag when
+                this branch and the repo's actual default branch have
+                diverged from each other. "Behind" reuses the same
+                diverged-pull dialog/merge flow, since main moving on is
+                fixed by merging it in. "Ahead" has nothing to merge FROM
+                main, so it opens a read-only compare instead — it's really
+                surfacing "this has finished work main doesn't have yet". */}
             {status.behindDefault > 0 && status.defaultBranch && status.branch && (
               <button
                 type="button"
@@ -323,6 +328,21 @@ export function RepoCard({ repo }: { repo: Repo }) {
                 <Badge variant="outline" className="gap-1 text-blue-600 dark:text-blue-400">
                   <GitBranch className="size-3" />
                   {status.behindDefault} behind {status.defaultBranch}
+                </Badge>
+              </button>
+            )}
+            {status.aheadDefault > 0 && status.defaultBranch && status.branch && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCompareDefaultOpen(true);
+                }}
+                title={`${status.branch} is ${status.aheadDefault} commit${status.aheadDefault === 1 ? "" : "s"} ahead of ${status.defaultBranch}`}
+              >
+                <Badge variant="outline" className="gap-1 text-violet-600 dark:text-violet-400">
+                  <GitBranch className="size-3" />
+                  {status.aheadDefault} ahead of {status.defaultBranch}
                 </Badge>
               </button>
             )}
@@ -480,6 +500,15 @@ export function RepoCard({ repo }: { repo: Repo }) {
             branch={status.upstream}
             open={compareOpen}
             onOpenChange={setCompareOpen}
+          />
+        )}
+        {status?.branch && status.defaultBranch && (
+          <CompareBranchDialog
+            repo={repo}
+            base={`origin/${status.defaultBranch}`}
+            branch={status.branch}
+            open={compareDefaultOpen}
+            onOpenChange={setCompareDefaultOpen}
           />
         )}
         {diverged && (

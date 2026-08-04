@@ -13,6 +13,7 @@ pub async fn get_status(repo_id: &str, repo_path: &Path) -> RepoGitStatus {
         upstream: None,
         default_branch: None,
         behind_default: 0,
+        ahead_default: 0,
         error: None,
     };
 
@@ -50,10 +51,11 @@ pub async fn get_status(repo_id: &str, repo_path: &Path) -> RepoGitStatus {
 
     let mut status = parse_status_v2(&output.stdout, base);
     if let Some(branch) = status.branch.clone() {
-        if let Some((default_branch, behind)) = get_default_branch_behind(repo_path, &branch).await {
-            if behind > 0 {
+        if let Some((default_branch, behind, ahead)) = get_default_branch_divergence(repo_path, &branch).await {
+            if behind > 0 || ahead > 0 {
                 status.default_branch = Some(default_branch);
                 status.behind_default = behind;
+                status.ahead_default = ahead;
             }
         }
     }
@@ -83,28 +85,38 @@ async fn resolve_default_branch(repo_path: &Path) -> Option<String> {
     None
 }
 
-/// Best-effort: how many commits `origin/<default>` has that the current
-/// branch doesn't — i.e. how far behind the repo's default branch (not
-/// necessarily this branch's own upstream) the current branch is. This is
+/// Best-effort: how far the current branch has diverged from
+/// `origin/<default>` in both directions — commits on main it doesn't have
+/// yet (behind) and commits it has that main doesn't (ahead). This is
 /// exactly what a feature branch needs in order to notice "main moved on
-/// without me": its own `ahead`/`behind` above compare against its own
-/// tracking branch, which for a feature branch is usually itself or
-/// nothing, never main. Returns `None` if there's no default branch to
-/// compare against, or the current branch IS the default branch (comparing
-/// it to itself is never useful).
-async fn get_default_branch_behind(repo_path: &Path, current_branch: &str) -> Option<(String, u32)> {
+/// without me" AND "I've got finished work that hasn't made it back to main
+/// yet": its own `ahead`/`behind` above compare against its own tracking
+/// branch, which for a feature branch is usually itself or nothing, never
+/// main. A single `--left-right` rev-list gets both counts in one call.
+/// Returns `None` if there's no default branch to compare against, or the
+/// current branch IS the default branch (comparing it to itself is never
+/// useful).
+async fn get_default_branch_divergence(repo_path: &Path, current_branch: &str) -> Option<(String, u32, u32)> {
     let default_branch = resolve_default_branch(repo_path).await?;
     if default_branch == current_branch {
         return None;
     }
-    let output = run_git(repo_path, &["rev-list", "--count", &format!("HEAD..origin/{default_branch}")])
-        .await
-        .ok()?;
+    let output = run_git(
+        repo_path,
+        &["rev-list", "--left-right", "--count", &format!("origin/{default_branch}...HEAD")],
+    )
+    .await
+    .ok()?;
     if !output.success {
         return None;
     }
-    let behind: u32 = output.stdout.trim().parse().ok()?;
-    Some((default_branch, behind))
+    // "--left-right --count LEFT...RIGHT" prints "<left-only> <right-only>",
+    // i.e. commits only on origin/<default> (behind), then commits only on
+    // HEAD (ahead).
+    let mut parts = output.stdout.split_whitespace();
+    let behind: u32 = parts.next()?.parse().ok()?;
+    let ahead: u32 = parts.next()?.parse().ok()?;
+    Some((default_branch, behind, ahead))
 }
 
 /// Lists files with unresolved merge conflicts (porcelain v2 "u" entries).
@@ -153,4 +165,91 @@ fn parse_status_v2(stdout: &str, mut status: RepoGitStatus) -> RepoGitStatus {
         }
     }
     status
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::Command as StdCommand;
+
+    fn git(repo: &Path, args: &[&str]) {
+        let status = StdCommand::new("git").arg("-C").arg(repo).args(args).status().unwrap();
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    fn init_repo() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        git(dir.path(), &["init", "-q", "-b", "main"]);
+        git(dir.path(), &["config", "user.email", "test@example.com"]);
+        git(dir.path(), &["config", "user.name", "Test"]);
+        dir
+    }
+
+    fn commit(repo: &Path, message: &str) {
+        std::fs::write(repo.join("file.txt"), format!("{message}\n")).unwrap();
+        git(repo, &["add", "-A"]);
+        git(repo, &["commit", "-q", "-m", message]);
+    }
+
+    /// Sets up `repo` with a local "main" tracking a plain local-path
+    /// "origin" remote, checked out onto a "feature" branch created off it —
+    /// the same starting shape used across the git module's tests.
+    fn repo_on_feature_branch_tracking_origin_main() -> (tempfile::TempDir, tempfile::TempDir) {
+        let origin = init_repo();
+        commit(origin.path(), "base");
+
+        let repo = init_repo();
+        git(repo.path(), &["remote", "add", "origin", origin.path().to_str().unwrap()]);
+        git(repo.path(), &["fetch", "-q", "origin"]);
+        git(repo.path(), &["reset", "-q", "--hard", "origin/main"]);
+        git(repo.path(), &["branch", "-q", "--set-upstream-to=origin/main", "main"]);
+        git(repo.path(), &["checkout", "-q", "-b", "feature"]);
+        (origin, repo)
+    }
+
+    #[tokio::test]
+    async fn reports_behind_default_when_main_moved_on_without_this_branch() {
+        let (origin, repo) = repo_on_feature_branch_tracking_origin_main();
+        commit(origin.path(), "teammate's new commit");
+        git(repo.path(), &["fetch", "-q", "origin"]);
+
+        let status = get_status("id", repo.path()).await;
+        assert_eq!(status.default_branch.as_deref(), Some("main"));
+        assert_eq!(status.behind_default, 1);
+        assert_eq!(status.ahead_default, 0);
+    }
+
+    #[tokio::test]
+    async fn reports_ahead_default_when_this_branch_has_unmerged_commits() {
+        let (_origin, repo) = repo_on_feature_branch_tracking_origin_main();
+        commit(repo.path(), "finished work not yet in main");
+
+        let status = get_status("id", repo.path()).await;
+        assert_eq!(status.default_branch.as_deref(), Some("main"));
+        assert_eq!(status.behind_default, 0);
+        assert_eq!(status.ahead_default, 1);
+    }
+
+    #[tokio::test]
+    async fn reports_both_directions_when_branches_have_diverged() {
+        let (origin, repo) = repo_on_feature_branch_tracking_origin_main();
+        commit(origin.path(), "teammate's new commit");
+        git(repo.path(), &["fetch", "-q", "origin"]);
+        commit(repo.path(), "finished work not yet in main");
+
+        let status = get_status("id", repo.path()).await;
+        assert_eq!(status.default_branch.as_deref(), Some("main"));
+        assert_eq!(status.behind_default, 1);
+        assert_eq!(status.ahead_default, 1);
+    }
+
+    #[tokio::test]
+    async fn reports_nothing_when_up_to_date_with_default() {
+        let (_origin, repo) = repo_on_feature_branch_tracking_origin_main();
+
+        let status = get_status("id", repo.path()).await;
+        assert_eq!(status.default_branch, None);
+        assert_eq!(status.behind_default, 0);
+        assert_eq!(status.ahead_default, 0);
+    }
 }

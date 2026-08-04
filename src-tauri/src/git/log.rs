@@ -463,8 +463,29 @@ pub async fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>, String> 
         };
         // "origin/HEAD" is the remote's symbolic default-branch pointer, not
         // an actual branch.
-        if short_name == "HEAD" || local_names.contains(&short_name) {
+        if short_name == "HEAD" {
             continue;
+        }
+        if local_names.contains(&short_name) {
+            // A same-named local branch normally makes this synthetic entry
+            // redundant — but only if that local branch actually has
+            // everything this remote-tracking ref does. `git fetch` only
+            // ever updates refs/remotes/*, never the local branch of the
+            // same name, so a local branch that was never manually updated
+            // since (via pull/merge/reset) can sit stale indefinitely while
+            // this remote ref moves on — and without this check, the newer
+            // remote state would stay permanently invisible here, hidden
+            // behind the stale local branch's entry.
+            let stale = run_git(repo_path, &["rev-list", "--count", &format!("{short_name}..{remote_ref}")])
+                .await
+                .ok()
+                .filter(|o| o.success)
+                .and_then(|o| o.stdout.trim().parse::<u32>().ok())
+                .unwrap_or(0)
+                > 0;
+            if !stale {
+                continue;
+            }
         }
         branches.push(BranchInfo {
             name: remote_ref,
@@ -532,5 +553,77 @@ mod tests {
         assert_eq!(nodes.len(), 2);
         assert_eq!(nodes[0].hash, "a");
         assert_eq!(nodes[1].hash, "b");
+    }
+
+    use std::process::Command as StdCommand;
+
+    fn git(repo: &Path, args: &[&str]) {
+        let status = StdCommand::new("git").arg("-C").arg(repo).args(args).status().unwrap();
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    fn init_repo() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        git(dir.path(), &["init", "-q", "-b", "main"]);
+        git(dir.path(), &["config", "user.email", "test@example.com"]);
+        git(dir.path(), &["config", "user.name", "Test"]);
+        dir
+    }
+
+    fn commit(repo: &Path, message: &str) {
+        std::fs::write(repo.join("file.txt"), format!("{message}\n")).unwrap();
+        git(repo, &["add", "-A"]);
+        git(repo, &["commit", "-q", "-m", message]);
+    }
+
+    /// Sets up `repo` with a local "main" (in sync with a plain local-path
+    /// "origin" remote) and switches to a "feature" branch, matching the
+    /// common real shape: clone, main gets checked out first, then you
+    /// branch off it and move on — leaving "main" as a local branch that
+    /// nothing keeps in sync automatically afterward.
+    fn repo_on_feature_branch_tracking_origin_main() -> (tempfile::TempDir, tempfile::TempDir) {
+        let origin = init_repo();
+        commit(origin.path(), "base");
+
+        let repo = init_repo();
+        git(repo.path(), &["remote", "add", "origin", origin.path().to_str().unwrap()]);
+        git(repo.path(), &["fetch", "-q", "origin"]);
+        git(repo.path(), &["reset", "-q", "--hard", "origin/main"]);
+        git(repo.path(), &["branch", "-q", "--set-upstream-to=origin/main", "main"]);
+        git(repo.path(), &["checkout", "-q", "-b", "feature"]);
+        (origin, repo)
+    }
+
+    #[tokio::test]
+    async fn stale_local_branch_does_not_hide_a_newer_same_named_remote_branch() {
+        let (origin, repo) = repo_on_feature_branch_tracking_origin_main();
+
+        // Simulate a teammate pushing a new commit to the shared remote's
+        // main — done directly against `origin`, so `repo`'s own local
+        // "main" branch never moves, only its remote-tracking ref does
+        // once fetched. This is exactly the real scenario: `git fetch`
+        // updates refs/remotes/origin/main but never touches the local
+        // "main" branch itself.
+        commit(origin.path(), "teammate's new commit");
+        git(repo.path(), &["fetch", "-q", "origin"]);
+
+        let branches = list_branches(repo.path()).await.unwrap();
+        let remote_main = branches.iter().find(|b| b.name == "origin/main");
+        assert!(
+            remote_main.is_some(),
+            "expected a synthetic origin/main entry once local main is stale relative to it, got: {branches:?}"
+        );
+        assert!(remote_main.unwrap().is_remote);
+    }
+
+    #[tokio::test]
+    async fn up_to_date_local_branch_still_hides_the_redundant_remote_entry() {
+        let (_origin, repo) = repo_on_feature_branch_tracking_origin_main();
+
+        let branches = list_branches(repo.path()).await.unwrap();
+        assert!(
+            branches.iter().all(|b| b.name != "origin/main"),
+            "origin/main should stay hidden when local main already has everything it does: {branches:?}"
+        );
     }
 }

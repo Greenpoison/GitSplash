@@ -50,7 +50,7 @@ export function DirtyPullDialog({
     try {
       await api.stashPush(repo.id, "Auto-stashed before pull", true);
       try {
-        const outcome = await api.fetchRepo(repo.id, true);
+        const outcome = await api.fetchRepo(repo.id, true, crypto.randomUUID());
         if (outcome.pulled) {
           toast.success(`Pulled the latest changes for ${repo.displayName}`);
         } else {

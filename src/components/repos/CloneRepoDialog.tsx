@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
-import { reportGitError } from "@/lib/gitErrors";
+import { translateGitError } from "@/lib/gitErrors";
 import { FolderOpen } from "lucide-react";
 import {
   Dialog,
@@ -25,6 +26,8 @@ import {
 import * as api from "@/lib/api";
 import { useAppStore } from "@/store/appStore";
 import { useBackgroundOpsStore } from "@/store/backgroundOpsStore";
+import type { GitProgress } from "@/lib/types";
+import { showGitProgressToast } from "@/components/GitProgressToast";
 
 function deriveFolderName(url: string): string {
   const trimmed = url.trim().replace(/\.git$/, "").replace(/\/+$/, "");
@@ -51,6 +54,7 @@ export function CloneRepoDialog() {
   const refreshStatuses = useAppStore((s) => s.refreshStatuses);
   const setGroupPromptRepoId = useAppStore((s) => s.setGroupPromptRepoId);
   const startOp = useBackgroundOpsStore((s) => s.start);
+  const progressOp = useBackgroundOpsStore((s) => s.progress);
   const finishOp = useBackgroundOpsStore((s) => s.finish);
 
   const pickParentDir = async () => {
@@ -96,26 +100,42 @@ export function CloneRepoDialog() {
     const cloneGroups = new Set(selectedGroups);
     const label = `Cloning ${cloneFolderName}…`;
     const opId = startOp(label);
+    const cloneId = crypto.randomUUID();
 
     setOpen(false);
     reset();
 
+    // A toast pinned to `opId` for the whole clone: shown at 0% immediately,
+    // then re-rendered in place (same id) as "clone-progress" events arrive,
+    // and finally replaced by the success/error state below — one toast
+    // that morphs through the whole lifecycle instead of three stacked ones.
+    showGitProgressToast(opId, `Cloning ${cloneFolderName}…`, { variant: "progress", stage: null, percent: 0 });
+
     const run = async () => {
+      const unlisten = await listen<GitProgress>("clone-progress", (event) => {
+        if (event.payload.opId !== cloneId) return;
+        const { stage, percent } = event.payload;
+        progressOp(opId, percent != null ? `${stage} ${percent}%` : stage);
+        showGitProgressToast(opId, `Cloning ${cloneFolderName}…`, { variant: "progress", stage, percent });
+      });
       try {
-        const repo = await api.cloneRepo(cloneUrl, cloneParentDir, cloneFolderName, cloneDisplayName, cloneAccountId);
+        const repo = await api.cloneRepo(cloneUrl, cloneParentDir, cloneFolderName, cloneId, cloneDisplayName, cloneAccountId);
         if (cloneGroups.size > 0) {
           await api.setRepoGroups(repo.id, Array.from(cloneGroups));
         }
         await refreshRepos();
         await refreshStatuses([repo.id]);
         finishOp(opId, "success", `Cloned ${repo.displayName}`);
-        toast.success(`Cloned ${repo.displayName}`);
+        showGitProgressToast(opId, `Cloning ${cloneFolderName}…`, { variant: "success", message: `Cloned ${repo.displayName}` });
         if (isFirstRepo && cloneGroups.size === 0 && groups.length === 0) {
           setGroupPromptRepoId(repo.id);
         }
       } catch (e) {
         finishOp(opId, "error", `Failed to clone ${cloneFolderName}`);
-        reportGitError(e);
+        const { message, hint } = translateGitError(String(e));
+        showGitProgressToast(opId, `Cloning ${cloneFolderName}…`, { variant: "error", message, hint });
+      } finally {
+        unlisten();
       }
     };
     run();

@@ -28,6 +28,14 @@ export interface GhAuthProgress {
   line: string;
 }
 
+// Emitted (tagged with a caller-generated opId) by clone-progress,
+// fetch-progress, and push-progress alike — see src-tauri/src/git/progress.rs.
+export interface GitProgress {
+  opId: string;
+  stage: string;
+  percent: number | null;
+}
+
 export interface Group {
   id: string;
   name: string;

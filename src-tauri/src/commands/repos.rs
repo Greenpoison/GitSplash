@@ -5,7 +5,7 @@ use crate::models::{Repo, RepoGitStatus};
 use crate::state::AppState;
 use crate::util::{new_id, now_iso};
 use std::path::Path;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 #[tauri::command]
 pub fn list_repos(state: State<'_, AppState>) -> AppResult<Vec<Repo>> {
@@ -64,17 +64,25 @@ pub fn add_repo(
 /// the account's SSH host alias, so a failed assignment doesn't lose the
 /// otherwise-successful clone; the repo is just left unassigned for the
 /// user to assign by hand via the existing per-repo dropdown.
+///
+/// `clone_id` is a caller-generated correlation token, not persisted
+/// anywhere — it just lets the frontend match "clone-progress" events back
+/// to this specific invocation, since the dialog that started the clone
+/// closes immediately and the frontend has no other way to tell one
+/// in-flight clone's events apart from another's.
 #[tauri::command]
 pub async fn clone_repo(
+    app: AppHandle,
     state: State<'_, AppState>,
     url: String,
     parent_dir: String,
     folder_name: String,
     display_name: Option<String>,
     account_id: Option<String>,
+    clone_id: String,
 ) -> AppResult<Repo> {
     let dest = Path::new(&parent_dir).join(&folder_name);
-    git::clone::clone_repo(&url, &dest).await.map_err(AppError::Git)?;
+    git::clone::clone_repo(&app, &clone_id, &url, &dest).await.map_err(AppError::Git)?;
 
     let canonical = dest
         .canonicalize()

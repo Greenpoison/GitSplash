@@ -111,7 +111,7 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
     if (!current) return;
     setPushing(true);
     try {
-      const outcome = await api.pushRepo(repo.id, false);
+      const outcome = await api.pushRepo(repo.id, false, crypto.randomUUID());
       if (!outcome.pushed) {
         if (outcome.rejected) {
           toast.error("Push rejected — the remote has commits you don't have yet", {

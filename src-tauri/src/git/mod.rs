@@ -18,6 +18,7 @@ pub mod log;
 pub mod path_safety;
 pub mod pr_template;
 pub mod process;
+pub mod progress;
 pub mod push;
 pub mod rebase;
 pub mod reflog;

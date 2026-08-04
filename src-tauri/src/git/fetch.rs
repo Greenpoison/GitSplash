@@ -1,7 +1,9 @@
 use super::process::run_git;
+use super::progress::run_git_with_progress;
 use super::status::get_status;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use tauri::AppHandle;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,8 +46,19 @@ pub struct FetchOutcome {
 /// branch onto its upstream. Never merges, stashes, or force-updates —
 /// a dirty tree or a diverged branch simply causes the pull half to be
 /// skipped/reported while the fetch result is preserved.
-pub async fn fetch_and_maybe_pull(repo_id: &str, repo_path: &Path, pull: bool) -> FetchOutcome {
-    let fetch_output = match run_git(repo_path, &["fetch", "--prune"]).await {
+///
+/// The fetch itself streams progress as `event` Tauri events tagged with
+/// `op_id` (see `progress::run_git_with_progress`) — the local `merge
+/// --ff-only` afterward doesn't get the same treatment, since it's a local,
+/// near-instant operation with nothing meaningful to show a percentage for.
+pub async fn fetch_and_maybe_pull(
+    app: &AppHandle,
+    op_id: &str,
+    repo_id: &str,
+    repo_path: &Path,
+    pull: bool,
+) -> FetchOutcome {
+    let fetch_output = match run_git_with_progress(repo_path, &["fetch", "--prune", "--progress"], app, "fetch-progress", op_id).await {
         Ok(o) => o,
         Err(e) => {
             return FetchOutcome {

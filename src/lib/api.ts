@@ -46,6 +46,7 @@ export const cloneRepo = (
   url: string,
   parentDir: string,
   folderName: string,
+  cloneId: string,
   displayName?: string,
   accountId?: string,
 ) =>
@@ -53,6 +54,7 @@ export const cloneRepo = (
     url,
     parentDir,
     folderName,
+    cloneId,
     displayName: displayName ?? null,
     accountId: accountId ?? null,
   });
@@ -115,10 +117,10 @@ export const getGpgPublicKey = (keyId: string) => invoke<string>("get_gpg_public
 export const batchUpdateGroup = (groupId: string, pull: boolean) =>
   invoke<string>("batch_update_group", { groupId, pull });
 export const batchPushGroup = (groupId: string) => invoke<string>("batch_push_group", { groupId });
-export const fetchRepo = (repoId: string, pull: boolean) =>
-  invoke<FetchOutcome>("fetch_repo", { repoId, pull });
-export const pushRepo = (repoId: string, force: boolean) =>
-  invoke<PushOutcome>("push_repo", { repoId, force });
+export const fetchRepo = (repoId: string, pull: boolean, opId: string) =>
+  invoke<FetchOutcome>("fetch_repo", { repoId, pull, opId });
+export const pushRepo = (repoId: string, force: boolean, opId: string) =>
+  invoke<PushOutcome>("push_repo", { repoId, force, opId });
 
 // Branch comparison
 export const compareBranches = (repoId: string, base: string, branch: string) =>

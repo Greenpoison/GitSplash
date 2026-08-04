@@ -1,7 +1,8 @@
-use super::process::run_git;
+use super::progress::run_git_with_progress;
 use super::status::get_status;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use tauri::AppHandle;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -20,8 +21,9 @@ pub struct PushOutcome {
 /// Pushes the current branch, publishing it with `-u origin <branch>` the
 /// first time it has no upstream. `force` uses `--force-with-lease` (never
 /// a bare `--force`) so a push can't silently clobber commits someone else
-/// pushed since our last fetch.
-pub async fn push(repo_id: &str, repo_path: &Path, force: bool) -> PushOutcome {
+/// pushed since our last fetch. Streams progress as `event` Tauri events
+/// tagged with `op_id` (see `progress::run_git_with_progress`).
+pub async fn push(app: &AppHandle, op_id: &str, repo_id: &str, repo_path: &Path, force: bool) -> PushOutcome {
     let status = get_status(repo_id, repo_path).await;
     if let Some(err) = status.error {
         return PushOutcome { pushed: false, set_upstream: false, rejected: false, message: Some(err) };
@@ -36,7 +38,7 @@ pub async fn push(repo_id: &str, repo_path: &Path, force: bool) -> PushOutcome {
     };
 
     let set_upstream = !status.has_upstream;
-    let mut args: Vec<&str> = vec!["push"];
+    let mut args: Vec<&str> = vec!["push", "--progress"];
     if force {
         args.push("--force-with-lease");
     }
@@ -44,7 +46,7 @@ pub async fn push(repo_id: &str, repo_path: &Path, force: bool) -> PushOutcome {
         args.extend(["-u", "origin", branch.as_str()]);
     }
 
-    let output = match run_git(repo_path, &args).await {
+    let output = match run_git_with_progress(repo_path, &args, app, "push-progress", op_id).await {
         Ok(o) => o,
         Err(e) => {
             return PushOutcome {

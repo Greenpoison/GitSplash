@@ -14,15 +14,25 @@ use tokio::sync::Semaphore;
 /// Fetches (and optionally pulls) a single repo, independent of any group —
 /// the per-repo counterpart to `batch_update_group`, for repos that aren't
 /// in a group at all or when you just want to update one repo on its own.
+///
+/// `op_id` is a caller-generated correlation token, not persisted anywhere —
+/// it just lets the frontend match "fetch-progress" events back to this
+/// specific invocation (same idea as `clone_repo`'s `clone_id`).
 #[tauri::command]
-pub async fn fetch_repo(state: State<'_, AppState>, repo_id: String, pull: bool) -> AppResult<FetchOutcome> {
+pub async fn fetch_repo(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    repo_id: String,
+    pull: bool,
+    op_id: String,
+) -> AppResult<FetchOutcome> {
     let repo_path = {
         let conn = state.db.lock().unwrap();
         db::get_repo(&conn, &repo_id)?
             .ok_or_else(|| AppError::NotFound(format!("repo {repo_id} not found")))?
             .path
     };
-    let outcome = git::fetch::fetch_and_maybe_pull(&repo_id, &PathBuf::from(repo_path), pull).await;
+    let outcome = git::fetch::fetch_and_maybe_pull(&app, &op_id, &repo_id, &PathBuf::from(repo_path), pull).await;
     if outcome.fetched {
         let conn = state.db.lock().unwrap();
         db::touch_last_fetched(&conn, &repo_id, &now_iso()).ok();
@@ -31,16 +41,23 @@ pub async fn fetch_repo(state: State<'_, AppState>, repo_id: String, pull: bool)
 }
 
 /// Pushes the current branch to its remote, publishing it with `-u` the
-/// first time it has no upstream yet.
+/// first time it has no upstream yet. `op_id` correlates "push-progress"
+/// events back to this call — see `fetch_repo`.
 #[tauri::command]
-pub async fn push_repo(state: State<'_, AppState>, repo_id: String, force: bool) -> AppResult<PushOutcome> {
+pub async fn push_repo(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    repo_id: String,
+    force: bool,
+    op_id: String,
+) -> AppResult<PushOutcome> {
     let repo_path = {
         let conn = state.db.lock().unwrap();
         db::get_repo(&conn, &repo_id)?
             .ok_or_else(|| AppError::NotFound(format!("repo {repo_id} not found")))?
             .path
     };
-    Ok(git::push::push(&repo_id, &PathBuf::from(repo_path), force).await)
+    Ok(git::push::push(&app, &op_id, &repo_id, &PathBuf::from(repo_path), force).await)
 }
 
 /// Pushes every repo in a group's current branch, in parallel up to the
@@ -89,7 +106,11 @@ pub async fn batch_push_group(app: AppHandle, state: State<'_, AppState>, group_
                 },
             );
 
-            let outcome = git::push::push(&repo.id, &repo_path, false).await;
+            // Batch runs already have their own per-repo progress UI
+            // (BatchEvent/"batch-progress"), so `repo.id` is passed as the
+            // op_id here purely to satisfy the signature — nothing listens
+            // for a "push-progress"/repo.id pair from a batch run.
+            let outcome = git::push::push(&app, &repo.id, &repo.id, &repo_path, false).await;
 
             let phase = if outcome.pushed { BatchPhase::Success } else { BatchPhase::Failed };
 
@@ -159,7 +180,9 @@ pub async fn batch_update_group(
                 },
             );
 
-            let outcome = git::fetch::fetch_and_maybe_pull(&repo.id, &repo_path, pull).await;
+            // See the comment in batch_push_group above: `repo.id` as op_id
+            // is unused by anything today, just satisfying the signature.
+            let outcome = git::fetch::fetch_and_maybe_pull(&app, &repo.id, &repo.id, &repo_path, pull).await;
 
             if outcome.fetched {
                 let state = app.state::<AppState>();

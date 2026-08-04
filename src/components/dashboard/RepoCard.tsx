@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { listen } from "@tauri-apps/api/event";
 import { reportGitError, translateGitError } from "@/lib/gitErrors";
+import { showGitProgressToast, type GitToastState } from "@/components/GitProgressToast";
+import type { GitProgress } from "@/lib/types";
 import {
   AlertTriangle,
   ArrowDown,
@@ -82,10 +85,27 @@ export function RepoCard({ repo }: { repo: Repo }) {
 
   const doFetch = async (pull: boolean) => {
     setFetching(true);
+    const opId = crypto.randomUUID();
+    const label = pull ? "Fetch & pull" : "Fetch";
+    // Most fetches are near-instant (nothing new, or a handful of objects)
+    // and don't deserve a toast of their own — only show/update one once a
+    // "fetch-progress" event actually arrives, i.e. there's real transfer
+    // happening worth watching.
+    let sawProgress = false;
+    const finishProgressToast = (state: GitToastState) => {
+      if (sawProgress) showGitProgressToast(opId, `${label} ${repo.displayName}`, state);
+    };
+    const unlisten = await listen<GitProgress>("fetch-progress", (event) => {
+      if (event.payload.opId !== opId) return;
+      sawProgress = true;
+      const { stage, percent } = event.payload;
+      showGitProgressToast(opId, `${label} ${repo.displayName}…`, { variant: "progress", stage, percent });
+    });
     try {
-      const outcome = await api.fetchRepo(repo.id, pull);
+      const outcome = await api.fetchRepo(repo.id, pull, opId);
       if (!outcome.fetched) {
         const { message, hint } = translateGitError(outcome.message ?? "Fetch failed");
+        finishProgressToast({ variant: "error", message, hint });
         toast.error(message, hint ? { description: hint } : undefined);
       } else if (outcome.diverged && outcome.upstream && (outcome.branch ?? status?.branch)) {
         // Prefer the branch name the fetch itself resolved over the
@@ -96,47 +116,80 @@ export function RepoCard({ repo }: { repo: Repo }) {
         // dialog. DivergedPullDialog uses this as a real git ref (it's the
         // compare/merge base), so there's no safe placeholder if both are
         // somehow missing — fall through to the toast instead.
+        finishProgressToast({ variant: "success", message: `${label} finished for ${repo.displayName}` });
         setDiverged({ branch: (outcome.branch ?? status?.branch)!, upstream: outcome.upstream });
       } else if (pull && outcome.dirty) {
+        finishProgressToast({ variant: "success", message: `${label} finished for ${repo.displayName}` });
         setDirtyPull(true);
       } else if (pull && !outcome.pulled && outcome.message?.includes("no upstream")) {
+        finishProgressToast({ variant: "success", message: `${label} finished for ${repo.displayName}` });
         toast.warning("This branch isn't published yet, so there's nothing to pull from.", {
           description: "Use the Push button to publish it to the remote first.",
         });
       } else if (pull && !outcome.pulled) {
+        finishProgressToast({ variant: "success", message: `${label} finished for ${repo.displayName}` });
         const { message, hint } = translateGitError(outcome.message ?? "Fetched, but didn't pull");
         toast.warning(message, { description: hint ?? repo.displayName });
       } else {
+        finishProgressToast({ variant: "success", message: `${label} finished for ${repo.displayName}` });
         toast.success(`${pull ? "Fetch & pull" : "Fetch"} finished for ${repo.displayName}`);
       }
       await Promise.all([refreshRepos(), refreshStatuses([repo.id])]);
     } catch (e) {
+      const { message, hint } = translateGitError(String(e));
+      finishProgressToast({ variant: "error", message, hint });
       reportGitError(e);
     } finally {
+      unlisten();
       setFetching(false);
     }
   };
 
   const doPush = async (force: boolean) => {
     setPushing(true);
+    const opId = crypto.randomUUID();
+    const label = force ? "Force push" : "Push";
+    let sawProgress = false;
+    const finishProgressToast = (state: GitToastState) => {
+      if (sawProgress) showGitProgressToast(opId, `${label} ${repo.displayName}`, state);
+    };
+    const unlisten = await listen<GitProgress>("push-progress", (event) => {
+      if (event.payload.opId !== opId) return;
+      sawProgress = true;
+      const { stage, percent } = event.payload;
+      showGitProgressToast(opId, `${label} ${repo.displayName}…`, { variant: "progress", stage, percent });
+    });
     try {
-      const outcome = await api.pushRepo(repo.id, force);
+      const outcome = await api.pushRepo(repo.id, force, opId);
       if (!outcome.pushed) {
         if (outcome.rejected) {
+          finishProgressToast({
+            variant: "error",
+            message: "Push rejected — the remote has commits you don't have yet",
+            hint: "Fetch & pull first, then push again.",
+          });
           toast.error("Push rejected — the remote has commits you don't have yet", {
             description: "Fetch & pull first, then push again.",
           });
         } else {
           const { message, hint } = translateGitError(outcome.message ?? "Push failed");
+          finishProgressToast({ variant: "error", message, hint });
           toast.error(message, hint ? { description: hint } : undefined);
         }
       } else {
-        toast.success(outcome.setUpstream ? `Published ${repo.displayName} to origin` : `Pushed ${repo.displayName}`);
+        const successMessage = outcome.setUpstream
+          ? `Published ${repo.displayName} to origin`
+          : `Pushed ${repo.displayName}`;
+        finishProgressToast({ variant: "success", message: successMessage });
+        toast.success(successMessage);
       }
       await refreshStatuses([repo.id]);
     } catch (e) {
+      const { message, hint } = translateGitError(String(e));
+      finishProgressToast({ variant: "error", message, hint });
       reportGitError(e);
     } finally {
+      unlisten();
       setPushing(false);
       setForcePushConfirm(false);
     }

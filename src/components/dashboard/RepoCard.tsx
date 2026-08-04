@@ -14,6 +14,7 @@ import {
   Download,
   ExternalLink,
   FolderOpen,
+  GitBranch,
   GitPullRequestArrow,
   Loader2,
   MoreVertical,
@@ -303,6 +304,26 @@ export function RepoCard({ repo }: { repo: Repo }) {
                     {status.behind}
                   </Badge>
                 )}
+              </button>
+            )}
+            {/* Distinct from the ahead/behind badge above, which compares
+                against this branch's own upstream (usually itself, or
+                nothing, for a feature branch) — this instead flags when
+                the repo's actual default branch has moved on without this
+                branch, reusing the same diverged-pull dialog/merge flow. */}
+            {status.behindDefault > 0 && status.defaultBranch && status.branch && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDiverged({ branch: status.branch!, upstream: `origin/${status.defaultBranch}` });
+                }}
+                title={`${status.branch} is ${status.behindDefault} commit${status.behindDefault === 1 ? "" : "s"} behind ${status.defaultBranch}`}
+              >
+                <Badge variant="outline" className="gap-1 text-blue-600 dark:text-blue-400">
+                  <GitBranch className="size-3" />
+                  {status.behindDefault} behind {status.defaultBranch}
+                </Badge>
               </button>
             )}
             {status.isDirty ? (

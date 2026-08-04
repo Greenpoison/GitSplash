@@ -80,6 +80,16 @@ pub struct RepoGitStatus {
     /// the caller compare or diff against it directly without a second
     /// round-trip to resolve the name.
     pub upstream: Option<String>,
+    /// The repo's default branch (main/master), set only when the current
+    /// branch is behind it — i.e. someone pushed commits to main that this
+    /// branch doesn't have yet. Distinct from `upstream`/`behind` above:
+    /// those compare against this branch's own tracking branch, which for
+    /// a feature branch is usually itself (or nothing, if never pushed),
+    /// not main. `None` whenever there's nothing to report: no default
+    /// branch found, the current branch IS the default branch, or it's
+    /// already fully caught up with it.
+    pub default_branch: Option<String>,
+    pub behind_default: u32,
     pub error: Option<String>,
 }
 

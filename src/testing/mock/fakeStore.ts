@@ -87,6 +87,8 @@ export function getFakeStatus(repoId: string): RepoGitStatus {
     isDirty: false,
     hasUpstream: !!current?.upstream,
     upstream: current?.upstream ?? null,
+    defaultBranch: null,
+    behindDefault: 0,
     error: null,
   };
 }

@@ -11,6 +11,8 @@ pub async fn get_status(repo_id: &str, repo_path: &Path) -> RepoGitStatus {
         is_dirty: false,
         has_upstream: false,
         upstream: None,
+        default_branch: None,
+        behind_default: 0,
         error: None,
     };
 
@@ -46,7 +48,63 @@ pub async fn get_status(repo_id: &str, repo_path: &Path) -> RepoGitStatus {
         };
     }
 
-    parse_status_v2(&output.stdout, base)
+    let mut status = parse_status_v2(&output.stdout, base);
+    if let Some(branch) = status.branch.clone() {
+        if let Some((default_branch, behind)) = get_default_branch_behind(repo_path, &branch).await {
+            if behind > 0 {
+                status.default_branch = Some(default_branch);
+                status.behind_default = behind;
+            }
+        }
+    }
+    status
+}
+
+/// Best-effort: resolves the repo's default branch (main/master) via
+/// `origin/HEAD`'s symbolic ref — the same thing GitHub sets it to when you
+/// clone — falling back to checking for a same-named remote branch directly
+/// if that ref was never set (e.g. an older clone, or `git remote set-head
+/// origin -a` never ran). Returns `None` if neither approach finds
+/// anything; not every repo even has a remote.
+async fn resolve_default_branch(repo_path: &Path) -> Option<String> {
+    if let Ok(output) = run_git(repo_path, &["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]).await {
+        if output.success {
+            if let Some(name) = output.stdout.trim().strip_prefix("origin/") {
+                return Some(name.to_string());
+            }
+        }
+    }
+    for candidate in ["main", "master"] {
+        let verify = run_git(repo_path, &["rev-parse", "--verify", "--quiet", &format!("origin/{candidate}")]).await;
+        if matches!(verify, Ok(o) if o.success) {
+            return Some(candidate.to_string());
+        }
+    }
+    None
+}
+
+/// Best-effort: how many commits `origin/<default>` has that the current
+/// branch doesn't — i.e. how far behind the repo's default branch (not
+/// necessarily this branch's own upstream) the current branch is. This is
+/// exactly what a feature branch needs in order to notice "main moved on
+/// without me": its own `ahead`/`behind` above compare against its own
+/// tracking branch, which for a feature branch is usually itself or
+/// nothing, never main. Returns `None` if there's no default branch to
+/// compare against, or the current branch IS the default branch (comparing
+/// it to itself is never useful).
+async fn get_default_branch_behind(repo_path: &Path, current_branch: &str) -> Option<(String, u32)> {
+    let default_branch = resolve_default_branch(repo_path).await?;
+    if default_branch == current_branch {
+        return None;
+    }
+    let output = run_git(repo_path, &["rev-list", "--count", &format!("HEAD..origin/{default_branch}")])
+        .await
+        .ok()?;
+    if !output.success {
+        return None;
+    }
+    let behind: u32 = output.stdout.trim().parse().ok()?;
+    Some((default_branch, behind))
 }
 
 /// Lists files with unresolved merge conflicts (porcelain v2 "u" entries).

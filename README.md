@@ -19,6 +19,7 @@
 ## Contents
 
 - [Download](#download)
+- [Screenshots](#screenshots)
 - [Features](#features)
 - [Getting started](#getting-started)
 - [Contributing](#contributing)
@@ -34,6 +35,28 @@ Node.js, Rust, or anything else first — that's only required if you want to bu
 from source (see [Getting started](#getting-started) below).
 
 GitSplash is currently in **beta**, so expect occasional rough edges.
+
+## Screenshots
+
+<p align="center"><img src="docs/screenshots/dashboard.png" alt="Dashboard: grouped repos with live ahead/behind and clean/dirty status" width="800" /></p>
+
+Multiple accounts, grouped repos, at-a-glance status — fetch, pull, or push a whole group at once.
+
+<p align="center"><img src="docs/screenshots/diff-staging.png" alt="Diff viewer with hunk-level staging" width="800" /></p>
+
+A real diff viewer with hunk-level staging — stage exactly the lines you mean to commit.
+
+<p align="center"><img src="docs/screenshots/branches.png" alt="Branches panel with full commit graph" width="800" /></p>
+
+Every local and remote branch, tags included, with the full commit graph right in the same panel.
+
+<p align="center"><img src="docs/screenshots/pull-requests.png" alt="Pull requests listed via the gh CLI" width="800" /></p>
+
+Pull requests via the `gh` CLI, scoped to whichever account owns the repo.
+
+<p align="center"><img src="docs/screenshots/repo-history.png" alt="Repo History: a zoomable, spread-out view of every branch's commits" width="800" /></p>
+
+**Repo History** — every branch's commits, spread out and zoomable, like a small constellation of the project.
 
 ## Features
 

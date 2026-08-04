@@ -278,34 +278,40 @@ export function PullRequestsPanel({ repo }: { repo: Repo }) {
         {prs.map((pr) => (
           <div
             key={pr.number}
-            className="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm hover:bg-accent/50"
+            className="flex cursor-pointer flex-col gap-1.5 rounded-md border p-2 text-sm hover:bg-accent/50"
             onClick={() => setDetailPr(pr)}
           >
-            <GitPullRequest className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate">
-              #{pr.number} {pr.title}
-            </span>
-            {pr.isDraft && <Badge variant="outline">draft</Badge>}
-            <Badge variant="secondary">
+            <div className="flex items-center gap-2">
+              <GitPullRequest className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">
+                #{pr.number} {pr.title}
+              </span>
+              {pr.isDraft && <Badge variant="outline">draft</Badge>}
+              <Button size="icon" variant="ghost" className="size-7" asChild onClick={(e) => e.stopPropagation()}>
+                <a href={pr.url} target="_blank" rel="noreferrer">
+                  <ExternalLink className="size-3.5" />
+                </a>
+              </Button>
+              <Select
+                onValueChange={(m) => setMergeTarget({ pr, method: m as "merge" | "squash" | "rebase" })}
+              >
+                <SelectTrigger className="h-7 w-28 text-xs" onClick={(e) => e.stopPropagation()}>
+                  <SelectValue placeholder="Merge…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="merge">Merge</SelectItem>
+                  <SelectItem value="squash">Squash</SelectItem>
+                  <SelectItem value="rebase">Rebase</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Its own row, not squeezed onto the title's — a long branch
+                name (dependabot/codex branches routinely run 40+ chars)
+                would otherwise claim most of the row's width and truncate
+                the actual PR title down to almost nothing. */}
+            <Badge variant="secondary" className="ml-6 w-fit max-w-full truncate">
               {pr.headRefName} → {pr.baseRefName}
             </Badge>
-            <Button size="icon" variant="ghost" className="size-7" asChild onClick={(e) => e.stopPropagation()}>
-              <a href={pr.url} target="_blank" rel="noreferrer">
-                <ExternalLink className="size-3.5" />
-              </a>
-            </Button>
-            <Select
-              onValueChange={(m) => setMergeTarget({ pr, method: m as "merge" | "squash" | "rebase" })}
-            >
-              <SelectTrigger className="h-7 w-28 text-xs" onClick={(e) => e.stopPropagation()}>
-                <SelectValue placeholder="Merge…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="merge">Merge</SelectItem>
-                <SelectItem value="squash">Squash</SelectItem>
-                <SelectItem value="rebase">Rebase</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         ))}
         {!loading && prs.length === 0 && (

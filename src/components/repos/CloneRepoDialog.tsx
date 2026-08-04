@@ -224,12 +224,11 @@ export function CloneRepoDialog() {
                   ))}
                 </SelectContent>
               </Select>
-              {accountId && (
-                <p className="text-xs text-muted-foreground">
-                  If the Git URL above is a plain https:// link, it's cloned using this account's
-                  GitHub credentials.
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                {accountId
+                  ? "If the Git URL above is a plain https:// link, it's cloned using this account's GitHub credentials."
+                  : "Selecting an account here lets a plain https:// URL clone using that account's GitHub credentials — useful for private repos."}
+              </p>
             </div>
           )}
           {groups.length > 0 && (

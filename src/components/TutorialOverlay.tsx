@@ -8,7 +8,8 @@ import * as api from "@/lib/api";
 
 const CARD_WIDTH = 320;
 const CARD_MARGIN = 12;
-const MAX_LOCATE_ATTEMPTS = 40;
+const MAX_LOCATE_MS = 1500;
+const LOCATE_POLL_MS = 50;
 
 /// First-run walkthrough. Sits below dialogs in z-index (z-40 vs their
 /// z-50) so opening a real dialog (e.g. after clicking the highlighted "Add
@@ -22,11 +23,20 @@ export function TutorialOverlay() {
   const setView = useAppStore((s) => s.setView);
   const settings = useAppStore((s) => s.settings);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
+  // Re-locate the target whenever a repo/group/account is added or removed,
+  // not just on step change — otherwise a user who adds a repo while
+  // parked on the "Group a repo"/"Explore a repo" step (rather than
+  // clicking Next first) never sees it pick up the newly-mounted card;
+  // .length is enough since only presence/absence of an element matters
+  // here, not any of these records' other fields changing.
+  const repoCount = useAppStore((s) => s.repos.length);
+  const groupCount = useAppStore((s) => s.groups.length);
+  const accountCount = useAppStore((s) => s.accounts.length);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [targetMissing, setTargetMissing] = useState(false);
-  const rafRef = useRef<number | null>(null);
+  const timeoutRef = useRef<number | null>(null);
 
   const step = TUTORIAL_STEPS[stepIndex];
 
@@ -46,16 +56,24 @@ export function TutorialOverlay() {
   useEffect(() => {
     if (!tutorialActive) {
       setTargetRect(null);
+      setTargetMissing(false);
       return;
     }
+    // Reset to a neutral "still searching" state immediately, before the
+    // search below even starts — without this, if locating the new step's
+    // target is ever slow (or never resolves — see the polling comment
+    // below), the card keeps showing the *previous* step's rect and body
+    // text rather than this step's, which looks exactly like a tutorial
+    // prompt pointing at the wrong button.
+    setTargetRect(null);
+    setTargetMissing(false);
+
     if (!step.target) {
-      setTargetRect(null);
-      setTargetMissing(false);
       return;
     }
 
     let cancelled = false;
-    let attempts = 0;
+    const startedAt = Date.now();
 
     const locate = () => {
       if (cancelled) return;
@@ -66,9 +84,13 @@ export function TutorialOverlay() {
         setTargetMissing(false);
         return;
       }
-      attempts += 1;
-      if (attempts < MAX_LOCATE_ATTEMPTS) {
-        rafRef.current = requestAnimationFrame(locate);
+      // Polls on a wall-clock timer rather than requestAnimationFrame:
+      // rAF can stall indefinitely whenever the window isn't actively
+      // painting (minimized, backgrounded, OS power-saving), which would
+      // leave this effect waiting forever instead of ever giving up and
+      // falling back to the centered "target not on screen yet" card.
+      if (Date.now() - startedAt < MAX_LOCATE_MS) {
+        timeoutRef.current = window.setTimeout(locate, LOCATE_POLL_MS);
       } else {
         setTargetRect(null);
         setTargetMissing(true);
@@ -83,11 +105,11 @@ export function TutorialOverlay() {
     window.addEventListener("resize", onResize);
     return () => {
       cancelled = true;
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
       window.removeEventListener("resize", onResize);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tutorialActive, stepIndex]);
+  }, [tutorialActive, stepIndex, repoCount, groupCount, accountCount]);
 
   if (!tutorialActive) return null;
 

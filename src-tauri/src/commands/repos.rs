@@ -1,11 +1,29 @@
 use crate::db;
 use crate::error::{AppError, AppResult};
+use crate::gh;
 use crate::git;
-use crate::models::{Repo, RepoGitStatus};
+use crate::models::{Account, Repo, RepoGitStatus};
 use crate::state::AppState;
 use crate::util::{new_id, now_iso};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::path::Path;
 use tauri::{AppHandle, State};
+
+/// Best-effort: if `account` has a stored GitHub token (i.e. it was set up
+/// via "Log in with browser"), builds a one-shot `AUTHORIZATION: Basic ...`
+/// header value so a plain `https://` clone URL can be authenticated with
+/// that account's identity — see `git::clone::clone_repo`'s `auth_header`
+/// param for why this is needed. Returns `None` (never an error) for any
+/// account without a gh-authenticated username, so cloning with no account
+/// selected — or an account set up by hand rather than via browser login —
+/// keeps working exactly as before, just without this shortcut.
+async fn build_clone_auth_header(account: Option<Account>) -> Option<String> {
+    let account = account?;
+    let username = account.github_username.as_ref()?;
+    let token = gh::token_for_user(&account.hostname, username).await.ok()?;
+    let basic = STANDARD.encode(format!("x-access-token:{token}"));
+    Some(format!("AUTHORIZATION: Basic {basic}"))
+}
 
 #[tauri::command]
 pub fn list_repos(state: State<'_, AppState>) -> AppResult<Vec<Repo>> {
@@ -82,7 +100,19 @@ pub async fn clone_repo(
     clone_id: String,
 ) -> AppResult<Repo> {
     let dest = Path::new(&parent_dir).join(&folder_name);
-    git::clone::clone_repo(&app, &clone_id, &url, &dest).await.map_err(AppError::Git)?;
+
+    let account = match &account_id {
+        Some(acc_id) => {
+            let conn = state.db.lock().unwrap();
+            db::get_account(&conn, acc_id)?
+        }
+        None => None,
+    };
+    let auth_header = build_clone_auth_header(account).await;
+
+    git::clone::clone_repo(&app, &clone_id, &url, &dest, auth_header.as_deref())
+        .await
+        .map_err(AppError::Git)?;
 
     let canonical = dest
         .canonicalize()

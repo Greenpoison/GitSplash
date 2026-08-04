@@ -22,7 +22,23 @@ fn git_err(prefix: &str, stderr: &str) -> String {
 /// Streams progress as "clone-progress" events tagged with `clone_id`, so
 /// the frontend can match events back to the specific clone that's still
 /// running in the background after its dialog has closed.
-pub async fn clone_repo(app: &AppHandle, clone_id: &str, url: &str, dest: &Path) -> Result<(), String> {
+///
+/// `auth_header`, when given, is passed as a one-shot `-c http.extraheader=`
+/// override — scoped to this single git invocation only, never written to
+/// the resulting repo's `.git/config` — so a plain `https://` URL can be
+/// authenticated with a specific account's token. Without this, GitSplash
+/// has no way to know which of possibly several accounts should handle a
+/// URL that carries no account-specific info at all (unlike an SSH URL
+/// through one of GitSplash's own host aliases, which already encodes
+/// that). Harmless to pass for an `ssh://`/`git@` URL too — git only
+/// applies an http.* config value to HTTP(S) requests.
+pub async fn clone_repo(
+    app: &AppHandle,
+    clone_id: &str,
+    url: &str,
+    dest: &Path,
+    auth_header: Option<&str>,
+) -> Result<(), String> {
     if dest.exists() {
         return Err(format!("{} already exists", dest.display()));
     }
@@ -33,6 +49,9 @@ pub async fn clone_repo(app: &AppHandle, clone_id: &str, url: &str, dest: &Path)
 
     let mut cmd = Command::new("git");
     no_window_tokio(&mut cmd);
+    if let Some(header) = auth_header {
+        cmd.arg("-c").arg(format!("http.extraheader={header}"));
+    }
     let mut child = cmd
         .arg("clone")
         .arg("--progress")

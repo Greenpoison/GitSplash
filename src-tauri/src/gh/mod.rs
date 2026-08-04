@@ -12,7 +12,12 @@ use tokio::time::timeout;
 /// Fetches the stored token for a specific gh-authenticated GitHub username
 /// without touching gh's globally "active" account — this is what lets
 /// concurrent operations across two different GitHub identities be safe.
-async fn token_for_user(hostname: &str, username: &str) -> Result<String, String> {
+///
+/// `pub(crate)` (not private) so `commands::repos::clone_repo` can borrow an
+/// account's token to authenticate a plain `https://` clone URL — see the
+/// comment there for why a clone can't just rely on the account's SSH key
+/// the way every other git operation on an assigned repo does.
+pub(crate) async fn token_for_user(hostname: &str, username: &str) -> Result<String, String> {
     let mut cmd = Command::new("gh");
     no_window_tokio(&mut cmd);
     let output = cmd

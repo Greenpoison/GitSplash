@@ -68,6 +68,7 @@ pub async fn create_account(
         .await
         .map_err(AppError::Ssh)?;
     ssh::config::upsert_host_block(&host_alias, &hostname, &key_path, false).map_err(AppError::Ssh)?;
+    ssh::config::ensure_known_host(&hostname, false).await;
 
     // Signing keys are opt-in via the "Generate signing key" button, not
     // generated automatically here — see generate_signing_key.
@@ -114,6 +115,7 @@ pub async fn create_account_via_browser(
         .await
         .map_err(AppError::Ssh)?;
     ssh::config::upsert_host_block(&host_alias, &hostname, &key_path, false).map_err(AppError::Ssh)?;
+    ssh::config::ensure_known_host(&hostname, false).await;
 
     let pubkey_path = ssh::keygen::public_key_path(&key_path);
     if let Err(e) = gh::upload_ssh_key(&hostname, &username, &pubkey_path, &format!("GitSplash - {host_alias}"), "authentication").await {
@@ -308,9 +310,7 @@ pub async fn set_account_ssh_over_https(
     )
     .map_err(AppError::Ssh)?;
 
-    if enabled {
-        ssh::config::ensure_https_port_known_host().await;
-    }
+    ssh::config::ensure_known_host(&account.hostname, enabled).await;
 
     Ok(account)
 }

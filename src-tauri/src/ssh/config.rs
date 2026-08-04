@@ -98,34 +98,50 @@ pub fn upsert_host_block(
     write_config(&path, &new_contents)
 }
 
-/// Best-effort: records ssh.github.com's host key(s) in known_hosts, keyed
-/// by the plain hostname (not "[ssh.github.com]:443") so they match what a
-/// real connection over port 443 looks up. Without this, the first SSH
-/// connection over the new port has no cached host key and — since this app
-/// invokes git non-interactively, with no terminal for an interactive
-/// "trust this host?" prompt to appear on — would fail outright instead of
-/// just working. Never fails the caller: if this doesn't run, turning the
-/// option on still saves, it just may need one manual `ssh -T` first.
-pub async fn ensure_https_port_known_host() {
+/// Best-effort: records the relevant host's key(s) in known_hosts before this
+/// app ever makes a real SSH connection to it. Without this, the very first
+/// SSH connection — whether to `hostname:22` or, with the `use_https_port`
+/// workaround, `ssh.github.com:443` — has no cached host key and, since this
+/// app invokes git non-interactively with no terminal for an interactive
+/// "trust this host?" prompt to appear on, fails outright ("Host key
+/// verification failed") instead of just working. This is exactly the gap
+/// that bit a fresh-machine setup: `upsert_host_block` wrote the SSH config
+/// but nothing ever primed known_hosts for the plain port-22 case. Never
+/// fails the caller: if this doesn't run, the config change still saves, it
+/// just may need one manual `ssh -T` first.
+///
+/// `use_https_port` mirrors the same flag passed to `upsert_host_block`: when
+/// true, keyscans ssh.github.com:443 and stores it keyed by the plain
+/// "ssh.github.com" name (not "[ssh.github.com]:443") so it matches what a
+/// real connection over port 443 looks up; otherwise keyscans `hostname` on
+/// the default port 22.
+pub async fn ensure_known_host(hostname: &str, use_https_port: bool) {
     let Ok(ssh_dir) = ssh_dir() else { return };
     let known_hosts_path = ssh_dir.join("known_hosts");
     let existing = read_config(&known_hosts_path).unwrap_or_default();
-    if existing.lines().any(|l| l.trim_start().starts_with("ssh.github.com ")) {
+
+    let lookup_name = if use_https_port { "ssh.github.com" } else { hostname };
+    if existing
+        .lines()
+        .any(|l| l.trim_start().starts_with(&format!("{lookup_name} ")))
+    {
         return;
     }
 
-    let Ok(output) = tokio::process::Command::new("ssh-keyscan")
-        .args(["-p", "443", "ssh.github.com"])
-        .output()
-        .await
-    else {
-        return;
-    };
+    let mut cmd = tokio::process::Command::new("ssh-keyscan");
+    if use_https_port {
+        cmd.args(["-p", "443", "ssh.github.com"]);
+    } else {
+        cmd.arg(hostname);
+    }
+    let Ok(output) = cmd.output().await else { return };
 
+    let prefix = if use_https_port { "[ssh.github.com]:443 ".to_string() } else { format!("{hostname} ") };
     let mut appended = String::new();
     for line in String::from_utf8_lossy(&output.stdout).lines() {
-        if let Some(rest) = line.strip_prefix("[ssh.github.com]:443 ") {
-            appended.push_str("ssh.github.com ");
+        if let Some(rest) = line.strip_prefix(prefix.as_str()) {
+            appended.push_str(lookup_name);
+            appended.push(' ');
             appended.push_str(rest);
             appended.push('\n');
         }

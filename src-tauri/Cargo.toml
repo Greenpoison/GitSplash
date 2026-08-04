@@ -1,6 +1,6 @@
 [package]
 name = "gitsplash"
-version = "1.0.69-beta"
+version = "1.0.71-beta"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"

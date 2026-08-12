@@ -7,6 +7,7 @@
 // for the first installer release).
 const fs = require("fs");
 const path = require("path");
+const { execFileSync } = require("child_process");
 
 const root = path.resolve(__dirname, "..");
 
@@ -47,16 +48,19 @@ fs.writeFileSync(cargoTomlPath, updatedCargoToml);
 // Cargo itself only rewrites this on the next build, which otherwise leaves
 // the lockfile's own version metadata one commit behind — same class of
 // lag as the version-bump hook's original pre-push bug, just for a
-// different file. Only touches the gitsplash package's own block, not any
-// dependency that happens to be on the same version number.
+// different file. Previously did this with a hand-rolled regex over
+// Cargo.lock's text, which silently failed to keep the two files in sync
+// more than once (see git history) for reasons never fully pinned down.
+// `cargo update` is what actually owns this file's format, so let it do
+// the edit instead of re-implementing it — `--precise` with the package's
+// own name only touches its own version line, not any dependency.
 const cargoLockPath = path.join(root, "src-tauri", "Cargo.lock");
 if (fs.existsSync(cargoLockPath)) {
-  const cargoLock = fs.readFileSync(cargoLockPath, "utf8");
-  const updatedCargoLock = cargoLock.replace(
-    /(\[\[package\]\]\nname = "gitsplash"\nversion = ").*(")/,
-    `$1${newVersion}$2`,
+  execFileSync(
+    "cargo",
+    ["update", "--offline", "--package", "gitsplash", "--precise", newVersion],
+    { cwd: path.join(root, "src-tauri"), stdio: "inherit" },
   );
-  fs.writeFileSync(cargoLockPath, updatedCargoLock);
 }
 
 console.log(newVersion);

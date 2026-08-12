@@ -166,7 +166,9 @@ export function DirtyPullDialog({
             {upstream ?? "the remote"} yet (that part alone can be undone afterward).
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {upstream && <GitCommandPreview command={`git reset --hard ${upstream}`} />}
+        {upstream && (
+          <GitCommandPreview command={[`git reset --hard ${upstream}`, "git clean -fd"]} />
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={discardAndOverwrite}>Discard & overwrite</AlertDialogAction>

@@ -23,10 +23,18 @@ pub struct SecretFile {
     pub size_bytes: u64,
 }
 
+// Template files committed on purpose to document which vars a real .env
+// needs — never contain live values, so they shouldn't trip secret detection.
+const ENV_TEMPLATE_SUFFIXES: &[&str] = &[".example", ".sample", ".template", ".dist"];
+
 fn looks_like_secret(file_name: &str) -> bool {
     let lower = file_name.to_ascii_lowercase();
-    lower.starts_with(".env")
-        || lower.ends_with(".pem")
+    if lower.starts_with(".env") {
+        return !ENV_TEMPLATE_SUFFIXES
+            .iter()
+            .any(|suffix| lower.ends_with(suffix));
+    }
+    lower.ends_with(".pem")
         || lower.ends_with(".key")
         || lower.ends_with(".pfx")
         || lower.ends_with(".p12")
@@ -81,4 +89,33 @@ pub fn scan_repo_for_secrets(repo_path: &Path) -> Vec<SecretFile> {
         });
     }
     found
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flags_real_env_files() {
+        assert!(looks_like_secret(".env"));
+        assert!(looks_like_secret(".env.local"));
+        assert!(looks_like_secret(".env.production"));
+        assert!(looks_like_secret(".ENV"));
+    }
+
+    #[test]
+    fn ignores_env_templates() {
+        assert!(!looks_like_secret(".env.example"));
+        assert!(!looks_like_secret(".env.sample"));
+        assert!(!looks_like_secret(".env.template"));
+        assert!(!looks_like_secret(".env.dist"));
+        assert!(!looks_like_secret(".ENV.EXAMPLE"));
+    }
+
+    #[test]
+    fn still_flags_other_secret_patterns() {
+        assert!(looks_like_secret("id_rsa"));
+        assert!(looks_like_secret("secrets.json"));
+        assert!(looks_like_secret("server.pem"));
+    }
 }

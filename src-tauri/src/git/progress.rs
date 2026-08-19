@@ -53,7 +53,7 @@ fn parse_progress_line(line: &str) -> Option<(&'static str, Option<u8>)> {
 /// still wants the same byte-level stderr streaming.
 pub async fn stream_progress(
     mut stderr: tokio::process::ChildStderr,
-    app: &AppHandle,
+    app: Option<&AppHandle>,
     event: &'static str,
     op_id: &str,
 ) -> String {
@@ -71,11 +71,13 @@ pub async fn stream_progress(
         while let Some(idx) = pending.find(['\r', '\n']) {
             let line = pending[..idx].to_string();
             pending.drain(..=idx);
-            if let Some((stage, percent)) = parse_progress_line(&line) {
-                let _ = app.emit(
-                    event,
-                    GitProgress { op_id: op_id.to_string(), stage: stage.to_string(), percent },
-                );
+            if let Some(app) = app {
+                if let Some((stage, percent)) = parse_progress_line(&line) {
+                    let _ = app.emit(
+                        event,
+                        GitProgress { op_id: op_id.to_string(), stage: stage.to_string(), percent },
+                    );
+                }
             }
         }
     }
@@ -92,7 +94,7 @@ pub async fn stream_progress(
 pub async fn run_git_with_progress(
     repo_path: &Path,
     args: &[&str],
-    app: &AppHandle,
+    app: Option<&AppHandle>,
     event: &'static str,
     op_id: &str,
 ) -> std::io::Result<GitOutput> {

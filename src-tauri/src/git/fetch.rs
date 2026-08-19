@@ -52,7 +52,7 @@ pub struct FetchOutcome {
 /// --ff-only` afterward doesn't get the same treatment, since it's a local,
 /// near-instant operation with nothing meaningful to show a percentage for.
 pub async fn fetch_and_maybe_pull(
-    app: &AppHandle,
+    app: Option<&AppHandle>,
     op_id: &str,
     repo_id: &str,
     repo_path: &Path,

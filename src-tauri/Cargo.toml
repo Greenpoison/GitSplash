@@ -1,6 +1,6 @@
 [package]
 name = "gitsplash"
-version = "1.0.89-beta"
+version = "1.0.90-beta"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -37,6 +37,7 @@ walkdir = "2.5.0"
 rand = { version = "0.10.2", features = ["std"] }
 futures = "0.3.33"
 base64 = "0.22"
+clap = { version = "4", features = ["derive"] }
 
 [dev-dependencies]
 tempfile = "3"

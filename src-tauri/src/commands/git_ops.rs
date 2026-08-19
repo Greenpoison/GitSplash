@@ -32,7 +32,7 @@ pub async fn fetch_repo(
             .ok_or_else(|| AppError::NotFound(format!("repo {repo_id} not found")))?
             .path
     };
-    let outcome = git::fetch::fetch_and_maybe_pull(&app, &op_id, &repo_id, &PathBuf::from(repo_path), pull).await;
+    let outcome = git::fetch::fetch_and_maybe_pull(Some(&app), &op_id, &repo_id, &PathBuf::from(repo_path), pull).await;
     if outcome.fetched {
         let conn = state.db.lock().unwrap();
         db::touch_last_fetched(&conn, &repo_id, &now_iso()).ok();
@@ -57,7 +57,7 @@ pub async fn push_repo(
             .ok_or_else(|| AppError::NotFound(format!("repo {repo_id} not found")))?
             .path
     };
-    Ok(git::push::push(&app, &op_id, &repo_id, &PathBuf::from(repo_path), force).await)
+    Ok(git::push::push(Some(&app), &op_id, &repo_id, &PathBuf::from(repo_path), force).await)
 }
 
 /// Pushes every repo in a group's current branch, in parallel up to the
@@ -110,7 +110,7 @@ pub async fn batch_push_group(app: AppHandle, state: State<'_, AppState>, group_
             // (BatchEvent/"batch-progress"), so `repo.id` is passed as the
             // op_id here purely to satisfy the signature — nothing listens
             // for a "push-progress"/repo.id pair from a batch run.
-            let outcome = git::push::push(&app, &repo.id, &repo.id, &repo_path, false).await;
+            let outcome = git::push::push(Some(&app), &repo.id, &repo.id, &repo_path, false).await;
 
             let phase = if outcome.pushed { BatchPhase::Success } else { BatchPhase::Failed };
 
@@ -182,7 +182,7 @@ pub async fn batch_update_group(
 
             // See the comment in batch_push_group above: `repo.id` as op_id
             // is unused by anything today, just satisfying the signature.
-            let outcome = git::fetch::fetch_and_maybe_pull(&app, &repo.id, &repo.id, &repo_path, pull).await;
+            let outcome = git::fetch::fetch_and_maybe_pull(Some(&app), &repo.id, &repo.id, &repo_path, pull).await;
 
             if outcome.fetched {
                 let state = app.state::<AppState>();

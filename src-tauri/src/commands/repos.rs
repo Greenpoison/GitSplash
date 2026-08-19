@@ -110,7 +110,7 @@ pub async fn clone_repo(
     };
     let auth_header = build_clone_auth_header(account).await;
 
-    git::clone::clone_repo(&app, &clone_id, &url, &dest, auth_header.as_deref())
+    git::clone::clone_repo(Some(&app), &clone_id, &url, &dest, auth_header.as_deref())
         .await
         .map_err(AppError::Git)?;
 

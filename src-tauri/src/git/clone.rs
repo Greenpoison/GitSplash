@@ -33,7 +33,7 @@ fn git_err(prefix: &str, stderr: &str) -> String {
 /// that). Harmless to pass for an `ssh://`/`git@` URL too — git only
 /// applies an http.* config value to HTTP(S) requests.
 pub async fn clone_repo(
-    app: &AppHandle,
+    app: Option<&AppHandle>,
     clone_id: &str,
     url: &str,
     dest: &Path,

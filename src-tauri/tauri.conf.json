@@ -1,7 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "gitsplash",
-  "version": "1.0.90-beta",
+  "mainBinaryName": "gitsplash",
+  "version": "1.0.91-beta",
   "identifier": "com.gitsplash.app",
   "build": {
     "beforeDevCommand": "npm run dev",

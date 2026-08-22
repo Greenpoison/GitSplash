@@ -1466,7 +1466,7 @@ dependencies = [
 
 [[package]]
 name = "gitsplash"
-version = "1.0.89-beta"
+version = "1.0.93-beta"
 dependencies = [
  "base64 0.22.1",
  "chrono",

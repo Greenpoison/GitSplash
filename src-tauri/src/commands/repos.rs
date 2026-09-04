@@ -25,6 +25,24 @@ async fn build_clone_auth_header(account: Option<Account>) -> Option<String> {
     Some(format!("AUTHORIZATION: Basic {basic}"))
 }
 
+/// Rewrites a plain SSH clone URL (`git@github.com:owner/repo.git`,
+/// `ssh://git@github.com/owner/repo.git`) to route through `account`'s
+/// GitSplash-managed host alias, so the clone uses that account's key
+/// instead of the system's default SSH identity. Leaves the URL alone for
+/// `https://` (handled by `build_clone_auth_header` instead) or when no
+/// account is selected, and falls back to the original URL if it doesn't
+/// look like a recognized GitHub SSH URL.
+fn resolve_clone_url(url: &str, account: Option<&Account>) -> String {
+    let Some(account) = account else { return url.to_string() };
+    if !(url.starts_with("git@") || url.starts_with("ssh://")) {
+        return url.to_string();
+    }
+    match git::remote::extract_github_path(url) {
+        Some(path) => git::remote::build_aliased_url(&account.host_alias, &path),
+        None => url.to_string(),
+    }
+}
+
 #[tauri::command]
 pub fn list_repos(state: State<'_, AppState>) -> AppResult<Vec<Repo>> {
     let conn = state.db.lock().unwrap();
@@ -108,9 +126,10 @@ pub async fn clone_repo(
         }
         None => None,
     };
+    let resolved_url = resolve_clone_url(&url, account.as_ref());
     let auth_header = build_clone_auth_header(account).await;
 
-    git::clone::clone_repo(&app, &clone_id, &url, &dest, auth_header.as_deref())
+    git::clone::clone_repo(Some(&app), &clone_id, &resolved_url, &dest, auth_header.as_deref())
         .await
         .map_err(AppError::Git)?;
 

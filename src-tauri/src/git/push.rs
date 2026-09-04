@@ -23,7 +23,7 @@ pub struct PushOutcome {
 /// a bare `--force`) so a push can't silently clobber commits someone else
 /// pushed since our last fetch. Streams progress as `event` Tauri events
 /// tagged with `op_id` (see `progress::run_git_with_progress`).
-pub async fn push(app: &AppHandle, op_id: &str, repo_id: &str, repo_path: &Path, force: bool) -> PushOutcome {
+pub async fn push(app: Option<&AppHandle>, op_id: &str, repo_id: &str, repo_path: &Path, force: bool) -> PushOutcome {
     let status = get_status(repo_id, repo_path).await;
     if let Some(err) = status.error {
         return PushOutcome { pushed: false, set_upstream: false, rejected: false, message: Some(err) };

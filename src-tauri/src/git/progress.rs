@@ -29,6 +29,8 @@ fn parse_progress_line(line: &str) -> Option<(&'static str, Option<u8>)> {
         "Counting objects"
     } else if line.contains("Writing objects") {
         "Writing objects"
+    } else if line.contains("Updating files") {
+        "Updating files"
     } else {
         return None;
     };

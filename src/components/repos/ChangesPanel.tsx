@@ -214,10 +214,18 @@ function DraggableFileRow({ path, staged, children }: { path: string; staged: bo
   );
 }
 
-function DroppableZone({ id, children }: { id: string; children: ReactNode }) {
+function DroppableZone({
+  id,
+  className,
+  children,
+}: {
+  id: string;
+  className?: string;
+  children: ReactNode;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <div ref={setNodeRef} className={cn("flex flex-col gap-1 rounded-md", isOver && "bg-accent/40")}>
+    <div ref={setNodeRef} className={cn("flex flex-col gap-1 rounded-md", className, isOver && "bg-accent/40")}>
       {children}
     </div>
   );
@@ -533,7 +541,7 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
                   </button>
                 )}
               </div>
-              <DroppableZone id="staged-zone">
+              <DroppableZone id="staged-zone" className="min-h-10">
                 {staged.map((f) => (
                   <DraggableFileRow key={f.path} path={f.path} staged>
                     <FileRow
@@ -546,6 +554,9 @@ export function ChangesPanel({ repo, onChanged }: { repo: Repo; onChanged: () =>
                     />
                   </DraggableFileRow>
                 ))}
+                {staged.length === 0 && (
+                  <p className="px-1 py-2 text-xs text-muted-foreground">Drop files here to stage them.</p>
+                )}
               </DroppableZone>
             </div>
 

@@ -42,6 +42,10 @@ pub async fn run_git_with_env(
     let output = cmd
         .arg("-C")
         .arg(repo_path)
+        // Windows' legacy 260-char MAX_PATH otherwise makes git fail outright
+        // (e.g. "Filename too long") on deeply nested repos, aborting the
+        // whole command rather than just skipping that one file.
+        .args(["-c", "core.longpaths=true"])
         .args(args)
         .envs(envs.iter().copied())
         .output()

@@ -44,15 +44,15 @@ export function DiffHunkView({
         {patchable && (
           <div className="flex gap-1">
             {staged ? (
-              <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs" onClick={onUnstage}>
+              <Button size="sm" variant="outline" className="h-6 gap-1 px-2 text-xs" onClick={onUnstage}>
                 <ArrowLeft className="size-3" /> Unstage hunk
               </Button>
             ) : (
               <>
-                <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs" onClick={onDiscard}>
+                <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs text-muted-foreground" onClick={onDiscard}>
                   <Trash2 className="size-3" /> Discard hunk
                 </Button>
-                <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs" onClick={onStage}>
+                <Button size="sm" variant="outline" className="h-6 gap-1 px-2 text-xs" onClick={onStage}>
                   <ArrowRight className="size-3" /> Stage hunk
                 </Button>
               </>
